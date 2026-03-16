@@ -1,0 +1,38 @@
+#!/bin/bash
+# Pre-commit hook: blocks commits containing secrets or personal data
+# Install: cp .githooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+FOUND=0
+
+echo "🔍 Pre-commit: scanning for secrets..."
+
+# Patterns to reject
+PATTERNS=(
+  "sk-[a-zA-Z0-9]"
+  "ghp_[a-zA-Z0-9]"
+  "gho_[a-zA-Z0-9]"
+  "Bearer [a-zA-Z0-9]"
+  "@gmail.com"
+  "@outlook.com"
+  "API_KEY="
+  "/Users/"
+  "/home/"
+)
+
+for pattern in "${PATTERNS[@]}"; do
+  if git diff --cached --diff-filter=ACM -U0 | grep -E "^\+" | grep -qE "$pattern"; then
+    echo -e "${RED}❌ Found blocked pattern: $pattern${NC}"
+    FOUND=1
+  fi
+done
+
+if [ $FOUND -eq 1 ]; then
+  echo -e "${RED}Commit blocked — remove secrets/personal data first${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}✅ Clean — no secrets detected${NC}"
+exit 0

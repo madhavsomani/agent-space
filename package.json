@@ -1,0 +1,15 @@
+{
+  "name": "agent-space",
+  "version": "1.0.0",
+  "description": "A real-time dashboard for monitoring OpenClaw AI agent teams — activity, health, tokens, work requests, and more.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["openclaw", "ai-agents", "dashboard", "monitoring"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

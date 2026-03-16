@@ -1,0 +1,50 @@
+{
+  "agents": {
+    "main": {
+      "name": "MC",
+      "role": "CEO",
+      "color": "#FFD700",
+      "sessionKey": "agent:main:main"
+    },
+    "director": {
+      "name": "Director",
+      "role": "Content Director",
+      "color": "#FF6B6B",
+      "sessionKey": "agent:director:main"
+    },
+    "writer": {
+      "name": "Writer",
+      "role": "Writer + Research",
+      "color": "#4ECDC4",
+      "sessionKey": "agent:writer:main"
+    },
+    "designer": {
+      "name": "Designer",
+      "role": "Visual Designer",
+      "color": "#A78BFA",
+      "sessionKey": "agent:designer:main"
+    },
+    "producer": {
+      "name": "Producer",
+      "role": "Video Producer",
+      "color": "#F97316",
+      "sessionKey": "agent:producer:main"
+    },
+    "publisher": {
+      "name": "Publisher",
+      "role": "Social Publisher",
+      "color": "#34D399",
+      "sessionKey": "agent:publisher:main"
+    }
+  },
+  "office": {
+    "deskPositions": {
+      "MC": { "gx": 7, "gy": 2 },
+      "Director": { "gx": 3, "gy": 4 },
+      "Writer": { "gx": 3, "gy": 6 },
+      "Designer": { "gx": 5, "gy": 4 },
+      "Producer": { "gx": 5, "gy": 6 },
+      "Publisher": { "gx": 7, "gy": 5 }
+    }
+  }
+}
