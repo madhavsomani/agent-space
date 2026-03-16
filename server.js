@@ -486,9 +486,9 @@ function getSystem() {
     const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
 
     const services = [];
-    try { execSync("curl -s --max-time 1 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { services.push({ name: 'Qdrant', status: 'stopped', port: 6333 }); }
+    try { execSync("curl -s --max-time 1 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* Qdrant not running — omit from list */ }
     try { execSync("/usr/bin/pgrep -f 'openclaw-gateway' > /dev/null 2>&1"); services.push({ name: 'Gateway', status: 'running', port: 18789 }); } catch { services.push({ name: 'Gateway', status: 'stopped', port: 18789 }); }
-    services.push({ name: 'HQ Dashboard', status: 'running', port: 18790 });
+    services.push({ name: 'Agent Space', status: 'running', port: 18790 });
 
     // Uptime
     let uptime = '';
@@ -533,9 +533,9 @@ function getSystemAsync() {
         const diskRaw = execSync("df -h / | tail -1", { encoding: 'utf8' }).trim().split(/\s+/);
         const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
         const services = [];
-        try { execSync("curl -s --max-time 1 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { services.push({ name: 'Qdrant', status: 'stopped', port: 6333 }); }
+        try { execSync("curl -s --max-time 1 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* omit if not running */ }
         try { execSync("/usr/bin/pgrep -f 'openclaw-gateway' > /dev/null 2>&1"); services.push({ name: 'Gateway', status: 'running', port: 18789 }); } catch { services.push({ name: 'Gateway', status: 'stopped', port: 18789 }); }
-        services.push({ name: 'HQ Dashboard', status: 'running', port: 18790 });
+        services.push({ name: 'Agent Space', status: 'running', port: 18790 });
         let uptime = '';
         try { uptime = execSync("uptime", { encoding: 'utf8', timeout: 2000 }).trim(); } catch {}
         let network = null;
@@ -695,7 +695,7 @@ function getTokens() {
   const p = pricing['claude-opus-4.6'];
   // Theoretical cost: non-cached input * input price + cached * cached price + output * output price
   const estCost = (totalInput * p.input + totalCached * p.cachedInput + totalOutput * p.output) / 1_000_000;
-  tokenCache = { pricing, totals: { input: totalInput, output: totalOutput, cached: totalCached }, estimatedCostUSD: Math.round(estCost * 100) / 100, byAgent, note: 'Theoretical — GitHub Copilot covers actual usage' };
+  tokenCache = { pricing, totals: { input: totalInput, output: totalOutput, cached: totalCached }, estimatedCostUSD: Math.round(estCost * 100) / 100, byAgent, note: 'Estimated based on model pricing' };
   tokenCacheTime = Date.now();
   return { ...tokenCache, timestamp: Date.now() };
 }
