@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "demo": "node server.js --demo",
     "dev": "node --watch server.js"
   },
   "keywords": ["openclaw", "ai-agents", "dashboard", "monitoring"],

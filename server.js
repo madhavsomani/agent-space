@@ -103,11 +103,71 @@ function demoUptime() {
   return { agents };
 }
 
-function demoTimeline() { return demoActivity(); }
-function demoHeatmap() { return { agents: {} }; }
+function demoTimeline() {
+  // 6-hour timeline with 15-min buckets = 24 buckets per agent
+  const now = Date.now();
+  const buckets = 24;
+  const bucketMs = 15 * 60 * 1000;
+  const events = [];
+  DEMO_AGENTS.forEach(a => {
+    for (let b = 0; b < buckets; b++) {
+      const ts = now - (buckets - b) * bucketMs;
+      // Simulate realistic activity patterns
+      const hourOfDay = new Date(ts).getHours();
+      const isActive = a.status === 'sleeping' ? (Math.random() < 0.15) :
+        a.status === 'working' ? (Math.random() < 0.85) : (Math.random() < 0.5);
+      if (isActive) {
+        events.push({ agent: a.name, ts, time: new Date(ts).toISOString(), msg: `${a.name} active`, type: 'agent' });
+      }
+    }
+  });
+  return { events };
+}
+function demoHeatmap() {
+  // GitHub-style 90-day calendar heatmap per agent
+  const now = Date.now();
+  const days = 90;
+  const agents = {};
+  DEMO_AGENTS.forEach(a => {
+    const data = {};
+    // Use agent name as seed for consistent patterns
+    const seed = a.name.charCodeAt(0) * 137 + a.name.length * 53;
+    for (let d = 0; d < days; d++) {
+      const date = new Date(now - (days - d) * 86400000);
+      const key = date.toISOString().split('T')[0];
+      const dow = date.getDay();
+      // Weekend dip, sleeping agents have sparse activity
+      const weekendFactor = (dow === 0 || dow === 6) ? 0.3 : 1.0;
+      const statusFactor = a.status === 'sleeping' ? 0.2 : a.status === 'idle' ? 0.6 : 1.0;
+      const noise = Math.sin(seed + d * 0.7) * 0.3 + Math.sin(seed * 3 + d * 0.3) * 0.2;
+      const base = 0.5 + noise;
+      const count = Math.max(0, Math.round(base * weekendFactor * statusFactor * 15));
+      data[key] = count;
+    }
+    agents[a.name] = { color: a.color, data };
+  });
+  return { agents };
+}
 function demoCommGraph() { return { edges: [{ from: 'Atlas', to: 'Nova', weight: 12 }, { from: 'Nova', to: 'Sage', weight: 8 }, { from: 'Forge', to: 'Circuit', weight: 15 }, { from: 'Atlas', to: 'Forge', weight: 6 }, { from: 'Sentinel', to: 'Forge', weight: 9 }], nodes: DEMO_AGENTS.map(a => ({ name: a.name, color: a.color })) }; }
 function demoDepGraph() { return { nodes: DEMO_AGENTS.map(a => ({ name: a.name, color: a.color, parent: a.name === 'Atlas' ? null : 'Atlas' })) }; }
-function demoLiveLogs() { return { logs: [] }; }
+function demoLiveLogs() {
+  const now = Date.now();
+  const logs = [];
+  const entries = [
+    { agent: 'Forge', role: 'assistant', text: 'Implementing retry logic for WebSocket connections with exponential backoff...' },
+    { agent: 'Circuit', role: 'assistant', text: 'Refactored 3 dashboard components to use shared state management' },
+    { agent: 'Atlas', role: 'user', text: 'Can you review PR #42 and check for edge cases in the auth flow?' },
+    { agent: 'Atlas', role: 'assistant', text: 'Reviewing PR #42 now. Found 2 minor issues in token refresh logic, commenting inline.' },
+    { agent: 'Nova', role: 'assistant', text: 'Drafted outline for "Building Your First Agent" — 8 sections, ~3000 words target' },
+    { agent: 'Sage', role: 'assistant', text: 'Finished writing section 3: Agent Memory & Context. Word count: 2,412.' },
+    { agent: 'Sentinel', role: 'assistant', text: 'Test suite complete: 47/47 passing. Coverage at 89.2%.' },
+    { agent: 'Pixel', role: 'assistant', text: 'Generated 4 social cards with brand colors. Exported as PNG + SVG.' },
+  ];
+  for (let i = 0; i < entries.length; i++) {
+    logs.push({ ...entries[i], ts: now - i * 180000, time: new Date(now - i * 180000).toISOString() });
+  }
+  return { logs };
+}
 function demoTokensDaily() { const days = []; for(let i=13;i>=0;i--){ const d = new Date(Date.now()-i*86400000); days.push({date:d.toISOString().split('T')[0], input:150000+Math.random()*100000, output:50000+Math.random()*40000, cached:80000+Math.random()*60000}); } return {days}; }
 function demoDiskBreakdown() { return { entries: [{path:'~/.openclaw',size:'1.2 GB'},{path:'~/projects',size:'4.8 GB'},{path:'/tmp',size:'320 MB'}] }; }
 function demoCompletionStats() { return { completed: 42, inProgress: 3, total: 48, rate: 87.5 }; }
