@@ -21,16 +21,16 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ```bash
 # Clone
-git clone https://github.com/youruser/agent-space.git
+git clone https://github.com/madhavsomani/agent-space.git
 cd agent-space
 
-# Configure (optional — agents are auto-discovered from ~/.openclaw/agents/)
-cp config.example.json config.json
-# Edit config.json to customize agent names, colors, roles
-
-# Run
-node server.js
+# Try it instantly with demo data (no OpenClaw needed!)
+node server.js --demo
 # → http://localhost:18790
+
+# Or run with real data from your OpenClaw agents
+cp config.example.json config.json  # optional — agents are auto-discovered
+node server.js
 ```
 
 ## Requirements

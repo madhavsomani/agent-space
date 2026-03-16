@@ -3,10 +3,146 @@ const fs = require('fs');
 const path = require('path');
 const { execSync, exec: execAsync } = require('child_process');
 
+const DEMO_MODE = process.argv.includes('--demo');
 const WR_DIR = path.join(__dirname, '..', 'work_requests');
 const HOME = process.env.HOME || require('os').homedir();
 const AGENTS_DIR = path.join(HOME, '.openclaw', 'agents');
 const QUEUE_FILE = path.join(WR_DIR, '_ACTIVE_QUEUE.md');
+
+if (DEMO_MODE) console.log('🎮 Running in DEMO mode — serving mock data');
+
+// ===== DEMO MODE DATA =====
+const DEMO_AGENTS = [
+  { name: 'Atlas', role: 'CEO', color: '#FFD700', status: 'working', sessionDir: 'atlas', lastActivity: 'Reviewing quarterly goals', activityAge: 120000 },
+  { name: 'Nova', role: 'Content Director', color: '#FF6B6B', status: 'working', sessionDir: 'nova', lastActivity: 'Planning blog series on AI agents', activityAge: 300000 },
+  { name: 'Sage', role: 'Writer', color: '#4ECDC4', status: 'idle', sessionDir: 'sage', lastActivity: 'Finished draft: "Building Your First Agent"', activityAge: 900000 },
+  { name: 'Pixel', role: 'Designer', color: '#A78BFA', status: 'idle', sessionDir: 'pixel', lastActivity: 'Created hero image for landing page', activityAge: 600000 },
+  { name: 'Forge', role: 'Backend Engineer', color: '#00D4FF', status: 'working', sessionDir: 'forge', lastActivity: 'Implementing WebSocket reconnection logic', activityAge: 45000 },
+  { name: 'Circuit', role: 'Frontend Engineer', color: '#00BFFF', status: 'working', sessionDir: 'circuit', lastActivity: 'Refactoring dashboard components', activityAge: 180000 },
+  { name: 'Herald', role: 'Email Ops', color: '#FF69B4', status: 'sleeping', sessionDir: 'herald', lastActivity: 'Processed 12 inbox items', activityAge: 3600000 },
+  { name: 'Sentinel', role: 'QA Agent', color: '#EF4444', status: 'idle', sessionDir: 'sentinel', lastActivity: 'All tests passing ✅', activityAge: 1200000 },
+];
+
+function demoAgents() {
+  // Rotate statuses slightly based on time for liveness
+  const now = Date.now();
+  const phase = Math.floor(now / 30000) % 8;
+  return { agents: DEMO_AGENTS.map((a, i) => {
+    let status = a.status;
+    if (i === phase % DEMO_AGENTS.length) status = ['working','idle','working'][Math.floor(now/10000) % 3];
+    return { ...a, status, lastActivityTs: now - a.activityAge + Math.sin(now/5000)*30000, persistent: i < 6 };
+  })};
+}
+
+function demoSystem() {
+  const now = Date.now();
+  const cpuJitter = 8 + Math.sin(now/7000)*5 + Math.random()*3;
+  return {
+    cpu: { usage: Math.round(cpuJitter*10)/10, cores: 8, model: 'Apple M2', speed: '3.49 GHz' },
+    memory: { usedPercent: 42 + Math.sin(now/12000)*5, total: '16.00 GB', used: `${(6.7+Math.sin(now/12000)*0.8).toFixed(2)} GB`, free: `${(9.3-Math.sin(now/12000)*0.8).toFixed(2)} GB` },
+    disk: { usedPercent: 61, total: '460 GB', used: '281 GB', free: '179 GB' },
+    uptime: '4d 12h 33m',
+    services: [
+      { name: 'OpenClaw Gateway', status: 'running', uptime: '4d 12h' },
+      { name: 'Agent Space', status: 'running', uptime: '2d 8h' },
+      { name: 'Qdrant', status: 'running', uptime: '4d 12h' },
+    ],
+    battery: { percent: 87, charging: true, timeRemaining: '~3h 20m' },
+    network: { bytesSent: 1240000000, bytesRecv: 3890000000, connections: 42 },
+  };
+}
+
+function demoTokens() {
+  return { totalInput: 2847312, totalOutput: 891204, totalCached: 1203488, models: { 'claude-sonnet-4-20250514': { input: 1800000, output: 520000, cached: 900000 }, 'gpt-4o': { input: 600000, output: 200000, cached: 200000 }, 'gemini-2.5-pro': { input: 447312, output: 171204, cached: 103488 } }, estimatedCost: '$4.82' };
+}
+
+function demoActivity() {
+  const now = Date.now();
+  const events = [];
+  const actions = [
+    { agent: 'Forge', msg: 'Committed: fix WebSocket reconnection', type: 'commit' },
+    { agent: 'Nova', msg: 'Created WR: Blog post outline', type: 'wr' },
+    { agent: 'Atlas', msg: 'Reviewed and approved PR #42', type: 'agent' },
+    { agent: 'Circuit', msg: 'Deployed dashboard v2.1', type: 'system' },
+    { agent: 'Sage', msg: 'Finished article draft (2,400 words)', type: 'agent' },
+    { agent: 'Sentinel', msg: 'Ran test suite — 47/47 passed', type: 'agent' },
+    { agent: 'Herald', msg: 'Processed 12 emails, flagged 2 urgent', type: 'agent' },
+    { agent: 'Pixel', msg: 'Exported 4 social media assets', type: 'agent' },
+    { agent: 'Forge', msg: 'Merged branch: feature/api-cache', type: 'commit' },
+    { agent: 'Nova', msg: 'Updated content calendar for Q2', type: 'wr' },
+  ];
+  for (let i = 0; i < actions.length; i++) {
+    events.push({ ...actions[i], ts: now - i * 900000 + Math.random()*60000, time: new Date(now - i*900000).toISOString() });
+  }
+  return { events };
+}
+
+function demoQueue() {
+  return { columns: { created: [{ title: 'API rate limit docs', type: 'task', priority: 'medium', owner: '' }], active: [{ title: 'WebSocket reconnection', type: 'bug', priority: 'high', owner: 'Forge' }, { title: 'Blog: Building Agents', type: 'content', priority: 'medium', owner: 'Sage' }], review: [{ title: 'Dashboard dark mode', type: 'feature', priority: 'low', owner: 'Circuit' }], done: [{ title: 'Fix login redirect', type: 'bug', priority: 'high', owner: 'Forge' }, { title: 'Email digest template', type: 'task', priority: 'medium', owner: 'Herald' }] } };
+}
+
+function demoMemory() {
+  return { totalPoints: 1847, collections: [{ name: 'atlas', points: 312 }, { name: 'nova', points: 287 }, { name: 'sage', points: 401 }, { name: 'forge', points: 523 }, { name: 'circuit', points: 182 }, { name: 'herald', points: 142 }], files: [{ agent: 'forge', file: 'state.md', sizeKB: 4.2 }, { agent: 'sage', file: 'state.md', sizeKB: 3.8 }, { agent: 'nova', file: 'state.md', sizeKB: 2.9 }] };
+}
+
+function demoPerformance() {
+  const agents = {};
+  DEMO_AGENTS.filter(a => a.status !== 'sleeping').forEach(a => {
+    agents[a.sessionDir] = { name: a.name, runs: 24 + Math.floor(Math.random()*20), successes: 22 + Math.floor(Math.random()*18), failures: Math.floor(Math.random()*3), avgDurationMs: 15000 + Math.random()*30000 };
+  });
+  return { agents, overall: { totalRuns: 180, successRate: 94.2, avgDuration: '22s' } };
+}
+
+function demoHealthScore() {
+  return { score: 92, components: { cpu: 95, memory: 88, disk: 90, services: 96 }, grade: 'A' };
+}
+
+function demoUptime() {
+  const agents = {};
+  DEMO_AGENTS.forEach(a => { agents[a.name] = { uptimePercent: 70 + Math.random()*28, activeMinutes: 800 + Math.floor(Math.random()*600) }; });
+  return { agents };
+}
+
+function demoTimeline() { return demoActivity(); }
+function demoHeatmap() { return { agents: {} }; }
+function demoCommGraph() { return { edges: [{ from: 'Atlas', to: 'Nova', weight: 12 }, { from: 'Nova', to: 'Sage', weight: 8 }, { from: 'Forge', to: 'Circuit', weight: 15 }, { from: 'Atlas', to: 'Forge', weight: 6 }, { from: 'Sentinel', to: 'Forge', weight: 9 }], nodes: DEMO_AGENTS.map(a => ({ name: a.name, color: a.color })) }; }
+function demoDepGraph() { return { nodes: DEMO_AGENTS.map(a => ({ name: a.name, color: a.color, parent: a.name === 'Atlas' ? null : 'Atlas' })) }; }
+function demoLiveLogs() { return { logs: [] }; }
+function demoTokensDaily() { const days = []; for(let i=13;i>=0;i--){ const d = new Date(Date.now()-i*86400000); days.push({date:d.toISOString().split('T')[0], input:150000+Math.random()*100000, output:50000+Math.random()*40000, cached:80000+Math.random()*60000}); } return {days}; }
+function demoDiskBreakdown() { return { entries: [{path:'~/.openclaw',size:'1.2 GB'},{path:'~/projects',size:'4.8 GB'},{path:'/tmp',size:'320 MB'}] }; }
+function demoCompletionStats() { return { completed: 42, inProgress: 3, total: 48, rate: 87.5 }; }
+function demoCalendar() { return { events: [] }; }
+function demoCron() { return { jobs: [] }; }
+function demoWeather() { return { condition: 'clear', tempF: 72, desc: 'Sunny', icon: '☀️' }; }
+function demoProcesses() { return { processes: [{user:'agent',pid:'1234',cpu:'2.1',mem:'1.8',command:'node server.js'},{user:'agent',pid:'5678',cpu:'0.5',mem:'0.3',command:'openclaw gateway'}] }; }
+function demoMemoryHistory() { const pts = []; for(let i=29;i>=0;i--) pts.push({ts:Date.now()-i*3600000, total:1200+i*20+Math.random()*50}); return {history:pts}; }
+
+const DEMO_HANDLERS = {
+  '/api/health': () => ({ok:true}),
+  '/api/health-score': demoHealthScore,
+  '/api/system': demoSystem,
+  '/api/processes': demoProcesses,
+  '/api/agents': demoAgents,
+  '/api/memory': demoMemory,
+  '/api/memory/history': demoMemoryHistory,
+  '/api/tokens': demoTokens,
+  '/api/tokens/daily': demoTokensDaily,
+  '/api/calendar': demoCalendar,
+  '/api/cron': demoCron,
+  '/api/disk-breakdown': demoDiskBreakdown,
+  '/api/performance': demoPerformance,
+  '/api/completion-stats': demoCompletionStats,
+  '/api/uptime': demoUptime,
+  '/api/queue': demoQueue,
+  '/api/activity': demoActivity,
+  '/api/timeline': demoTimeline,
+  '/api/timeline-heatmap': demoHeatmap,
+  '/api/comm-graph': demoCommGraph,
+  '/api/dependency-graph': demoDepGraph,
+  '/api/heatmap-calendar': demoHeatmap,
+  '/api/live-logs': demoLiveLogs,
+  '/api/weather': demoWeather,
+};
 
 // Crash handler
 process.on('uncaughtException', (err) => {
@@ -2007,6 +2143,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Demo mode: serve mock data for all API endpoints
+  if (DEMO_MODE && url.startsWith('/api/') && req.method === 'GET') {
+    const handler = DEMO_HANDLERS[url];
+    if (handler) return json(res, handler());
+    if (url.startsWith('/api/agent-detail/') || url.startsWith('/api/agent-logs/')) return json(res, { logs: [], detail: {} });
+  }
+
   if (url === '/healthz') return json(res, { ok: true, uptime: process.uptime() });
   if (url === '/api/health') return json(res, { ok: true });
   if (url === '/api/health-score') return json(res, getHealthScore());
@@ -2087,4 +2230,4 @@ const server = http.createServer((req, res) => {
   } catch { res.writeHead(404); res.end('Not found'); }
 });
 
-server.listen(18790, '0.0.0.0', () => console.log(`Agent Space running on :18790 (API + static)`));
+server.listen(18790, '0.0.0.0', () => console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`));
