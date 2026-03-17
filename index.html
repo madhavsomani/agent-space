@@ -1846,10 +1846,8 @@ function _drawAgentInner(agent, gx, gy, time) {
   const isIdle = !isWorking && !isSleeping;
   const baseP = isoToScreen(gx, gy);
 
-  // Wrap entire agent draw in save/restore to prevent state leaks
-  oCtx.save();
-
   // Search highlight: dim non-matching agents
+  // (outer drawAgent() wrapper handles save/restore)
   const isFiltered = _highlightedAgents.size > 0 && !_highlightedAgents.has(agent.name);
   if (isFiltered) {
     oCtx.globalAlpha = 0.15;
@@ -1865,7 +1863,7 @@ function _drawAgentInner(agent, gx, gy, time) {
   // ── PRE-SLEEP STRETCH & YAWN ──
   if (isSleeping && isInPreSleep(agent.name)) {
     drawPreSleepAgent(agent, gx, gy, time);
-    oCtx.restore(); return;
+    return;
   }
 
   // ── SLEEPING: slumped at desk, head on arms ──
@@ -1933,7 +1931,7 @@ function _drawAgentInner(agent, gx, gy, time) {
       const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
       oCtx.fillText(txt, baseP.x, baseP.y+66);
     }
-    oCtx.restore(); return;
+    return;
   }
   let offsetX = 0, offsetY = 0;
   if (isWorking) {
@@ -2480,7 +2478,6 @@ function _drawAgentInner(agent, gx, gy, time) {
     const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
     oCtx.fillText(txt, baseP.x, baseP.y+66);
   }
-  oCtx.restore();
 }
 
 function getCanvasTheme(){
