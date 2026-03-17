@@ -1822,7 +1822,9 @@ function drawVisitor(agent, screenX, screenY, time) {
 }
 
 function drawAgent(agent, gx, gy, time) {
+  oCtx.save();
   try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
+  oCtx.restore();
 }
 function _drawAgentInner(agent, gx, gy, time) {
   // Role category mapper for dynamic lookups (no hardcoded agent names)
@@ -2710,11 +2712,9 @@ function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   _ptIdx = 0; // reset point pool each frame
 
-  // Periodic hard reset: flush the canvas save/restore stack every ~2s.
-  // Complex agent drawing code has unavoidable save/restore imbalances
-  // that leak ~1 save per frame. Without periodic reset, the stack overflows
-  // after ~2 minutes and the canvas goes black ("dark void" bug).
-  if (++_canvasHealthCounter >= 16) { // every ~2s at 8fps
+  // Periodic hard reset: flush the canvas save/restore stack every ~30s.
+  // The drawAgent wrapper now has save/restore guards, so this is just a safety net.
+  if (++_canvasHealthCounter >= 240) { // every ~30s at 8fps
     _canvasHealthCounter = 0;
     const w = oCanvas.width, h = oCanvas.height;
     oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h; // hard reset clears state stack
