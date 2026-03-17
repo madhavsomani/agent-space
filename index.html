@@ -2754,6 +2754,10 @@ function drawOffice(rafNow) {
 
   const time = rafNow ? Math.round(performance.timeOrigin + rafNow) : Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
+  // Reset transform to known-good state every frame — prevents save/restore stack corruption
+  // from accumulating across frames (the drawAgent POI branch has conditional save/restore paths)
+  oCtx.resetTransform();
+  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   oCtx.globalAlpha = 1;
   oCtx.globalCompositeOperation = 'source-over';
   oCtx.clearRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
