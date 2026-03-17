@@ -16,4 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm test
+      - name: Start server (demo mode)
+        run: |
+          node server.js --demo &
+          sleep 2
+      - name: Run smoke tests
+        run: node test/smoke.mjs
