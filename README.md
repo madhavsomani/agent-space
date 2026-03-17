@@ -62,6 +62,22 @@ cp config.example.json config.json
 | `cronJobId` | Cron job UUID (for cron-based agents) |
 | `persistent` | `true` if agent runs on a cron loop |
 
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BIND_HOST` | `127.0.0.1` | Network interface to bind. Use `0.0.0.0` for LAN/external access. |
+| `HOME` | OS default | Home directory (used to find `~/.openclaw/agents/`) |
+
+Pass `--demo` flag to run with mock data (no OpenClaw installation needed).
+
+## Docker
+
+```bash
+docker build -t agent-space .
+docker run -p 18790:18790 -v ~/.openclaw:/root/.openclaw:ro agent-space
+```
+
 ## Architecture
 
 - **`server.js`** — Node.js HTTP server with REST API + SSE
