@@ -2666,6 +2666,7 @@ function drawZoomControls() {
 const _deskAgentsBuf = [], _visitorsBuf = [], _sortedBuf = [], _workingBuf = [];
 const _defaultDeskPos = {gx:7, gy:5};
 function drawOffice(rafNow) {
+  if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   _ptIdx = 0; // reset point pool each frame
   const time = rafNow ? Math.round(performance.timeOrigin + rafNow) : Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
@@ -3181,6 +3182,8 @@ function officeLoop(now) {
   if (!_canvasVisible) return;
   if (now - _lastFrameTime < FRAME_INTERVAL) return;
   _lastFrameTime = now;
+  // Guard: if canvas has zero dimensions, re-trigger resize instead of drawing nothing
+  if (!oCanvas.width || !oCanvas.height || oCanvas.width < 10) { resizeCanvas(); return; }
   drawOffice(now);
 }
 // officeLoop kicked off after resizeCanvas at end of file
@@ -5083,8 +5086,11 @@ function markUpdated() {
 
 // Responsive canvas with HiDPI support — fills available viewport
 function resizeCanvas() {
+  if (!oCanvas || !oCtx) return; // guard: canvas not ready
   const container = oCanvas.parentElement;
+  if (!container) return;
   const w = container.clientWidth;
+  if (w < 10) return; // guard: DOM not laid out yet — retry on next resize/load event
   // Calculate available height: viewport minus header/nav/status (~110px)
   const headerH = document.querySelector('header')?.offsetHeight || 40;
   const navH = document.querySelector('nav')?.offsetHeight || 36;
@@ -5122,8 +5128,11 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', () => { invalidateStaticCache(); resizeCanvas(); });
 // Defer initial resize to ensure DOM is fully laid out (fixes blank canvas on first load)
+// Defer initial resize to ensure DOM is fully laid out (fixes blank canvas on first load)
 if (document.readyState === 'complete') { resizeCanvas(); } else { window.addEventListener('load', () => { invalidateStaticCache(); resizeCanvas(); }); }
-resizeCanvas();
+// Fallback: retry resize after a short delay in case DOM wasn't ready
+setTimeout(() => { invalidateStaticCache(); resizeCanvas(); }, 100);
+setTimeout(() => { invalidateStaticCache(); resizeCanvas(); }, 500);
 
 // Refresh progress bar
 const refreshBar = document.getElementById('refresh-bar');
@@ -6369,6 +6378,18 @@ async function refreshLiveLogs() {
     ]);
     buildLegend(); renderAgentCards(); markUpdated();
   }, 3000);
+
+  // Retry wave: catch any endpoints that failed during cold start
+  setTimeout(async () => {
+    await Promise.allSettled([
+      refreshUptime(),
+      refreshHeatmapCalendar(),
+      refreshDiskBreakdown(),
+      refreshTimeline(),
+      refreshActivity(),
+    ]);
+    markUpdated();
+  }, 15000);
 })();
 // Live logs refreshed in consolidated 5s poll (every 3rd tick = 15s)
 </script>
