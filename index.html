@@ -3200,6 +3200,7 @@ function buildStaticLayer() {
 // Frame-limited render loop (8 FPS target, pauses when tab hidden or canvas off-screen)
 const FRAME_INTERVAL = 1000 / 8;
 let _lastFrameTime = 0;
+let _framesSinceCheck = 0, _blackFrames = 0;
 let _canvasVisible = true;
 // Observe canvas visibility to avoid rendering when scrolled out of view
 if (typeof IntersectionObserver !== 'undefined') {
@@ -3217,6 +3218,24 @@ function officeLoop(now) {
   // Guard: if canvas has zero dimensions, re-trigger resize instead of drawing nothing
   if (!oCanvas.width || !oCanvas.height || oCanvas.width < 10) { resizeCanvas(); return; }
   drawOffice(now);
+  // Black-frame detector: if canvas is all-transparent after drawing, context is corrupted — reset it
+  if (++_framesSinceCheck >= 16) { // check every ~2s at 8fps
+    _framesSinceCheck = 0;
+    try {
+      const probe = oCtx.getImageData(Math.floor(oCanvas.width/2), Math.floor(oCanvas.height/2), 1, 1).data;
+      if (probe[3] === 0) { // fully transparent = context lost or corrupted
+        _blackFrames++;
+        if (_blackFrames >= 2) { // 2 consecutive checks (~4s) = definitely broken
+          console.warn('Canvas context appears corrupted — resetting');
+          oCanvas.width = oCanvas.width; // force context reset
+          oCtx = oCanvas.getContext('2d');
+          invalidateStaticCache();
+          resizeCanvas();
+          _blackFrames = 0;
+        }
+      } else { _blackFrames = 0; }
+    } catch(e) { /* getImageData may fail cross-origin */ }
+  }
 }
 // officeLoop kicked off after resizeCanvas at end of file
 
