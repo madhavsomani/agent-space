@@ -719,6 +719,12 @@ function toggleTheme() { const t = getTheme() === 'dark' ? 'light' : 'dark'; loc
 applyTheme(getTheme());
 
 const API = '/api';
+// Fetch with timeout — prevents widgets hanging forever on slow/stalled requests
+function fetchWithTimeout(url, opts = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(tid));
+}
 let agentData = [];
 let apiOnline = true;
 let autoRefreshPaused = false;
@@ -1302,10 +1308,10 @@ function checkStatusChanges(agents) {
 // ===== AGENTS =====
 async function refreshAgents() {
   try {
-    const r = await fetch(API + '/agents');
+    const r = await fetchWithTimeout(API + '/agents', {}, 8000);
     const d = await r.json();
     checkStatusChanges(d.agents);
-    agentData = d.agents;
+    agentData = d.agents || [];
     apiOnline = true;
     const el = document.getElementById('live-status');
     el.className = 'live online'; el.innerHTML = '<span class="pulse"></span>LIVE';
@@ -3402,7 +3408,7 @@ function renderActivityFeed(items) {
 // ===== ACTIVITY FEED =====
 async function refreshActivity() {
   try {
-    const r = await fetch(API+'/activity');
+    const r = await fetchWithTimeout(API+'/activity', {}, 10000);
     const d = await r.json();
     const items = d.activity || [];
     activityCache = items;
@@ -3525,7 +3531,7 @@ function renderWorkload(wrs) {
 // ===== QUEUE =====
 async function refreshQueue() {
   try {
-    const r = await fetch(API+'/queue'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/queue', {}, 10000); const d = await r.json();
     let html = '';
     if(d.active?.length) {
       html += `<div class="queue-section"><div class="card"><h3>🔥 Active Work</h3>`;
@@ -3703,7 +3709,7 @@ function renderDonutChart(collections) {
 
 async function refreshMemory() {
   try {
-    const r = await fetch(API+'/memory'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/memory', {}, 10000); const d = await r.json();
     document.getElementById('ss-memories').textContent = d.totalPoints?.toLocaleString() || '0';
     const qsm = document.getElementById('qs-memories'); if(qsm) animateValue(qsm, d.totalPoints?.toLocaleString() || '0');
     if(d.status==='offline'){
@@ -3729,7 +3735,7 @@ async function refreshMemory() {
 
 async function refreshMemoryGrowth() {
   try {
-    const r = await fetch(API+'/memory/history');
+    const r = await fetchWithTimeout(API+'/memory/history', {}, 10000);
     const d = await r.json();
     const hist = d.history || [];
     const body = document.getElementById('mem-growth-body');
@@ -3814,7 +3820,7 @@ async function refreshMemoryGrowth() {
 // ===== TOKENS =====
 async function refreshTokens() {
   try {
-    const r = await fetch(API+'/tokens'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/tokens', {}, 10000); const d = await r.json();
     document.getElementById('ss-cost').textContent = '$' + d.estimatedCostUSD.toFixed(2);
     const qsc = document.getElementById('qs-cost'); if(qsc) animateValue(qsc, '$' + d.estimatedCostUSD.toFixed(2));
     const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n);
@@ -3852,7 +3858,7 @@ async function refreshTokens() {
 // ===== DAILY COST TREND =====
 async function refreshDailyCost() {
   try {
-    const r = await fetch(API+'/tokens/daily'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/tokens/daily', {}, 10000); const d = await r.json();
     let el = document.getElementById('tok-daily-cost');
     if(!el) {
       el = document.createElement('div'); el.id = 'tok-daily-cost'; el.className = 'card'; el.style.marginTop = '12px';
@@ -3976,7 +3982,7 @@ async function refreshDailyCost() {
 // ===== PERFORMANCE =====
 async function refreshPerformance() {
   try {
-    const r = await fetch(API+'/performance'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/performance', {}, 10000); const d = await r.json();
     const s = d.summary || {};
     const fmtDur = ms => ms >= 60000 ? (ms/60000).toFixed(1)+'m' : ms >= 1000 ? (ms/1000).toFixed(1)+'s' : ms+'ms';
     const avgDurAll = d.agents?.length ? Math.round(d.agents.reduce((a,x)=>a+x.avgDurationMs,0)/d.agents.length) : 0;
@@ -4270,7 +4276,7 @@ async function refreshPerformance() {
 // ===== TASK COMPLETION STATS =====
 async function refreshCompletionStats() {
   try {
-    const r = await fetch(API+'/completion-stats');
+    const r = await fetchWithTimeout(API+'/completion-stats', {}, 10000);
     const d = await r.json();
     const el = document.getElementById('completion-stats');
     if (!el) return;
@@ -4330,7 +4336,7 @@ async function refreshCompletionStats() {
 // ===== COMMUNICATION GRAPH =====
 async function refreshCommGraph() {
   try {
-    const r = await fetch(API+'/comm-graph');
+    const r = await fetchWithTimeout(API+'/comm-graph', {}, 10000);
     const d = await r.json();
     const svg = document.getElementById('comm-graph-svg');
     const table = document.getElementById('comm-graph-table');
@@ -4433,7 +4439,7 @@ let _heatmapAgentFilter = 'all';
 
 async function refreshHeatmapCalendar() {
   try {
-    const r = await fetch(API+'/heatmap-calendar');
+    const r = await fetchWithTimeout(API+'/heatmap-calendar', {}, 10000);
     _heatmapData = await r.json();
     renderHeatmapCalendar();
   } catch {}
@@ -4575,7 +4581,7 @@ function renderHeatmapCalendar() {
 
 async function refreshDepGraph() {
   try {
-    const r = await fetch(API+'/dependency-graph');
+    const r = await fetchWithTimeout(API+'/dependency-graph', {}, 10000);
     const d = await r.json();
     const svg = document.getElementById('dep-graph-svg');
     const details = document.getElementById('dep-graph-details');
@@ -4732,7 +4738,7 @@ async function refreshDepGraph() {
 let _healthHistory = [];
 async function refreshHealthScore() {
   try {
-    const r = await fetch(API+'/health-score'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/health-score', {}, 10000); const d = await r.json();
     if (d.score < 0) return;
     _healthHistory.push(d.score); if(_healthHistory.length>30) _healthHistory.shift();
     const color = d.score >= 90 ? 'var(--green)' : d.score >= 75 ? 'var(--orange)' : 'var(--red)';
@@ -4759,7 +4765,7 @@ async function refreshHealthScore() {
 
 async function refreshSystem() {
   try {
-    const r = await fetch(API+'/system'); const d = await r.json();
+    const r = await fetchWithTimeout(API+'/system', {}, 10000); const d = await r.json();
     if(d.error) return;
     const cpuPct = +(d.cpu.user+d.cpu.sys).toFixed(1);
     const memPct = +((d.memory.used/d.memory.total)*100).toFixed(1);
@@ -4784,7 +4790,7 @@ async function refreshSystem() {
 
     // Processes
     try {
-      const pr = await fetch(API+'/processes'); const pd = await pr.json();
+      const pr = await fetchWithTimeout(API+'/processes', {}, 10000); const pd = await pr.json();
       if (pd.processes?.length) {
         document.getElementById('sys-processes').innerHTML = '<h3>⚙️ Top Processes</h3>' + pd.processes.map(p=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${(p.command||p.pid).slice(0,40)}</span><span style="white-space:nowrap;font-variant-numeric:tabular-nums">${p.cpu}% CPU · ${p.mem}% MEM</span></div>`).join('');
       }
@@ -4847,7 +4853,7 @@ async function refreshSystem() {
 
 async function refreshDiskBreakdown() {
   try {
-    const r = await fetch(API + '/disk-breakdown');
+    const r = await fetchWithTimeout(API + '/disk-breakdown', {}, 10000);
     const d = await r.json();
     if (d.error || !d.breakdown?.length) return;
     const body = document.getElementById('disk-breakdown-body');
@@ -5064,7 +5070,7 @@ requestAnimationFrame(officeLoop);
 // ===== AGENT TIMELINE HEATMAP =====
 async function refreshTimeline() {
   try {
-    const r = await fetch(API + '/timeline-heatmap');
+    const r = await fetchWithTimeout(API + '/timeline-heatmap', {}, 10000);
     const d = await r.json();
     if (!d.agents || !d.agents.length) {
       document.getElementById('timeline-content').innerHTML = '<span style="color:var(--dim)">No timeline data</span>';
@@ -5116,7 +5122,7 @@ async function refreshTimeline() {
 // --- Uptime Chart ---
 async function refreshUptime() {
   try {
-    const r = await fetch(API + '/uptime');
+    const r = await fetchWithTimeout(API + '/uptime', {}, 10000);
     const d = await r.json();
     window._uptimeData = d;
     if (!d.agents || !d.agents.length) {
@@ -5327,7 +5333,7 @@ async function wakeAgentFromAlert(cronJobId, agentName) {
 let _perfAlertData = null;
 async function fetchPerfForAlerts() {
   try {
-    const r = await fetch(API + '/performance');
+    const r = await fetchWithTimeout(API + '/performance', {}, 10000);
     _perfAlertData = await r.json();
   } catch { _perfAlertData = null; }
 }
@@ -6242,7 +6248,7 @@ function renderLiveLogs(logs) {
 
 async function refreshLiveLogs() {
   try {
-    const r = await fetch(API + '/live-logs');
+    const r = await fetchWithTimeout(API + '/live-logs', {}, 10000);
     const d = await r.json();
     liveLogsData = d.logs || [];
     renderLiveLogs(liveLogsData);
@@ -6251,8 +6257,12 @@ async function refreshLiveLogs() {
 
 // Initial load: fast essentials first, then heavier widgets.
 (async function bootstrapDashboard() {
-  // Fast-first, sequential bootstrap prevents a cold expensive request from starving everything else.
-  await refreshAgents();
+  // Fast-first, sequential bootstrap with retry for cold-start resilience.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await refreshAgents();
+    if (agentData.length > 0) break;
+    await new Promise(r => setTimeout(r, 2000)); // wait 2s between retries
+  }
   await refreshTokens();
   await refreshMemory();
   await refreshDailyCost();
