@@ -413,7 +413,7 @@ const AGENT_MAP = { get list() { return discoverAgents(); } };
 
 // Cache for cron run data — serialized queue to avoid spawning many CLI processes at once
 let _cronCache = {};  // jobId -> { ts, data }
-const CRON_CACHE_TTL = 30000;
+const CRON_CACHE_TTL = 300000; // 5 min — openclaw cron runs is expensive (spawns subprocess)
 let _cronFetchQueue = [];
 let _cronFetchRunning = false;
 
@@ -422,8 +422,8 @@ function _processCronQueue() {
   _cronFetchRunning = true;
   const cronJobId = _cronFetchQueue.shift();
   execAsync(
-    `openclaw cron runs --id ${cronJobId} --limit 1 --timeout 8000 2>&1`,
-    { timeout: 15000, encoding: 'utf8' },
+    `openclaw cron runs --id ${cronJobId} --limit 1 --timeout 4000 2>&1`,
+    { timeout: 6000, encoding: 'utf8' },
     (err, stdout) => {
       _cronFetchRunning = false;
       if (err) { console.error('[cron-cache] err for', cronJobId.slice(0,8), ':', err.message?.slice(0,100)); }
@@ -461,8 +461,8 @@ function _processCronQueue() {
           }
         } catch (e) { console.error('[cron-cache] parse err', cronJobId.slice(0,8), e.message?.slice(0,80)); }
       }
-      // Process next in queue after a short delay
-      setTimeout(_processCronQueue, 500);
+      // Process next in queue after breathing room for event loop
+      setTimeout(_processCronQueue, 2000);
     }
   );
 }
@@ -548,7 +548,7 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
 }
 
 let _agentsCache = null, _agentsCacheTime = 0;
-const AGENTS_CACHE_TTL = 30000; // 30s — agents endpoint is expensive (scans session files)
+const AGENTS_CACHE_TTL = 60000; // 60s — agents endpoint scans session files + triggers cron cache
 function getAgents() {
   const now = Date.now();
   if (_agentsCache && (now - _agentsCacheTime) < AGENTS_CACHE_TTL) return _agentsCache;
@@ -2591,7 +2591,7 @@ server.listen(18790, '0.0.0.0', () => {
   setTimeout(() => { warmHeavyCaches(); }, 12000);
   setInterval(() => {
     if (sseClients.size > 0) warmLightCaches();
-  }, 30000);
+  }, 60000); // every 60s (was 30s)
   // Persist snapshots every hour
   setInterval(() => { setImmediate(persistSnapshot); }, 3600000);
   // Initial snapshot after caches warm
