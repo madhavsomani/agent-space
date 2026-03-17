@@ -1787,6 +1787,12 @@ function drawVisitor(agent, screenX, screenY, time) {
 }
 
 function drawAgent(agent, gx, gy, time) {
+  // Wrap entire agent draw in save/restore to prevent state leaks from unbalanced inner pairs
+  oCtx.save();
+  try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
+  oCtx.restore();
+}
+function _drawAgentInner(agent, gx, gy, time) {
   // Role category mapper for dynamic lookups (no hardcoded agent names)
   function _getRoleCategory(role) {
     const r = (role || '').toLowerCase();
@@ -2440,8 +2446,7 @@ function drawAgent(agent, gx, gy, time) {
     const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
     oCtx.fillText(txt, baseP.x, baseP.y+66);
   }
-  // Restore wrapper save (handles isFiltered alpha + all state)
-  oCtx.restore();
+  // (outer drawAgent wrapper handles final restore)
 }
 
 function getCanvasTheme(){
