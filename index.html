@@ -1806,10 +1806,13 @@ function drawAgent(agent, gx, gy, time) {
   const isIdle = !isWorking && !isSleeping;
   const baseP = isoToScreen(gx, gy);
 
-  // Search highlight ring
+  // Wrap entire agent draw in save/restore to prevent state leaks
+  oCtx.save();
+
+  // Search highlight: dim non-matching agents
   const isFiltered = _highlightedAgents.size > 0 && !_highlightedAgents.has(agent.name);
   if (isFiltered) {
-    oCtx.save(); oCtx.globalAlpha = 0.15;
+    oCtx.globalAlpha = 0.15;
   } else if (_highlightedAgents.size > 0 && _highlightedAgents.has(agent.name)) {
     // Pulsing highlight ring for matched agents
     const pulse = 0.6 + 0.4 * Math.sin(time * 0.004);
@@ -1822,8 +1825,7 @@ function drawAgent(agent, gx, gy, time) {
   // ── PRE-SLEEP STRETCH & YAWN ──
   if (isSleeping && isInPreSleep(agent.name)) {
     drawPreSleepAgent(agent, gx, gy, time);
-    if (isFiltered) oCtx.restore();
-    return;
+    oCtx.restore(); return;
   }
 
   // ── SLEEPING: slumped at desk, head on arms ──
@@ -1891,7 +1893,7 @@ function drawAgent(agent, gx, gy, time) {
       const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
       oCtx.fillText(txt, baseP.x, baseP.y+66);
     }
-    return;
+    oCtx.restore(); return;
   }
   let offsetX = 0, offsetY = 0;
   if (isWorking) {
@@ -2438,8 +2440,8 @@ function drawAgent(agent, gx, gy, time) {
     const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
     oCtx.fillText(txt, baseP.x, baseP.y+66);
   }
-  // Restore alpha if dimmed by search filter
-  if (isFiltered) oCtx.restore();
+  // Restore wrapper save (handles isFiltered alpha + all state)
+  oCtx.restore();
 }
 
 function getCanvasTheme(){
@@ -2674,7 +2676,7 @@ function drawOffice(rafNow) {
   // Canvas health check: detect corrupted context (blank canvas despite active loop).
   // Every ~120 frames (~15s at 8fps), write a test pixel and read it back.
   // If the write is silently swallowed, reset the canvas to recover.
-  if (++_canvasHealthCounter >= 120) {
+  if (++_canvasHealthCounter >= 16) { // check every ~2s at 8fps
     _canvasHealthCounter = 0;
     oCtx.save();
     oCtx.setTransform(1, 0, 0, 1, 0, 0); // identity
