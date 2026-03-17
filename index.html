@@ -1787,10 +1787,16 @@ function drawVisitor(agent, screenX, screenY, time) {
 }
 
 function drawAgent(agent, gx, gy, time) {
-  // Wrap entire agent draw in save/restore to prevent state leaks from unbalanced inner pairs
+  // Save full transform matrix + state before drawing each agent.
+  // _drawAgentInner has complex conditional save/restore paths that can underflow.
+  // Using getTransform/setTransform makes this bulletproof against stack corruption.
+  const savedTransform = oCtx.getTransform();
+  const savedAlpha = oCtx.globalAlpha;
   oCtx.save();
   try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
-  oCtx.restore();
+  // Force-reset to saved state regardless of save/restore balance inside
+  oCtx.setTransform(savedTransform);
+  oCtx.globalAlpha = savedAlpha;
 }
 function _drawAgentInner(agent, gx, gy, time) {
   // Role category mapper for dynamic lookups (no hardcoded agent names)
