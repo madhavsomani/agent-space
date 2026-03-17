@@ -2751,6 +2751,11 @@ function drawOffice(rafNow) {
   oCtx.globalAlpha = 1;
   oCtx.globalCompositeOperation = 'source-over';
   oCtx.clearRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
+  // Fill canvas with theme background so empty areas aren't transparent/black
+  oCtx.fillStyle = th.floor1;
+  oCtx.globalAlpha = 0.25;
+  oCtx.fillRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
+  oCtx.globalAlpha = 1;
 
   // Apply zoom & pan — center on the iso grid dynamically
   const pivotX = oCanvas.width / (2 * (window.devicePixelRatio || 1));
