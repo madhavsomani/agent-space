@@ -42,7 +42,7 @@ agent-space.db — SQLite database for events/history (gitignored, auto-created)
 
 ## Architecture
 
-- **Backend:** Node.js with `node:http`, `better-sqlite3` for persistence, zero `execSync` in request handlers
+- **Backend:** Node.js with `node:http`, `node:sqlite` (built-in) for persistence, zero `execSync` in request handlers
 - **Frontend:** Vanilla JS — no build step, no dependencies. Canvas-based isometric office with offscreen static layer caching at 8 FPS
 - **Data flow:** SSE (Server-Sent Events) for real-time updates, REST API for initial load
 - **Agent discovery:** Scans `~/.openclaw/agents/` directories, merges with optional `config.json`
@@ -50,7 +50,7 @@ agent-space.db — SQLite database for events/history (gitignored, auto-created)
 ## Guidelines
 
 - **No build step.** The frontend is a single `index.html`. Keep it that way.
-- **No runtime dependencies** beyond `better-sqlite3` (used for event persistence).
+- **Zero npm dependencies.** Uses only Node.js built-in modules (`node:http`, `node:sqlite`, `node:fs`, etc.).
 - **Test after changes:** `curl http://localhost:18790/api/health` should return `{"ok":true}`
 - **Performance matters:** No synchronous shell commands in request handlers. Use background caches.
 - **Canvas rendering:** Static elements (floor, walls, furniture) are cached in an offscreen canvas. Only animated elements (agents, clocks, plants) redraw each frame.
