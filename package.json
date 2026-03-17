@@ -12,6 +12,6 @@
   "keywords": ["openclaw", "ai-agents", "dashboard", "monitoring"],
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=22.5"
   }
 }

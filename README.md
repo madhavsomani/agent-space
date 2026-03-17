@@ -37,7 +37,7 @@ node server.js
 
 ## Requirements
 
-- **Node.js 18+**
+- **Node.js 22.5+** (uses built-in `node:sqlite`)
 - **OpenClaw** installed and running (`~/.openclaw/agents/` directory must exist)
 - **Qdrant** (optional) — for memory/vector stats panel
 
