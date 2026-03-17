@@ -3400,7 +3400,7 @@ function buildLegend() {
   document.getElementById('office-legend').innerHTML = agents.map(a => {
     const icon = a.status === 'working' ? '🟢' : a.status === 'idle' ? '🟡' : '💤';
     const age = a.ageMin !== undefined ? (!a.ageMin ? '' : a.ageMin < 1 ? 'now' : a.ageMin < 60 ? a.ageMin + 'm' : Math.round(a.ageMin / 60) + 'h') : '';
-    return `<div class="legend-item" onclick="document.querySelector('[data-tab=activity]').click()"><div class="legend-dot" style="background:${a.color}"></div>${icon} ${a.name}${age ? `<span class="legend-age">${age}</span>` : ''}</div>`;
+    return `<div class="legend-item" onclick="document.querySelector('[data-tab=activity]').click()"><div class="legend-dot" style="background:${a.color}"></div>${icon} ${esc(a.name)}${age ? `<span class="legend-age">${age}</span>` : ''}</div>`;
   }).join('');
 }
 
@@ -3435,7 +3435,7 @@ function renderActivityFeed(items) {
   const sel = document.getElementById('activity-agent-filter');
   if (sel) {
     const prev = sel.value;
-    sel.innerHTML = '<option value="">All Agents</option>' + agentNames.map(n => `<option value="${n}"${n===prev?' selected':''}>${n}</option>`).join('');
+    sel.innerHTML = '<option value="">All Agents</option>' + agentNames.map(n => `<option value="${esc(n)}"${n===prev?' selected':''}>${esc(n)}</option>`).join('');
   }
   // Update filter button counts
   const counts = {all: items.length, wr:0, agent:0, commit:0, system:0};
@@ -3473,7 +3473,7 @@ function renderActivityFeed(items) {
       const ago = i.ts ? timeAgo(new Date(i.ts)) : '';
       const icon = icons[i.type] || '📌';
       const typeLabel = i.type ? `<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${colors[i.type]||'#475569'}22;color:${colors[i.type]||'#64748b'};font-weight:600;text-transform:uppercase;margin-left:6px">${i.type}</span>` : '';
-      return `<div class="feed-item" style="animation-delay:${idx*40}ms"><span style="font-size:14px;flex-shrink:0">${icon}</span><div><span class="feed-agent">${i.agent||'system'}</span>${typeLabel}<br><span style="color:var(--dim)">${i.text||''}</span></div><span class="feed-time">${ago}</span></div>`;
+      return `<div class="feed-item" style="animation-delay:${idx*40}ms"><span style="font-size:14px;flex-shrink:0">${icon}</span><div><span class="feed-agent">${esc(i.agent||'system')}</span>${typeLabel}<br><span style="color:var(--dim)">${esc(i.text||'')}</span></div><span class="feed-time">${ago}</span></div>`;
     }).join('') + '</div>';
 }
 
@@ -3507,7 +3507,7 @@ async function refreshActivity() {
     // Update office ticker with latest item
     const latest = items[0];
     if(latest) {
-      document.getElementById('office-ticker-text').innerHTML = `<span style="color:${colors[latest.type]||'var(--dim)'};font-weight:600">${latest.agent||'system'}</span> <span style="color:var(--text)">${(latest.text||'').slice(0,80)}</span>`;
+      document.getElementById('office-ticker-text').innerHTML = `<span style="color:${colors[latest.type]||'var(--dim)'};font-weight:600">${esc(latest.agent||'system')}</span> <span style="color:var(--text)">${esc((latest.text||'').slice(0,80))}</span>`;
       document.getElementById('office-ticker-time').textContent = latest.ts ? timeAgo(new Date(latest.ts)) : '';
     }
     renderActivityFeed(items);
@@ -3910,7 +3910,7 @@ async function refreshTokens() {
     document.getElementById('tok-agents').innerHTML=`<h3>💰 By Agent</h3>${agents.length?`<ul class="service-list">${agents.map(([n,v])=>{
       const total = v.input+v.output;
       const pct = d.totals.input+d.totals.output > 0 ? Math.round(total/(d.totals.input+d.totals.output)*100) : 0;
-      return `<li style="flex-wrap:wrap"><div style="display:flex;align-items:center;gap:8px;width:100%"><span>${n}</span><span style="margin-left:auto;font-weight:600">${fmtK(total)}</span><span style="color:var(--dim);margin-left:8px;font-size:11px">${pct}%</span></div><div class="bar-bg" style="width:100%;margin-top:4px"><div class="bar-fill green" style="width:${Math.max(pct,2)}%"></div></div></li>`;
+      return `<li style="flex-wrap:wrap"><div style="display:flex;align-items:center;gap:8px;width:100%"><span>${esc(n)}</span><span style="margin-left:auto;font-weight:600">${fmtK(total)}</span><span style="color:var(--dim);margin-left:8px;font-size:11px">${pct}%</span></div><div class="bar-bg" style="width:100%;margin-top:4px"><div class="bar-fill green" style="width:${Math.max(pct,2)}%"></div></div></li>`;
     }).join('')}</ul>`:'<div class="sub">No per-agent data</div>'}`;
     // Model pricing reference
     let pricingEl = document.getElementById('tok-pricing');
@@ -5384,7 +5384,7 @@ let _timelineFilter = null;
 function filterByTimeSlot(agentName, startISO, endISO, label, color) {
   _timelineFilter = { agentName, start: new Date(startISO), end: new Date(endISO), label, color };
   const bar = document.getElementById('timeline-filter-bar');
-  document.getElementById('timeline-filter-label').innerHTML = `<b style="color:${color}">${agentName}</b> at ${label}`;
+  document.getElementById('timeline-filter-label').innerHTML = `<b style="color:${color}">${esc(agentName)}</b> at ${esc(label)}`;
   bar.classList.add('visible');
   // Filter activity feed
   if (activityCache.length) renderActivityFeed(activityCache);
@@ -5747,7 +5747,7 @@ function showToast(nameOrMsg, colorOrText, textOrBorder, icon) {
   }
   const t = document.createElement('div');
   t.className = 'toast';
-  t.innerHTML = `<div class="toast-dot" style="background:${dotColor||'var(--accent)'}"></div><div class="toast-text">${displayMsg}</div>`;
+  t.innerHTML = `<div class="toast-dot" style="background:${dotColor||'var(--accent)'}"></div><div class="toast-text">${esc(displayMsg)}</div>`;
   c.appendChild(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 4000);
   while (c.children.length > 6) c.removeChild(c.firstChild);
@@ -6141,7 +6141,7 @@ async function openAgentDetail(agentName) {
         ${filesHtml}
       </div>`;
   } catch(e) {
-    panel.querySelector('.agent-detail-body').innerHTML = `<div style="text-align:center;padding:20px;color:var(--dim)">Could not load detail: ${e.message}</div>`;
+    panel.querySelector('.agent-detail-body').innerHTML = `<div style="text-align:center;padding:20px;color:var(--dim)">Could not load detail: ${esc(e.message)}</div>`;
   }
 }
 
