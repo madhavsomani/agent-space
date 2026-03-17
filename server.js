@@ -9,6 +9,106 @@ const { execSync, exec: execAsync } = require('child_process');
 
 const DEMO_MODE = process.argv.includes('--demo');
 const WR_DIR = path.join(__dirname, '..', 'work_requests');
+
+// ===== PERSISTENT STORAGE (node:sqlite, zero deps) =====
+const sqlite = require('node:sqlite');
+const DB_PATH = path.join(__dirname, 'agent-space.db');
+const db = new sqlite.DatabaseSync(DEMO_MODE ? ':memory:' : DB_PATH);
+
+// Schema
+db.exec(`
+  CREATE TABLE IF NOT EXISTS token_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    model TEXT DEFAULT '',
+    input INTEGER DEFAULT 0,
+    output INTEGER DEFAULT 0,
+    cache_read INTEGER DEFAULT 0,
+    cache_write INTEGER DEFAULT 0,
+    cost REAL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS cost_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    total_cost REAL DEFAULT 0,
+    total_tokens INTEGER DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS agent_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    agent TEXT NOT NULL,
+    event TEXT NOT NULL,
+    detail TEXT DEFAULT ''
+  );
+  CREATE TABLE IF NOT EXISTS metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value REAL NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_token_date ON token_snapshots(date);
+  CREATE INDEX IF NOT EXISTS idx_cost_date ON cost_history(date);
+  CREATE INDEX IF NOT EXISTS idx_agent_events_ts ON agent_events(ts);
+  CREATE INDEX IF NOT EXISTS idx_metrics_key_ts ON metrics(key, ts);
+`);
+
+// Prepared statements for hot paths
+const _stmts = {
+  insertTokenSnap: db.prepare('INSERT INTO token_snapshots(ts, date, agent, model, input, output, cache_read, cache_write, cost) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+  insertCostSnap: db.prepare('INSERT INTO cost_history(ts, date, total_cost, total_tokens) VALUES(?, ?, ?, ?)'),
+  insertEvent: db.prepare('INSERT INTO agent_events(ts, agent, event, detail) VALUES(?, ?, ?, ?)'),
+  insertMetric: db.prepare('INSERT INTO metrics(ts, key, value) VALUES(?, ?, ?)'),
+  getCostHistory: db.prepare('SELECT date, total_cost, total_tokens FROM cost_history WHERE date >= ? ORDER BY date ASC'),
+  getTokensByDate: db.prepare('SELECT agent, SUM(input) as input, SUM(output) as output, SUM(cache_read) as cache_read, SUM(cost) as cost FROM token_snapshots WHERE date = ? GROUP BY agent'),
+  getRecentEvents: db.prepare('SELECT ts, agent, event, detail FROM agent_events WHERE ts > ? ORDER BY ts DESC LIMIT 100'),
+  getMetrics: db.prepare('SELECT ts, value FROM metrics WHERE key = ? AND ts > ? ORDER BY ts ASC'),
+  getLastCostSnap: db.prepare('SELECT date FROM cost_history ORDER BY ts DESC LIMIT 1'),
+};
+
+// Snapshot function: called periodically to persist current state
+function persistSnapshot() {
+  try {
+    const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    
+    // Check if we already have a snapshot for today
+    const lastSnap = _stmts.getLastCostSnap.get();
+    if (lastSnap && lastSnap.date === today) return; // already snapped today
+
+    const tokenData = typeof getTokens === 'function' ? getTokens() : null;
+    if (!tokenData) return;
+    
+    // byAgent is a dict { agentId: { input, output, cached, ... } }
+    const byAgent = tokenData.byAgent || {};
+    const agentEntries = Object.entries(byAgent);
+    if (!agentEntries.length) return;
+
+    // Token snapshots per agent
+    for (const [agentId, a] of agentEntries) {
+      _stmts.insertTokenSnap.run(now, today, agentId, '', a.input || 0, a.output || 0, a.cached || 0, 0, 0);
+    }
+
+    // Cost snapshot
+    const totalCost = parseFloat(tokenData.estimatedCostUSD) || 0;
+    const totalTokens = tokenData.totals?.total || 0;
+    _stmts.insertCostSnap.run(now, today, totalCost, totalTokens);
+
+    console.log(`[db] Persisted snapshot for ${today}`);
+  } catch (e) { console.error('[db] Snapshot error:', e.message); }
+}
+
+// Record agent status changes
+function recordAgentEvent(agentName, event, detail = '') {
+  try { _stmts.insertEvent.run(Date.now(), agentName, event, detail); } catch {}
+}
+
+// Record a metric data point
+function recordMetric(key, value) {
+  try { _stmts.insertMetric.run(Date.now(), key, value); } catch {}
+}
 const HOME = process.env.HOME || require('os').homedir();
 const AGENTS_DIR = path.join(HOME, '.openclaw', 'agents');
 const QUEUE_FILE = path.join(WR_DIR, '_ACTIVE_QUEUE.md');
@@ -1410,7 +1510,13 @@ setInterval(() => {
     if (_sseTickCount % 3 === 0) {
       getSystemAsync().then(sys => {
         const sh = simpleHash(sys);
-        if (sh !== _lastSystemHash) { _lastSystemHash = sh; broadcastSSE('system', sys); }
+        if (sh !== _lastSystemHash) {
+          _lastSystemHash = sh;
+          broadcastSSE('system', sys);
+          // Persist CPU/memory metrics
+          if (sys.cpu) recordMetric('cpu', sys.cpu.user + sys.cpu.sys);
+          if (sys.memory) recordMetric('memory_used_gb', parseFloat(sys.memory.usedGB) || 0);
+        }
       }).catch(() => {});
 
       try {
@@ -2361,6 +2467,31 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(data, null, 2));
   }
 
+  // Persistent data endpoints
+  if (url === '/api/cost-history') {
+    const days = parseInt(new URLSearchParams(req.url.split('?')[1] || '').get('days') || '30');
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    return json(res, { history: _stmts.getCostHistory.all(since) });
+  }
+  if (url === '/api/agent-events') {
+    const since = Date.now() - 7 * 86400000; // last 7 days
+    return json(res, { events: _stmts.getRecentEvents.all(since) });
+  }
+  if (url === '/api/metrics') {
+    const params = new URLSearchParams(req.url.split('?')[1] || '');
+    const key = params.get('key') || 'cpu';
+    const hours = parseInt(params.get('hours') || '24');
+    const since = Date.now() - hours * 3600000;
+    return json(res, { key, data: _stmts.getMetrics.all(key, since) });
+  }
+  if (url === '/api/db-stats') {
+    const tokenCount = db.prepare('SELECT COUNT(*) as c FROM token_snapshots').get();
+    const costCount = db.prepare('SELECT COUNT(*) as c FROM cost_history').get();
+    const eventCount = db.prepare('SELECT COUNT(*) as c FROM agent_events').get();
+    const metricCount = db.prepare('SELECT COUNT(*) as c FROM metrics').get();
+    return json(res, { tokens: tokenCount.c, costs: costCount.c, events: eventCount.c, metrics: metricCount.c });
+  }
+
   if (url === '/api/health') return json(res, { ok: true });
   if (url === '/api/health-score') return json(res, getHealthScore());
   if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
@@ -2461,4 +2592,8 @@ server.listen(18790, '0.0.0.0', () => {
   setInterval(() => {
     if (sseClients.size > 0) warmLightCaches();
   }, 30000);
+  // Persist snapshots every hour
+  setInterval(() => { setImmediate(persistSnapshot); }, 3600000);
+  // Initial snapshot after caches warm
+  setTimeout(() => { setImmediate(persistSnapshot); }, 20000);
 });

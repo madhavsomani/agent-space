@@ -4,3 +4,4 @@ node_modules/
 *.log
 memory-history.json
 agent-status.json
+agent-space.db
