@@ -2724,30 +2724,23 @@ function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   _ptIdx = 0; // reset point pool each frame
 
-  // Periodic hard reset: flush the canvas save/restore stack every ~30s.
-  // The drawAgent wrapper now has save/restore guards, so this is just a safety net.
-  if (++_canvasHealthCounter >= 64) { // every ~8s at 8fps
+  const dpr = window.devicePixelRatio || 1;
+
+  // Safety net: every ~8s at 8fps, do a full canvas state reset to drain any
+  // leaked save/restore stack and recover from corrupted transform state.
+  if (++_canvasHealthCounter >= 64) {
     _canvasHealthCounter = 0;
     const w = oCanvas.width, h = oCanvas.height;
-    oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h; // hard reset clears state stack
+    oCanvas.width = w; // hard reset — clears state stack, clears pixels
     oCtx = oCanvas.getContext('2d');
     invalidateStaticCache();
   }
 
+  // Always set transform fresh — prevents DPR drift from leaked save/restore
+  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
   const time = rafNow ? Math.round(performance.timeOrigin + rafNow) : Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
-
-  // Reset canvas to pristine state each frame.
-  // Canvas 2D save/restore stack leaks are hard to fully prevent in complex rendering code.
-  // A full canvas reset (width assignment) drains the entire state stack and clears all state.
-  // We do this every 60 frames (~7.5s at 8fps) to prevent save/restore imbalance accumulation.
-  const dpr = window.devicePixelRatio || 1;
-  _frameCounter = (_frameCounter || 0) + 1;
-  if (_frameCounter % 60 === 0) {
-    oCanvas.width = oCanvas.width; // full state reset — drains save/restore stack
-    oCtx = oCanvas.getContext('2d');
-  }
-  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   oCtx.globalAlpha = 1;
   oCtx.globalCompositeOperation = 'source-over';
   oCtx.clearRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
@@ -3177,6 +3170,18 @@ function drawOffice(rafNow) {
   // Draw mini-map & zoom controls (in screen space, not transformed)
   drawMiniMap(allAgents);
   drawZoomControls();
+
+  // Post-frame health check: if canvas is entirely transparent at center, something went wrong.
+  // Force a hard reset so next frame recovers immediately instead of showing a dark void.
+  if (_canvasHealthCounter === 1) { // check right after a normal frame (not after a reset frame)
+    try {
+      const cx = Math.floor(oCanvas.width / 2), cy = Math.floor(oCanvas.height / 2);
+      const px = oCtx.getImageData(cx, cy, 1, 1).data;
+      if (px[3] === 0) { // fully transparent = nothing was drawn
+        _canvasHealthCounter = 63; // trigger reset on next frame
+      }
+    } catch(e) {}
+  }
 }
 
 // ===== OFFSCREEN STATIC LAYER CACHE =====
