@@ -307,24 +307,23 @@ function discoverAgents() {
 Object.defineProperty(global, 'AGENT_MAP', { get: () => discoverAgents() });
 const AGENT_MAP = { get list() { return discoverAgents(); } };
 
-// Cache for cron run data (refresh every 30s to avoid shelling out on every request)
+// Cache for cron run data — serialized queue to avoid spawning many CLI processes at once
 let _cronCache = {};  // jobId -> { ts, data }
 const CRON_CACHE_TTL = 30000;
+let _cronFetchQueue = [];
+let _cronFetchRunning = false;
 
-function getCronAgentActivity(cronJobId) {
-  const now = Date.now();
-  const cached = _cronCache[cronJobId];
-  if (cached && (now - cached.ts) < CRON_CACHE_TTL) return cached.data;
-
-  // Fire async fetch in background, return stale/null immediately
-  if (!_cronCache['_fetching_' + cronJobId]) {
-    _cronCache['_fetching_' + cronJobId] = true;
-    execAsync(
-      `openclaw cron runs --id ${cronJobId} --limit 1 --timeout 2000 2>/dev/null`,
-      { timeout: 4000, encoding: 'utf8' },
-      (err, stdout) => {
-        _cronCache['_fetching_' + cronJobId] = false;
-        if (err || !stdout) return;
+function _processCronQueue() {
+  if (_cronFetchRunning || !_cronFetchQueue.length) return;
+  _cronFetchRunning = true;
+  const cronJobId = _cronFetchQueue.shift();
+  execAsync(
+    `openclaw cron runs --id ${cronJobId} --limit 1 --timeout 8000 2>&1`,
+    { timeout: 15000, encoding: 'utf8' },
+    (err, stdout) => {
+      _cronFetchRunning = false;
+      if (err) { console.error('[cron-cache] err for', cronJobId.slice(0,8), ':', err.message?.slice(0,100)); }
+      else if (stdout) {
         try {
           const lines = stdout.split('\n');
           let jsonStr = '', braceDepth = 0, collecting = false;
@@ -336,22 +335,43 @@ function getCronAgentActivity(cronJobId) {
               if (braceDepth === 0 && jsonStr.trim()) break;
             }
           }
-          if (!jsonStr.trim()) { _cronCache[cronJobId] = { ts: Date.now(), data: null }; return; }
-          const parsed = JSON.parse(jsonStr);
-          const entries = parsed.entries || [];
-          if (!entries.length) { _cronCache[cronJobId] = { ts: Date.now(), data: null }; return; }
-          const latest = entries[0];
-          const finishedTs = latest.ts || 0;
-          const startedTs = latest.runAtMs || 0;
-          const isRunning = latest.action === 'started' || (!latest.status && latest.action !== 'finished');
-          const summary = (latest.summary || '').replace(/[^\x20-\x7E\n]/g, '').slice(0, 200);
-          const summaryLines = summary.split('\n').map(l => l.replace(/\*+/g, '').replace(/^#+\s*/, '').replace(/[✅❌🔧📬]/g, '').trim()).filter(l => l.length > 10);
-          const junkRe = /^(ANNOUNCE_SKIP|NO_REPLY|Coding Agent (Summary|[12]\s*(Session|Heartbeat)\s*Complete)|Should go to|Current time:)/i;
-          let lastMessage = (summaryLines.find(l => !junkRe.test(l) && !/^(Shipped|Next priority):?\s*$/i.test(l)) || '').slice(0, 200);
-          _cronCache[cronJobId] = { ts: Date.now(), data: { lastActivity: finishedTs || startedTs, lastMessage, isRunning, status: latest.status, durationMs: latest.durationMs, nextRunAtMs: latest.nextRunAtMs } };
-        } catch {}
+          if (jsonStr.trim()) {
+            const parsed = JSON.parse(jsonStr);
+            const entries = parsed.entries || [];
+            if (entries.length) {
+              const latest = entries[0];
+              const finishedTs = latest.ts || 0;
+              const startedTs = latest.runAtMs || 0;
+              const isRunning = latest.action === 'started' || (!latest.status && latest.action !== 'finished');
+              const summary = (latest.summary || '').replace(/[^\x20-\x7E\n]/g, '').slice(0, 200);
+              const summaryLines = summary.split('\n').map(l => l.replace(/\*+/g, '').replace(/^#+\s*/, '').replace(/[✅❌🔧📬]/g, '').trim()).filter(l => l.length > 10);
+              const junkRe = /^(ANNOUNCE_SKIP|NO_REPLY|Coding Agent (Summary|[12]\s*(Session|Heartbeat)\s*Complete)|Should go to|Current time:)/i;
+              let lastMessage = (summaryLines.find(l => !junkRe.test(l) && !/^(Shipped|Next priority):?\s*$/i.test(l)) || '').slice(0, 200);
+              _cronCache[cronJobId] = { ts: Date.now(), data: { lastActivity: finishedTs || startedTs, lastMessage, isRunning, status: latest.status, durationMs: latest.durationMs, nextRunAtMs: latest.nextRunAtMs } };
+              console.log('[cron-cache] OK', cronJobId.slice(0,8), 'age:', Math.round((Date.now() - (finishedTs||startedTs))/60000), 'min');
+            } else {
+              _cronCache[cronJobId] = { ts: Date.now(), data: null };
+            }
+          } else {
+            _cronCache[cronJobId] = { ts: Date.now(), data: null };
+          }
+        } catch (e) { console.error('[cron-cache] parse err', cronJobId.slice(0,8), e.message?.slice(0,80)); }
       }
-    );
+      // Process next in queue after a short delay
+      setTimeout(_processCronQueue, 500);
+    }
+  );
+}
+
+function getCronAgentActivity(cronJobId) {
+  const now = Date.now();
+  const cached = _cronCache[cronJobId];
+  if (cached && (now - cached.ts) < CRON_CACHE_TTL) return cached.data;
+
+  // Enqueue if not already queued
+  if (!_cronFetchQueue.includes(cronJobId)) {
+    _cronFetchQueue.push(cronJobId);
+    _processCronQueue();
   }
 
   // Return stale cache or null — never block
@@ -367,12 +387,13 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
   // Always scan recent jsonl files and pick the most recently modified one
   try {
     const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.endsWith('.lock') && !f.startsWith('sessions'));
-    // Only stat the 5 most recently named files (UUIDs sort roughly by creation)
-    const candidates = files.slice(-5);
-    for (const f of candidates) {
-      const fp = path.join(sessDir, f);
-      const stat = fs.statSync(fp);
-      if (stat.mtimeMs > bestMtime) { bestMtime = stat.mtimeMs; bestFile = fp; }
+    // Stat all files to find the most recently modified (UUIDs don't sort by creation time)
+    for (const f of files) {
+      try {
+        const fp = path.join(sessDir, f);
+        const mt = fs.statSync(fp).mtimeMs;
+        if (mt > bestMtime) { bestMtime = mt; bestFile = fp; }
+      } catch {}
     }
   } catch { return null; }
 
@@ -422,7 +443,7 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
 
 function getAgents() {
   const now = Date.now();
-  const ACTIVE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+  const ACTIVE_THRESHOLD = 10 * 60 * 1000; // 10 minutes — cron agents run every 5m, so 10m window catches active ones
 
   const agents = discoverAgents().map(a => {
     let lastActivity = 0, lastMessage = '', extraInfo = {};
@@ -436,15 +457,17 @@ function getAgents() {
         lastMessage = cronData.lastMessage || '';
         extraInfo = cronData;
       }
-    } else {
+    }
+    // Also check JSONL sessions (for non-cron agents, or as fallback when cron cache is cold)
+    if (!lastActivity) {
       const activity = getLastSessionActivity(a.sessionDir, a.sessionKey, a.transcriptId);
       if (activity) {
         lastActivity = activity.lastActivity || 0;
-        lastMessage = activity.lastMessage || '';
+        lastMessage = lastMessage || activity.lastMessage || '';
       }
     }
 
-    // Fallback: if lastActivity is 0 or very old, use state.md mtime as proxy
+    // Fallback: if lastActivity is 0 or very old, use state.md mtime or most recent session file mtime
     if (!lastActivity || (now - lastActivity) > 30 * 24 * 3600 * 1000) {
       try {
         const stateFile = path.join(AGENTS_DIR, a.sessionDir, 'memory', 'state.md');
@@ -453,17 +476,36 @@ function getAgents() {
           if (mtime > lastActivity) lastActivity = mtime;
         }
       } catch {}
+      // Also check most recent session file mtime
+      if (!lastActivity || (now - lastActivity) > 30 * 24 * 3600 * 1000) {
+        try {
+          const sessDir = path.join(AGENTS_DIR, a.sessionDir, 'sessions');
+          if (fs.existsSync(sessDir)) {
+            const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('sessions'));
+            for (const f of files.slice(-3)) {
+              const mtime = fs.statSync(path.join(sessDir, f)).mtimeMs;
+              if (mtime > lastActivity) lastActivity = mtime;
+            }
+          }
+        } catch {}
+      }
     }
 
     const ageSec = (now - lastActivity) / 1000;
     const ageMin = Math.round(ageSec / 60);
 
     let status = 'sleeping';
+    // For cron-based agents, also check if next run is soon (within 2x cron interval)
+    const nextRunSoon = extraInfo.nextRunAtMs && (extraInfo.nextRunAtMs - now) < 20 * 60 * 1000;
     if (a.cronJobId && extraInfo.isRunning) {
       status = 'working';
     } else if (ageSec < ACTIVE_THRESHOLD / 1000) {
       status = 'working';
-    } else if (ageSec < 15 * 60) {
+    } else if (ageSec < 20 * 60) {
+      // Within 20 min of last activity = idle (not sleeping)
+      status = 'idle';
+    } else if (a.cronJobId && nextRunSoon) {
+      // Cron agent with upcoming run — idle, not sleeping
       status = 'idle';
     }
 
@@ -850,7 +892,7 @@ function getCron() {
 // Token cache — recalculate every 60s (scanning JSONLs is expensive)
 let tokenCache = null;
 let tokenCacheTime = 0;
-const TOKEN_CACHE_TTL = 60000;
+const TOKEN_CACHE_TTL = 300000; // 5 min — scanning JSONLs is expensive
 
 function getTokens() {
   if (tokenCache && Date.now() - tokenCacheTime < TOKEN_CACHE_TTL) return { ...tokenCache, timestamp: Date.now() };
@@ -864,9 +906,19 @@ function getTokens() {
         const sessDir = path.join(agentsDir, agent, 'sessions');
         if (!fs.existsSync(sessDir)) continue;
         let agentIn = 0, agentOut = 0, agentCached = 0;
-        for (const f of fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl'))) {
+        const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('sessions'));
+        for (const f of files) {
           try {
-            const lines = fs.readFileSync(path.join(sessDir, f), 'utf8').split('\n');
+            const fp = path.join(sessDir, f);
+            const stat = fs.statSync(fp);
+            // Read entire file but cap at 2MB per file to avoid blocking
+            const readSize = Math.min(stat.size, 2 * 1024 * 1024);
+            const fd = fs.openSync(fp, 'r');
+            const buf = Buffer.alloc(readSize);
+            fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
+            fs.closeSync(fd);
+            const content = buf.toString('utf8');
+            const lines = content.split('\n');
             for (const line of lines) {
               if (!line.includes('"usage"')) continue;
               try {
@@ -889,16 +941,15 @@ function getTokens() {
     }
   } catch {}
   const p = pricing['claude-opus-4.6'];
-  // Theoretical cost: non-cached input * input price + cached * cached price + output * output price
   const estCost = (totalInput * p.input + totalCached * p.cachedInput + totalOutput * p.output) / 1_000_000;
-  tokenCache = { pricing, totals: { input: totalInput, output: totalOutput, cached: totalCached }, estimatedCostUSD: Math.round(estCost * 100) / 100, byAgent, note: 'Estimated based on model pricing' };
+  tokenCache = { pricing, totals: { input: totalInput, output: totalOutput, cached: totalCached }, estimatedCostUSD: Math.round(estCost * 100) / 100, byAgent, note: 'Estimated based on model pricing (last 2MB per session file)' };
   tokenCacheTime = Date.now();
   return { ...tokenCache, timestamp: Date.now() };
 }
 
 let _dailyTokensCache = null;
 let _dailyTokensCacheTime = 0;
-const DAILY_TOKENS_TTL = 120000;
+const DAILY_TOKENS_TTL = 300000;
 
 function getTokensDaily() {
   const now = Date.now();
@@ -907,7 +958,7 @@ function getTokensDaily() {
   const pricing = { input: 15, output: 75, cachedInput: 1.875 }; // claude-opus-4.6 per 1M
   const agentsDir = path.join(HOME, '.openclaw', 'agents');
   const dailyMap = {}; // date -> { input, output, cached, byAgent: { agentName: { input, output } } }
-  const DAYS = 14;
+  const DAYS = 30;
   const cutoff = now - DAYS * 86400000;
 
   try {
@@ -917,13 +968,24 @@ function getTokensDaily() {
       if (!fs.existsSync(sessDir)) continue;
       const known = KNOWN_AGENTS[agent];
       const agentName = known ? known.name : agent;
-      for (const f of fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl'))) {
+      const allFiles = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('sessions'));
+      // Only scan files modified within our time window, limit to most recent 20
+      const recentFiles = allFiles.map(f => {
+        try { return { f, mt: fs.statSync(path.join(sessDir, f)).mtimeMs }; } catch { return null; }
+      }).filter(x => x && x.mt >= cutoff).sort((a,b) => b.mt - a.mt).slice(0, 20);
+      for (const { f } of recentFiles) {
         try {
           const fp = path.join(sessDir, f);
           const stat = fs.statSync(fp);
           // Skip files not modified in our window
           if (stat.mtimeMs < cutoff) continue;
-          const lines = fs.readFileSync(fp, 'utf8').split('\n');
+          // Cap read at 2MB per file
+          const readSize = Math.min(stat.size, 2 * 1024 * 1024);
+          const fd = fs.openSync(fp, 'r');
+          const buf = Buffer.alloc(readSize);
+          fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
+          fs.closeSync(fd);
+          const lines = buf.toString('utf8').split('\n');
           for (const line of lines) {
             if (!line.includes('"usage"')) continue;
             try {
@@ -1184,9 +1246,14 @@ function getAgentDetail(agentDir) {
   return result;
 }
 
+let _tlHeatCache = null;
+let _tlHeatCacheTime = 0;
+const TL_HEAT_CACHE_TTL = 60000;
+
 function getTimelineHeatmap() {
   // Build a 6-hour activity heatmap per agent (15-min buckets = 24 slots)
   const now = Date.now();
+  if (_tlHeatCache && (now - _tlHeatCacheTime) < TL_HEAT_CACHE_TTL) return { ..._tlHeatCache, timestamp: now };
   const SIX_HOURS = 6 * 3600 * 1000;
   const BUCKET_MS = 15 * 60 * 1000; // 15 min
   const BUCKETS = 24;
@@ -1277,27 +1344,14 @@ function getTimelineHeatmap() {
     });
   }
 
+  _tlHeatCache = result;
+  _tlHeatCacheTime = now;
   return result;
 }
 
 function getCalendar() {
   try {
-    let gcalEvents = [];
-    try {
-      throw new Error('gog calendar disabled — re-enable after gog auth login');
-      const parsed = JSON.parse(raw);
-      const now = new Date();
-      const weekLater = new Date(now.getTime() + 7 * 86400000);
-      gcalEvents = (Array.isArray(parsed) ? parsed : []).filter(e => {
-        const start = new Date(e.start?.dateTime || e.start?.date || '');
-        return start >= now && start <= weekLater;
-      }).slice(0, 20).map(e => ({
-        title: e.summary || 'Untitled',
-        start: e.start?.dateTime || e.start?.date || '',
-        end: e.end?.dateTime || e.end?.date || '',
-        location: e.location || '',
-      }));
-    } catch {}
+    const gcalEvents = []; // gcal disabled — re-enable after gog auth login
     const files = fs.readdirSync(WR_DIR).filter(f => f.endsWith('.md') && !f.startsWith('_'));
     const wrs = files.map(f => {
       const content = fs.readFileSync(path.join(WR_DIR, f), 'utf8');
@@ -1321,8 +1375,10 @@ let _lastQueueHash = '';
 
 function simpleHash(obj) {
   const s = JSON.stringify(obj);
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  let h = 0, len = s.length;
+  // Sample every 4th char for large payloads (>2KB) for speed
+  const step = len > 2048 ? 4 : 1;
+  for (let i = 0; i < len; i += step) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return String(h);
 }
 
@@ -1394,8 +1450,13 @@ let _perfCache = null;
 let _perfCacheTime = 0;
 const PERF_CACHE_TTL = 60000;
 
+let _uptimeCache = null;
+let _uptimeCacheTime = 0;
+const UPTIME_CACHE_TTL = 60000; // 1 min
+
 function getUptime() {
   const now = Date.now();
+  if (_uptimeCache && (now - _uptimeCacheTime) < UPTIME_CACHE_TTL) return { ..._uptimeCache, timestamp: now };
   const DAY_MS = 24 * 3600 * 1000;
   const BUCKET_MS = 15 * 60 * 1000; // 15-min buckets
   const BUCKETS = 96; // 24h / 15min
@@ -1492,7 +1553,9 @@ function getUptime() {
   results.sort((a, b) => b.uptimePct - a.uptimePct);
   const avgUptime = results.length ? Math.round(results.reduce((s, r) => s + r.uptimePct, 0) / results.length) : 0;
 
-  return { agents: results, avgUptime, bucketMinutes: 15, hours: 24, timestamp: now };
+  _uptimeCache = { agents: results, avgUptime, bucketMinutes: 15, hours: 24 };
+  _uptimeCacheTime = now;
+  return { ..._uptimeCache, timestamp: now };
 }
 
 function getPerformance() {
@@ -1782,6 +1845,30 @@ function getDependencyGraph() {
     } catch {}
   }
 
+  // Add config-driven baseline relationships (always present even without spawn data)
+  const baselineRels = [
+    { from: 'BenMac', to: 'Director', label: 'orchestrates' },
+    { from: 'Director', to: 'Writer', label: 'assigns content' },
+    { from: 'Director', to: 'Designer', label: 'assigns design' },
+    { from: 'Director', to: 'Producer', label: 'assigns production' },
+    { from: 'Director', to: 'Publisher', label: 'assigns publishing' },
+    { from: 'BenMac', to: 'Coding Agent 1', label: 'assigns engineering' },
+    { from: 'BenMac', to: 'Coding Agent 2', label: 'assigns engineering' },
+    { from: 'BenMac', to: 'Mail Manager', label: 'manages comms' },
+    { from: 'QA Agent', to: 'Coding Agent 1', label: 'reviews' },
+    { from: 'QA Agent', to: 'Coding Agent 2', label: 'reviews' },
+  ];
+  for (const rel of baselineRels) {
+    const key = `${rel.from}->${rel.to}`;
+    if (!edges[key]) {
+      edges[key] = { count: 0, lastTs: 0, tasks: [], baseline: true, label: rel.label };
+    }
+    nodeSet.add(rel.from);
+    nodeSet.add(rel.to);
+    if (!nodeTypes[rel.from]) nodeTypes[rel.from] = 'persistent';
+    if (!nodeTypes[rel.to]) nodeTypes[rel.to] = 'persistent';
+  }
+
   const nodes = [];
   for (const name of nodeSet) {
     const a = agents.find(x => x.name === name);
@@ -1793,7 +1880,7 @@ function getDependencyGraph() {
 
   const edgeList = Object.entries(edges).map(([key, data]) => {
     const [from, to] = key.split('->');
-    return { from, to, count: data.count, lastTs: data.lastTs, tasks: data.tasks };
+    return { from, to, count: data.count, lastTs: data.lastTs, tasks: data.tasks, baseline: !!data.baseline, label: data.label || '' };
   }).sort((a, b) => b.count - a.count);
 
   _depGraphCache = { nodes, edges: edgeList };
@@ -1909,6 +1996,32 @@ function getCommGraph() {
     } catch {}
   }
 
+  // Ensure ALL configured agents appear as nodes (even with no session data)
+  for (const a of agents) {
+    nodeSet.add(a.name);
+  }
+
+  // Config-driven baseline relationships (always shown, even without session data)
+  // These represent the known org structure / communication paths
+  const baselineRelationships = [
+    ['BenMac', 'Director'],
+    ['BenMac', 'Coding Agent 1'],
+    ['BenMac', 'Coding Agent 2'],
+    ['BenMac', 'QA Agent'],
+    ['BenMac', 'Mail Manager'],
+    ['Director', 'Writer'],
+    ['Director', 'Designer'],
+    ['Director', 'Producer'],
+    ['Director', 'Publisher'],
+    ['Coding Agent 2', 'BenMac'],
+    ['QA Agent', 'Coding Agent 1'],
+    ['QA Agent', 'Coding Agent 2'],
+  ];
+  for (const [from, to] of baselineRelationships) {
+    const key = `${from}->${to}`;
+    if (!edges[key]) edges[key] = 0; // baseline = 0 count (shown as dotted)
+  }
+
   // Build result
   const nodes = [];
   for (const name of nodeSet) {
@@ -1918,7 +2031,7 @@ function getCommGraph() {
 
   const edgeList = Object.entries(edges).map(([key, count]) => {
     const [from, to] = key.split('->');
-    return { from, to, count };
+    return { from, to, count, baseline: count === 0 };
   }).sort((a, b) => b.count - a.count);
 
   _commGraphCache = { nodes, edges: edgeList };
