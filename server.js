@@ -383,15 +383,17 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
   if (!fs.existsSync(sessDir)) return null;
 
   let bestFile = null, bestMtime = 0;
+  const ONE_HOUR = 3600000;
+  const now = Date.now();
 
-  // Always scan recent jsonl files and pick the most recently modified one
+  // Only scan files modified in the last hour (avoids stat'ing hundreds of old files)
   try {
     const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.endsWith('.lock') && !f.startsWith('sessions'));
-    // Stat all files to find the most recently modified (UUIDs don't sort by creation time)
     for (const f of files) {
       try {
         const fp = path.join(sessDir, f);
         const mt = fs.statSync(fp).mtimeMs;
+        if ((now - mt) > ONE_HOUR) continue; // skip old files
         if (mt > bestMtime) { bestMtime = mt; bestFile = fp; }
       } catch {}
     }
@@ -404,7 +406,7 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
   let lastTimestamp = bestMtime;
   try {
     const stat = fs.statSync(bestFile);
-    const readSize = Math.min(stat.size, 200000); // last 200KB
+    const readSize = Math.min(stat.size, 50000); // last 50KB — enough for recent messages
     const fd = fs.openSync(bestFile, 'r');
     const buf = Buffer.alloc(readSize);
     fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
@@ -441,8 +443,11 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
   return { lastActivity: lastTimestamp, lastMessage };
 }
 
+let _agentsCache = null, _agentsCacheTime = 0;
+const AGENTS_CACHE_TTL = 30000; // 30s — agents endpoint is expensive (scans session files)
 function getAgents() {
   const now = Date.now();
+  if (_agentsCache && (now - _agentsCacheTime) < AGENTS_CACHE_TTL) return _agentsCache;
   const ACTIVE_THRESHOLD = 10 * 60 * 1000; // 10 minutes — cron agents run every 5m, so 10m window catches active ones
 
   const agents = discoverAgents().map(a => {
@@ -458,12 +463,13 @@ function getAgents() {
         extraInfo = cronData;
       }
     }
-    // Also check JSONL sessions (for non-cron agents, or as fallback when cron cache is cold)
-    if (!lastActivity) {
+    // Also check JSONL sessions (for non-cron agents, or as supplement for cron agents)
+    // This catches CURRENTLY RUNNING sessions that cron cache hasn't seen yet
+    {
       const activity = getLastSessionActivity(a.sessionDir, a.sessionKey, a.transcriptId);
       if (activity) {
-        lastActivity = activity.lastActivity || 0;
-        lastMessage = lastMessage || activity.lastMessage || '';
+        if (activity.lastActivity > lastActivity) lastActivity = activity.lastActivity;
+        if (!lastMessage && activity.lastMessage) lastMessage = activity.lastMessage;
       }
     }
 
@@ -535,7 +541,9 @@ function getAgents() {
     };
   });
 
-  return { agents, timestamp: now };
+  const result = { agents, timestamp: now };
+  _agentsCache = result; _agentsCacheTime = now;
+  return result;
 }
 
 function getQueue() {
@@ -1034,7 +1042,12 @@ function getTokensDaily() {
   return _dailyTokensCache;
 }
 
+let _activityCache = null;
+let _activityCacheTime = 0;
+const ACTIVITY_CACHE_TTL = 30000; // 30s
 function getActivity() {
+  const now = Date.now();
+  if (_activityCache && (now - _activityCacheTime) < ACTIVITY_CACHE_TTL) return { ..._activityCache, timestamp: now };
   try {
     const lines = [];
     // 1. WR activity
@@ -1138,7 +1151,9 @@ function getActivity() {
       if (!seen.has(key)) { seen.add(key); deduped.push(item); }
     }
 
-    return { activity: deduped.slice(0, 40) };
+    _activityCache = { activity: deduped.slice(0, 40) };
+    _activityCacheTime = now;
+    return { ..._activityCache, timestamp: now };
   } catch (e) { return { activity: [], error: e.message }; }
 }
 function getAgentDetail(agentDir) {
@@ -1218,33 +1233,16 @@ function getAgentDetail(agentDir) {
     } catch {}
   }
 
-  // Cron runs for cron agents
-  if (agent.cronJobId) {
-    try {
-      const raw = execSync(
-        `openclaw cron runs --id ${agent.cronJobId} --limit 10 --timeout 4000 2>/dev/null`,
-        { timeout: 6000, encoding: 'utf8' }
-      );
-      const lines = raw.split('\n');
-      let jsonStr = '', braceDepth = 0, collecting = false;
-      for (const line of lines) {
-        if (!collecting && line.trim().startsWith('{')) collecting = true;
-        if (collecting) {
-          jsonStr += line + '\n';
-          for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
-          if (braceDepth === 0 && jsonStr.trim()) break;
-        }
-      }
-      if (jsonStr.trim()) {
-        const parsed = JSON.parse(jsonStr);
-        result.cronRuns = (parsed.entries || []).slice(0, 10).map(e => ({
-          ts: e.ts || e.runAtMs || 0,
-          status: e.status || e.action || '',
-          durationMs: e.durationMs || 0,
-          summary: (e.summary || '').slice(0, 200),
-        }));
-      }
-    } catch {}
+  // Cron runs for cron agents — use cache instead of blocking execSync
+  if (agent.cronJobId && _cronCache[agent.cronJobId]) {
+    const cached = _cronCache[agent.cronJobId];
+    if (cached.data) {
+      result.cronRuns = [{
+        ts: cached.data.finishedTs || cached.data.startedTs || 0,
+        status: cached.data.isRunning ? 'running' : 'finished',
+        summary: (cached.data.lastMessage || '').slice(0, 200),
+      }];
+    }
   }
 
   return result;
@@ -1252,7 +1250,7 @@ function getAgentDetail(agentDir) {
 
 let _tlHeatCache = null;
 let _tlHeatCacheTime = 0;
-const TL_HEAT_CACHE_TTL = 60000;
+const TL_HEAT_CACHE_TTL = 300000;
 
 function getTimelineHeatmap() {
   // Build a 6-hour activity heatmap per agent (15-min buckets = 24 slots)
@@ -1268,42 +1266,17 @@ function getTimelineHeatmap() {
     const slots = new Array(BUCKETS).fill(0); // 0=no data, 1=active
     let found = false;
 
-    // 1. Check cron runs for cron agents
-    if (agent.cronJobId) {
-      try {
-        const raw = execSync(
-          `openclaw cron runs --id ${agent.cronJobId} --limit 20 --timeout 4000 2>/dev/null`,
-          { timeout: 6000, encoding: 'utf8' }
-        );
-        const lines = raw.split('\n');
-        let jsonStr = '', braceDepth = 0, collecting = false;
-        for (const line of lines) {
-          if (!collecting && line.trim().startsWith('{')) collecting = true;
-          if (collecting) {
-            jsonStr += line + '\n';
-            for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
-            if (braceDepth === 0 && jsonStr.trim()) break;
-          }
+    // 1. Check cron runs for cron agents — use cache
+    if (agent.cronJobId && _cronCache[agent.cronJobId]) {
+      const cached = _cronCache[agent.cronJobId];
+      if (cached.data) {
+        const ts = cached.data.finishedTs || cached.data.startedTs || 0;
+        if (ts && (now - ts) < SIX_HOURS) {
+          const bucket = Math.floor((now - ts) / BUCKET_MS);
+          if (bucket >= 0 && bucket < BUCKETS) { slots[BUCKETS - 1 - bucket] = 1; found = true; }
+          if (cached.data.isRunning) { slots[BUCKETS - 1] = 1; found = true; }
         }
-        if (jsonStr.trim()) {
-          const parsed = JSON.parse(jsonStr);
-          const entries = parsed.entries || [];
-          for (const e of entries) {
-            const ts = e.ts || e.runAtMs || 0;
-            if (!ts || (now - ts) > SIX_HOURS) continue;
-            const bucket = Math.floor((now - ts) / BUCKET_MS);
-            if (bucket >= 0 && bucket < BUCKETS) { slots[BUCKETS - 1 - bucket] = 1; found = true; }
-            // If run had duration, mark adjacent buckets too
-            if (e.durationMs && e.durationMs > BUCKET_MS) {
-              const extra = Math.ceil(e.durationMs / BUCKET_MS);
-              for (let j = 1; j < extra && (bucket - j) >= 0; j++) {
-                const b2 = bucket - j;
-                if (b2 < BUCKETS) { slots[BUCKETS - 1 - b2] = 1; found = true; }
-              }
-            }
-          }
-        }
-      } catch {}
+      }
     }
 
     // 2. Check JSONL session files for non-cron agents (or as supplement)
@@ -1452,11 +1425,11 @@ setInterval(() => {
 // Performance metrics: aggregate cron run stats per agent
 let _perfCache = null;
 let _perfCacheTime = 0;
-const PERF_CACHE_TTL = 60000;
+const PERF_CACHE_TTL = 300000;
 
 let _uptimeCache = null;
 let _uptimeCacheTime = 0;
-const UPTIME_CACHE_TTL = 60000; // 1 min
+const UPTIME_CACHE_TTL = 300000; // 5 min — very expensive, cron runs + JSONL scanning
 
 function getUptime() {
   const now = Date.now();
@@ -1470,40 +1443,18 @@ function getUptime() {
   for (const agent of agents) {
     const slots = new Array(BUCKETS).fill(0);
 
-    // 1. Cron agents: mark slots from cron run history
-    if (agent.cronJobId) {
-      try {
-        const raw = execSync(
-          `openclaw cron runs --id ${agent.cronJobId} --limit 100 --timeout 5000 2>/dev/null`,
-          { timeout: 8000, encoding: 'utf8' }
-        );
-        const lines = raw.split('\n');
-        let jsonStr = '', braceDepth = 0, collecting = false;
-        for (const line of lines) {
-          if (!collecting && line.trim().startsWith('{')) collecting = true;
-          if (collecting) {
-            jsonStr += line + '\n';
-            for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
-            if (braceDepth === 0 && jsonStr.trim()) break;
-          }
+    // 1. Cron agents: use cached cron data instead of heavy execSync
+    if (agent.cronJobId && _cronCache[agent.cronJobId]) {
+      const cached = _cronCache[agent.cronJobId];
+      if (cached.data) {
+        const ts = cached.data.lastActivity || cached.data.finishedTs || cached.data.startedTs || 0;
+        if (ts && (now - ts) < DAY_MS) {
+          const bucket = Math.floor((now - ts) / BUCKET_MS);
+          if (bucket >= 0 && bucket < BUCKETS) slots[BUCKETS - 1 - bucket] = 1;
+          // If running, mark current bucket too
+          if (cached.data.isRunning) slots[BUCKETS - 1] = 1;
         }
-        if (jsonStr.trim()) {
-          const parsed = JSON.parse(jsonStr);
-          for (const e of (parsed.entries || [])) {
-            const ts = e.ts || e.runAtMs || 0;
-            if (!ts || (now - ts) > DAY_MS) continue;
-            const bucket = Math.floor((now - ts) / BUCKET_MS);
-            if (bucket >= 0 && bucket < BUCKETS) slots[BUCKETS - 1 - bucket] = 1;
-            if (e.durationMs && e.durationMs > BUCKET_MS) {
-              const extra = Math.ceil(e.durationMs / BUCKET_MS);
-              for (let j = 1; j < extra && (bucket - j) >= 0; j++) {
-                const b2 = bucket - j;
-                if (b2 < BUCKETS) slots[BUCKETS - 1 - b2] = 1;
-              }
-            }
-          }
-        }
-      } catch {}
+      }
     }
 
     // 2. JSONL session files: scan timestamps
@@ -1674,7 +1625,7 @@ function getPerformance() {
 // --- Task Completion Stats (WR-based) ---
 let _completionCache = null;
 let _completionCacheTime = 0;
-const COMPLETION_CACHE_TTL = 60000;
+const COMPLETION_CACHE_TTL = 300000;
 
 function getCompletionStats() {
   const now = Date.now();
@@ -2093,7 +2044,7 @@ const LIVE_LOGS_CACHE_TTL = 10000;
 // GitHub-style heatmap calendar: activity per day per agent over last 90 days
 let _heatmapCache = null;
 let _heatmapCacheTime = 0;
-const HEATMAP_CACHE_TTL = 120000; // 2 min
+const HEATMAP_CACHE_TTL = 600000; // 10 min — expensive scan
 
 function getHeatmapCalendar() {
   const now = Date.now();
@@ -2105,87 +2056,51 @@ function getHeatmapCalendar() {
   const today = new Date(); today.setHours(0,0,0,0);
   const startDay = new Date(today.getTime() - (DAYS - 1) * dayMs);
 
-  // Build date labels
   const dates = [];
   for (let i = 0; i < DAYS; i++) {
-    const d = new Date(startDay.getTime() + i * dayMs);
-    dates.push(d.toISOString().slice(0, 10));
+    dates.push(new Date(startDay.getTime() + i * dayMs).toISOString().slice(0, 10));
   }
 
-  // Per-agent: scan session files for activity timestamps by day
-  const agentDays = {}; // agentName -> { '2026-03-15': count, ... }
-  const totalDays = {}; // date -> total count across all agents
+  // Lightweight: use file mtimes only (no content reading, no execSync)
+  const agentDays = {};
+  const totalDays = {};
 
   for (const agent of agents) {
     const counts = {};
     const sessDir = path.join(AGENTS_DIR, agent.sessionDir, 'sessions');
-
-    // Scan jsonl files for timestamps
     try {
       if (fs.existsSync(sessDir)) {
         const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl'));
         for (const f of files) {
-          const fp = path.join(sessDir, f);
           try {
-            const stat = fs.statSync(fp);
-            // Quick check: if file was last modified before our window, skip
-            if (stat.mtimeMs < startDay.getTime()) continue;
-
-            // Read last portion of file to count entries by day
-            const readSize = Math.min(stat.size, 500000); // 500KB max per file
-            const fd = fs.openSync(fp, 'r');
-            const buf = Buffer.alloc(readSize);
-            fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
-            fs.closeSync(fd);
-
-            const lines = buf.toString('utf8').split('\n');
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              // Extract timestamp quickly via regex (avoid full JSON parse)
-              const tsMatch = line.match(/"timestamp"\s*:\s*"([^"]+)"/);
-              if (tsMatch) {
-                const day = tsMatch[1].slice(0, 10);
-                if (day >= dates[0] && day <= dates[dates.length - 1]) {
-                  counts[day] = (counts[day] || 0) + 1;
-                }
-              }
+            const mt = fs.statSync(path.join(sessDir, f)).mtimeMs;
+            if (mt < startDay.getTime()) continue;
+            // Use both mtime and ctime to get creation+modification days
+            const mDay = new Date(mt).toISOString().slice(0, 10);
+            if (mDay >= dates[0] && mDay <= dates[dates.length - 1]) {
+              counts[mDay] = (counts[mDay] || 0) + 1;
             }
           } catch {}
         }
       }
     } catch {}
 
-    // Also check cron run history for cron agents
-    if (agent.cronJobId) {
-      try {
-        const raw = execSync(
-          `openclaw cron runs --id ${agent.cronJobId} --limit 200 --timeout 5000 2>/dev/null`,
-          { timeout: 8000, encoding: 'utf8' }
-        );
-        const lines = raw.split('\n');
-        let jsonStr = '', braceDepth = 0, collecting = false;
-        for (const line of lines) {
-          if (!collecting && line.trim().startsWith('{')) collecting = true;
-          if (collecting) {
-            jsonStr += line + '\n';
-            for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
-            if (braceDepth === 0 && jsonStr.trim()) break;
-          }
-        }
-        if (jsonStr.trim()) {
-          const parsed = JSON.parse(jsonStr);
-          const entries = parsed.entries || [];
-          for (const e of entries) {
-            const ts = e.ts || e.runAtMs;
-            if (!ts) continue;
-            const day = new Date(ts).toISOString().slice(0, 10);
-            if (day >= dates[0] && day <= dates[dates.length - 1]) {
-              counts[day] = (counts[day] || 0) + 1;
+    // Also count memory file mtimes (state.md, learnings.md)
+    const memDir = path.join(AGENTS_DIR, agent.sessionDir, 'memory');
+    try {
+      if (fs.existsSync(memDir)) {
+        for (const f of fs.readdirSync(memDir)) {
+          try {
+            const mt = fs.statSync(path.join(memDir, f)).mtimeMs;
+            if (mt < startDay.getTime()) continue;
+            const mDay = new Date(mt).toISOString().slice(0, 10);
+            if (mDay >= dates[0] && mDay <= dates[dates.length - 1]) {
+              counts[mDay] = (counts[mDay] || 0) + 1;
             }
-          }
+          } catch {}
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
     if (Object.keys(counts).length > 0) {
       agentDays[agent.name] = { counts, color: agent.color };
@@ -2195,15 +2110,7 @@ function getHeatmapCalendar() {
     }
   }
 
-  const result = {
-    dates,
-    startDay: dates[0],
-    endDay: dates[dates.length - 1],
-    totalDays,
-    agents: agentDays,
-    timestamp: now,
-  };
-
+  const result = { dates, startDay: dates[0], endDay: dates[dates.length - 1], totalDays, agents: agentDays, timestamp: now };
   _heatmapCache = result;
   _heatmapCacheTime = now;
   return result;
@@ -2310,20 +2217,20 @@ const server = http.createServer((req, res) => {
   if (url === '/healthz') return json(res, { ok: true, uptime: process.uptime() });
   if (url === '/api/health') return json(res, { ok: true });
   if (url === '/api/health-score') return json(res, getHealthScore());
-  if (url === '/api/system') { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); return json(res, sys); }
+  if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
   if (url === '/api/processes') { try { const raw = execSync("ps aux -r | head -8", { encoding: 'utf8', timeout: 3000 }); const lines = raw.trim().split("\n").slice(1, 8); const procs = lines.map(l => { const p = l.trim().split(/\s+/); return { user: p[0], pid: p[1], cpu: p[2], mem: p[3], command: p.slice(10).join(" ").slice(0, 60) }; }); return json(res, { processes: procs }); } catch (e) { return json(res, { processes: [], error: e.message }); } }
-  if (url === '/api/agents') return json(res, getAgents());
+  if (url === '/api/agents') { setImmediate(() => { try { json(res, getAgents()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }
   if (url === '/api/memory') return json(res, getMemory());
   if (url === '/api/memory/history') return json(res, getMemoryHistory());
-  if (url === '/api/tokens') return json(res, getTokens());
+  if (url === '/api/tokens') { setImmediate(() => { try { json(res, getTokens()); } catch(e) { json(res, {totals:{input:0,output:0,cached:0},estimatedCostUSD:0,error:e.message}); } }); return; }
   if (url === '/api/calendar') return json(res, getCalendar());
   if (url === '/api/cron') return json(res, getCron());
 
-  if (url === '/api/tokens/daily') return json(res, getTokensDaily());
-  if (url === '/api/disk-breakdown') return json(res, getDiskBreakdown());
-  if (url === '/api/performance') return json(res, getPerformance());
-  if (url === '/api/completion-stats') return json(res, getCompletionStats());
-  if (url === '/api/uptime') return json(res, getUptime());
+  if (url === '/api/tokens/daily') { setImmediate(() => { try { json(res, getTokensDaily()); } catch(e) { json(res, {days:[],error:e.message}); } }); return; }
+  if (url === '/api/disk-breakdown') { setImmediate(() => { try { json(res, getDiskBreakdown()); } catch(e) { json(res, {entries:[],error:e.message}); } }); return; }
+  if (url === '/api/performance') { setImmediate(() => { try { json(res, getPerformance()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }
+  if (url === '/api/completion-stats') { setImmediate(() => { try { json(res, getCompletionStats()); } catch(e) { json(res, {completed:0,total:0,error:e.message}); } }); return; }
+  if (url === '/api/uptime') { setImmediate(() => { try { json(res, getUptime()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }
   if (url === '/api/queue' && req.method === 'POST') {
     let body = '';
     req.on('data', c => body += c);
@@ -2341,13 +2248,13 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url === '/api/queue') return json(res, getQueue());
-  if (url === '/api/activity') return json(res, getActivity());
-  if (url === '/api/timeline') return json(res, getActivity());
-  if (url === '/api/timeline-heatmap') return json(res, getTimelineHeatmap());
-  if (url === '/api/comm-graph') return json(res, getCommGraph());
-  if (url === '/api/dependency-graph') return json(res, getDependencyGraph());
-  if (url === '/api/heatmap-calendar') return json(res, getHeatmapCalendar());
-  if (url === '/api/live-logs') return json(res, getLiveLogs());
+  if (url === '/api/activity') { setImmediate(() => { try { json(res, getActivity()); } catch(e) { json(res, {entries:[],error:e.message}); } }); return; }
+  if (url === '/api/timeline') { setImmediate(() => { try { json(res, getActivity()); } catch(e) { json(res, {entries:[],error:e.message}); } }); return; }
+  if (url === '/api/timeline-heatmap') { setImmediate(() => { try { json(res, getTimelineHeatmap()); } catch(e) { json(res, {data:[],error:e.message}); } }); return; }
+  if (url === '/api/comm-graph') { setImmediate(() => { try { json(res, getCommGraph()); } catch(e) { json(res, {nodes:[],links:[],error:e.message}); } }); return; }
+  if (url === '/api/dependency-graph') { setImmediate(() => { try { json(res, getDependencyGraph()); } catch(e) { json(res, {nodes:[],links:[],error:e.message}); } }); return; }
+  if (url === '/api/heatmap-calendar') { setImmediate(() => { try { json(res, getHeatmapCalendar()); } catch(e) { json(res, {data:[],error:e.message}); } }); return; }
+  if (url === '/api/live-logs') { setImmediate(() => { try { json(res, getLiveLogs()); } catch(e) { json(res, {logs:[],error:e.message}); } }); return; }
   if (url.startsWith('/api/agent-logs/')) {
     const agentDir = decodeURIComponent(url.replace('/api/agent-logs/', ''));
     return json(res, getAgentLogs(agentDir));
@@ -2387,4 +2294,23 @@ const server = http.createServer((req, res) => {
   } catch { res.writeHead(404); res.end('Not found'); }
 });
 
-server.listen(18790, '0.0.0.0', () => console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`));
+function warmLightCaches() {
+  try { getAgents(); } catch {}
+  setTimeout(() => { try { getActivity(); } catch {} }, 500);
+  setTimeout(() => { try { getTokens(); } catch {} }, 1000);
+  setTimeout(() => { try { getLiveLogs(); } catch {} }, 1500);
+}
+function warmHeavyCaches() {
+  try { getUptime(); } catch {}
+  setTimeout(() => { try { getTimelineHeatmap(); } catch {} }, 1000);
+  setTimeout(() => { try { getHeatmapCalendar(); } catch {} }, 2000);
+}
+
+server.listen(18790, '0.0.0.0', () => {
+  console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
+  setTimeout(() => { warmLightCaches(); }, 2500);
+  setTimeout(() => { warmHeavyCaches(); }, 12000);
+  setInterval(() => {
+    if (sseClients.size > 0) warmLightCaches();
+  }, 30000);
+});

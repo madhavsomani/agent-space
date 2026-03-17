@@ -805,8 +805,8 @@ document.addEventListener('keydown', e => {
 async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spinning');
-  await Promise.all([refreshAgents(), refreshSystem(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshCommGraph(), refreshDepGraph(), refreshHeatmapCalendar(), refreshDiskBreakdown()]);
-  buildLegend(); markUpdated();
+  await Promise.allSettled([refreshAgents(), refreshSystem(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshCommGraph(), refreshDepGraph(), refreshHeatmapCalendar(), refreshDiskBreakdown(), refreshLiveLogs()]);
+  buildLegend(); renderAgentCards(); markUpdated();
   setTimeout(() => btn.classList.remove('spinning'), 600);
 }
 document.getElementById('refresh-btn').onclick = refreshAll;
@@ -1315,6 +1315,7 @@ async function refreshAgents() {
     el.className = 'live offline'; el.innerHTML = '<span class="pulse"></span>OFFLINE';
   }
   updateStatusStrip();
+  renderAgentCards();
 }
 
 // ===== ISOMETRIC 3D OFFICE =====
@@ -3341,9 +3342,9 @@ const MAX_TOASTS = 3;
 // showToast is defined once near end of file — this call-site uses the hoisted version
 
 // Activity filter buttons
-document.querySelectorAll('.activity-filter').forEach(btn => {
+document.querySelectorAll('.activity-filter[data-filter]').forEach(btn => {
   btn.onclick = () => {
-    document.querySelectorAll('.activity-filter').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.activity-filter[data-filter]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     activityFilter = btn.dataset.filter;
     renderActivityFeed(activityCache);
@@ -3361,7 +3362,7 @@ function renderActivityFeed(items) {
   // Update filter button counts
   const counts = {all: items.length, wr:0, agent:0, commit:0, system:0};
   items.forEach(i => { if(i.type && counts[i.type] !== undefined) counts[i.type]++; });
-  document.querySelectorAll('.activity-filter').forEach(btn => {
+  document.querySelectorAll('.activity-filter[data-filter]').forEach(btn => {
     const f = btn.dataset.filter;
     const base = {all:'All', wr:'📋 WR', agent:'🤖 Agent', commit:'💾 Commit', system:'⚙️ System'}[f] || f;
     const c = counts[f] || 0;
@@ -4979,7 +4980,7 @@ function fmtUptime(sec) {
   if(sec < 86400) return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
   return Math.floor(sec/86400) + 'd ' + Math.floor((sec%86400)/3600) + 'h';
 }
-async function refreshUptime() {
+async function refreshProcessUptime() {
   try {
     const r = await fetch(API.replace('/api','') + '/healthz');
     const d = await r.json();
@@ -5058,7 +5059,6 @@ function tickRefreshBar() {
 }
 setInterval(tickRefreshBar, 500);
 
-Promise.all([refreshAgents(), refreshSystem(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshCommGraph(), refreshDepGraph(), refreshHeatmapCalendar(), refreshDiskBreakdown()]).then(()=>{ buildLegend(); renderAgentCards(); markUpdated(); });
 requestAnimationFrame(officeLoop);
 
 // ===== AGENT TIMELINE HEATMAP =====
@@ -6249,17 +6249,34 @@ async function refreshLiveLogs() {
   } catch {}
 }
 
-// Add live logs to the refresh cycle
-const _origRefreshAll = refreshAll;
-refreshAll = async function() {
-  const btn = document.getElementById('refresh-btn');
-  btn.classList.add('spinning');
-  await Promise.all([refreshAgents(), refreshSystem(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshCommGraph(), refreshDepGraph(), refreshLiveLogs()]);
-  buildLegend(); markUpdated();
-  setTimeout(() => btn.classList.remove('spinning'), 600);
-};
-// Initial load
-refreshLiveLogs();
+// Initial load: fast essentials first, then heavier widgets.
+(async function bootstrapDashboard() {
+  // Fast-first, sequential bootstrap prevents a cold expensive request from starving everything else.
+  await refreshAgents();
+  await refreshTokens();
+  await refreshMemory();
+  await refreshDailyCost();
+  await refreshLiveLogs();
+  buildLegend(); renderAgentCards(); markUpdated();
+
+  setTimeout(async () => {
+    await Promise.allSettled([
+      refreshSystem(),
+      refreshHealthScore(),
+      refreshQueue(),
+      refreshActivity(),
+      refreshTimeline(),
+      refreshPerformance(),
+      refreshUptime(),
+      refreshCompletionStats(),
+      refreshCommGraph(),
+      refreshDepGraph(),
+      refreshHeatmapCalendar(),
+      refreshDiskBreakdown(),
+    ]);
+    buildLegend(); renderAgentCards(); markUpdated();
+  }, 150);
+})();
 // Live logs refreshed in consolidated 5s poll (every 3rd tick = 15s)
 </script>
 <!-- Pull-to-refresh indicator -->
