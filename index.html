@@ -2765,6 +2765,20 @@ function drawOffice(rafNow) {
   oCtx.fillStyle = th.floor2;
   oCtx.fillRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
 
+  // Pre-draw health check: verify the floor fill actually wrote pixels.
+  // If the context is silently corrupted, reset immediately instead of drawing a black frame.
+  try {
+    const _probe = oCtx.getImageData(0, 0, 1, 1).data;
+    if (_probe[3] === 0) { // alpha 0 = nothing was drawn = context dead
+      console.warn('[canvas] Pre-draw: context dead — hard reset');
+      oCanvas.width = oCanvas.width; // force reset
+      oCtx = oCanvas.getContext('2d');
+      invalidateStaticCache();
+      resizeCanvas();
+      return; // skip this frame
+    }
+  } catch(e) {}
+
   // Apply zoom & pan — center on the iso grid dynamically
   const pivotX = oCanvas.width / (2 * (window.devicePixelRatio || 1));
   const pivotY = oCanvas.height / (2 * (window.devicePixelRatio || 1));
