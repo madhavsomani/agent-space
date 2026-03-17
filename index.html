@@ -1893,8 +1893,6 @@ function drawAgent(agent, gx, gy, time) {
     }
     return;
   }
-
-  // ── WALKING / IDLE / WORKING ──
   let offsetX = 0, offsetY = 0;
   if (isWorking) {
     if (!agentWalking[agent.name]) agentWalking[agent.name] = { phase: Math.random() * Math.PI * 2 };
@@ -2668,11 +2666,40 @@ function drawZoomControls() {
 // Reusable arrays for drawOffice to avoid per-frame allocations
 const _deskAgentsBuf = [], _visitorsBuf = [], _sortedBuf = [], _workingBuf = [];
 const _defaultDeskPos = {gx:7, gy:5};
+let _canvasHealthCounter = 0;
 function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   _ptIdx = 0; // reset point pool each frame
+
+  // Canvas health check: detect corrupted context (blank canvas despite active loop).
+  // Every ~120 frames (~15s at 8fps), write a test pixel and read it back.
+  // If the write is silently swallowed, reset the canvas to recover.
+  if (++_canvasHealthCounter >= 120) {
+    _canvasHealthCounter = 0;
+    oCtx.save();
+    oCtx.setTransform(1, 0, 0, 1, 0, 0); // identity
+    oCtx.fillStyle = '#010101';
+    oCtx.fillRect(0, 0, 1, 1);
+    const px = oCtx.getImageData(0, 0, 1, 1).data;
+    oCtx.restore();
+    if (px[3] === 0) { // write was swallowed → context is dead
+      console.warn('[Agent Space] Canvas context corrupted — resetting');
+      const dpr = window.devicePixelRatio || 1;
+      const w = oCanvas.width, h = oCanvas.height;
+      oCanvas.width = w; // reset canvas
+      oCtx = oCanvas.getContext('2d');
+      oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      invalidateStaticCache();
+    }
+  }
+
   const time = rafNow ? Math.round(performance.timeOrigin + rafNow) : Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
+
+  // Reset transform to known-good state before each frame (prevents state leak from unbalanced save/restore)
+  const dpr = window.devicePixelRatio || 1;
+  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  oCtx.globalAlpha = 1;
   oCtx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
   // Apply zoom & pan — center on the iso grid dynamically
