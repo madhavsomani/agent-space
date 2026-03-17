@@ -13,7 +13,7 @@
   --green:#39ff14; --green-dim:rgba(57,255,20,0.18); --red:#ff3366; --red-dim:rgba(255,51,102,0.18);
   --orange:#ffaa00; --orange-dim:rgba(255,170,0,0.18); --purple:#bf5fff;
   --glass:rgba(26,16,64,0.88); --glass-border:rgba(255,255,255,0.1);
-  --canvas-grid:rgba(255,255,255,0.05); --canvas-floor:#2a1860; --theme-icon:'🌙';
+  --canvas-grid:rgba(255,255,255,0.05); --canvas-floor:#3c5a80; --theme-icon:'🌙';
 }
 [data-theme="light"] {
   --bg:#f0f2f5; --card:#ffffff; --card-hover:#f8f9fb; --border:#d4d8e0;
@@ -2744,11 +2744,9 @@ function drawOffice(rafNow) {
   oCtx.globalAlpha = 1;
   oCtx.globalCompositeOperation = 'source-over';
   oCtx.clearRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
-  // Fill canvas with theme background so empty areas aren't transparent/black
-  oCtx.fillStyle = th.floor1;
-  oCtx.globalAlpha = 0.25;
+  // Fill canvas with blended floor color so empty areas match the office, not a dark void
+  oCtx.fillStyle = th.floor2;
   oCtx.fillRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
-  oCtx.globalAlpha = 1;
 
   // Apply zoom & pan — center on the iso grid dynamically
   const pivotX = oCanvas.width / (2 * (window.devicePixelRatio || 1));
