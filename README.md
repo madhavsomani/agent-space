@@ -78,6 +78,14 @@ docker build -t agent-space .
 docker run -p 18790:18790 -v ~/.openclaw:/root/.openclaw:ro agent-space
 ```
 
+### Docker Compose (with Qdrant)
+
+```bash
+cp config.example.json config.json  # customize agents
+docker compose up -d
+# → http://localhost:18790
+```
+
 ## Architecture
 
 - **`server.js`** — Node.js HTTP server with REST API + SSE
