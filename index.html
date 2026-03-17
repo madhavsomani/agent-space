@@ -1345,7 +1345,7 @@ async function refreshAgents() {
 
 // ===== ISOMETRIC 3D OFFICE =====
 const ISO = { tileW: 80, tileH: 40 };
-const GRID = { cols: 24, rows: 16 };
+const GRID = { cols: 16, rows: 10 };
 const oCanvas = document.getElementById('office-canvas');
 let oCtx = oCanvas.getContext('2d');
 
@@ -1355,10 +1355,10 @@ const deskPositions = {};
 
 // Overflow desk positions for dynamically discovered agents (auto-assigned)
 const overflowDesks = [
-  {gx:12, gy:8}, {gx:6, gy:4}, {gx:4, gy:7}, {gx:4, gy:10},
-  {gx:8, gy:4}, {gx:8, gy:10}, {gx:18, gy:5}, {gx:18, gy:8},
-  {gx:18, gy:11}, {gx:14, gy:12}, {gx:10, gy:14}, {gx:20, gy:10},
-  {gx:22, gy:6}, {gx:2, gy:13}, {gx:16, gy:14}, {gx:21, gy:13},
+  {gx:3, gy:3}, {gx:6, gy:3}, {gx:9, gy:3}, {gx:12, gy:3},
+  {gx:3, gy:5}, {gx:6, gy:5}, {gx:9, gy:5}, {gx:12, gy:5},
+  {gx:3, gy:7}, {gx:6, gy:7}, {gx:9, gy:7}, {gx:12, gy:7},
+  {gx:4, gy:4}, {gx:7, gy:4}, {gx:10, gy:4}, {gx:13, gy:6},
 ];
 const _assignedOverflow = {};
 let _overflowIdx = 0;
@@ -1388,7 +1388,7 @@ const DESK_ITEM_LIFETIME = 45000; // items stay on desk for 45 seconds then fade
 const POI = { // Points of Interest
   whiteboard: {gx:10, gy:3},
   coffee: {gx:12, gy:14},
-  server: {gx:22, gy:10},
+  server: {gx:14, gy:7},
   door: {gx:23, gy:6},
   plant: {gx:1, gy:1},
 };
@@ -1526,7 +1526,7 @@ function tickInteractions(agents, time) {
       else if (type === 'server-check') { toGx = POI.server.gx; toGy = POI.server.gy; }
       else if (type === 'water-plant') {
         // Walk to nearest plant
-        const plantPoi = [POI.plant, {gx:13,gy:1}, {gx:1,gy:9}];
+        const plantPoi = [POI.plant, {gx:8,gy:1}, {gx:1,gy:9}];
         const nearest = plantPoi.reduce((best,p) => {
           const d = Math.abs(p.gx-desk.gx)+Math.abs(p.gy-desk.gy);
           return d < best.d ? {p,d} : best;
@@ -1593,16 +1593,16 @@ function getInteractionOffset(agentName, time) {
 }
 
 const furniture = [
-  // Decor spread across large 24×16 office
-  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:23, gy:1 }, { type:'plant', gx:1, gy:15 }, { type:'plant', gx:23, gy:15 },
-  { type:'plant', gx:12, gy:1 }, { type:'plant', gx:12, gy:15 },
-  { type:'whiteboard', gx:10, gy:3 },
-  { type:'server', gx:22, gy:10 },
-  { type:'coffee', gx:12, gy:14 },
-  { type:'clock', gx:12, gy:0 },
-  { type:'door', gx:23, gy:6 },
-  { type:'lamp', gx:8, gy:2 }, { type:'lamp', gx:16, gy:2 },
-  { type:'lamp', gx:6, gy:12 }, { type:'lamp', gx:18, gy:12 },
+  // Decor spread across 16×10 office
+  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:15, gy:1 }, { type:'plant', gx:1, gy:9 }, { type:'plant', gx:15, gy:9 },
+  { type:'plant', gx:8, gy:1 }, { type:'plant', gx:8, gy:9 },
+  { type:'whiteboard', gx:7, gy:2 },
+  { type:'server', gx:14, gy:7 },
+  { type:'coffee', gx:8, gy:8 },
+  { type:'clock', gx:8, gy:0 },
+  { type:'door', gx:15, gy:5 },
+  { type:'lamp', gx:5, gy:2 }, { type:'lamp', gx:11, gy:2 },
+  { type:'lamp', gx:4, gy:7 }, { type:'lamp', gx:12, gy:7 },
 ];
 const _sortedFurniture = [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
 
@@ -5107,13 +5107,15 @@ function resizeCanvas() {
   _isoOriginX = internalW / 2 + (GRID.rows * ISO.tileW / 4) - (GRID.cols * ISO.tileW / 4);
   // Vertically center the grid in available space
   const gridTotalH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 80;
-  _isoOriginY = Math.max(20, (internalH - gridTotalH) / 2.5);
+  _isoOriginY = Math.max(10, (internalH - gridTotalH) / 2);
   camPivotX = _isoOriginX + (_gridCenterGx - _gridCenterGy) * ISO.tileW / 2;
   camPivotY = _isoOriginY + (_gridCenterGx + _gridCenterGy) * ISO.tileH / 2;
-  // Auto-fit zoom: scale iso grid to fill canvas
+  // Auto-fit zoom: scale iso grid to fill canvas with minimal margins
   const gridPixelW = (GRID.cols + GRID.rows) * ISO.tileW / 2;
   const gridPixelH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 80; // 80 for agent sprites
-  const fitZoom = Math.min(internalW / gridPixelW, internalH / gridPixelH) * 0.95;
+  const fitZoomW = internalW / gridPixelW;
+  const fitZoomH = internalH / gridPixelH;
+  const fitZoom = Math.min(fitZoomW, fitZoomH); // no extra 0.95 margin — fill it
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
