@@ -3264,16 +3264,26 @@ function officeLoop(now) {
   // Guard: if canvas has zero dimensions, re-trigger resize instead of drawing nothing
   if (!oCanvas.width || !oCanvas.height || oCanvas.width < 10) { resizeCanvas(); return; }
   drawOffice(now);
-  // Black-frame detector: if canvas is all-transparent after drawing, context is corrupted — reset it
-  if (++_framesSinceCheck >= 16) { // check every ~2s at 8fps
+  // Canvas health check: write-then-read a test pixel to detect silent context corruption.
+  // A corrupted context silently drops all draw operations, causing the "dark void" bug.
+  if (++_framesSinceCheck >= 8) { // check every ~1s at 8fps
     _framesSinceCheck = 0;
     try {
-      const probe = oCtx.getImageData(Math.floor(oCanvas.width/2), Math.floor(oCanvas.height/2), 1, 1).data;
-      if (probe[3] === 0) { // fully transparent = context lost or corrupted
+      // Write a known pixel at (0,0) then read it back
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0); // reset to identity — bypass any corrupted transform
+      oCtx.fillStyle = 'rgba(1,2,3,1)';
+      oCtx.fillRect(0, 0, 1, 1);
+      const probe = oCtx.getImageData(0, 0, 1, 1).data;
+      oCtx.clearRect(0, 0, 1, 1); // clean up test pixel
+      oCtx.restore();
+      if (probe[0] !== 1 || probe[1] !== 2 || probe[2] !== 3) {
+        // Context is corrupted — draw ops are being silently dropped
         _blackFrames++;
-        if (_blackFrames >= 2) { // 2 consecutive checks (~4s) = definitely broken
-          console.warn('Canvas context appears corrupted — resetting');
-          oCanvas.width = oCanvas.width; // force context reset
+        if (_blackFrames >= 2) { // 2 consecutive failures = definitely broken
+          console.warn('[canvas] Context corrupted — resetting canvas');
+          const w = oCanvas.width, h = oCanvas.height;
+          oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h; // force hard reset
           oCtx = oCanvas.getContext('2d');
           invalidateStaticCache();
           resizeCanvas();
