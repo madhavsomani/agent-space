@@ -2502,7 +2502,7 @@ const server = http.createServer((req, res) => {
     const headers = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' };
     if (ext === '.html') {
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
-      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'";
+      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'";
       headers['X-Content-Type-Options'] = 'nosniff';
       headers['X-Frame-Options'] = 'DENY';
       headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';

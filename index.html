@@ -469,7 +469,12 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 </nav>
 
 <div class="tab active" id="tab-office">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
+    <button id="view-2d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px" onclick="switchOfficeView('2d')">🏢 2D</button>
+    <button id="view-3d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px;opacity:0.5" onclick="switchOfficeView('3d')">🎮 3D</button>
+  </div>
   <canvas id="office-canvas"></canvas>
+  <div id="office-3d-container" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:500px"></div>
   <div class="office-legend" id="office-legend"></div>
   <div id="office-ticker" style="max-width:100%;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
     <span style="flex-shrink:0;font-size:13px">📡</span>
@@ -6729,6 +6734,36 @@ switchTab = function(t) { _origSwitchTab(t); syncMobileNav(t); };
   const _collObs = new MutationObserver(() => setupCollapsible());
   _collObs.observe(document.body, { childList: true, subtree: true });
 })();
+</script>
+<script src="office3d.js"></script>
+<script>
+let _officeView = localStorage.getItem('office-view') || '2d';
+async function switchOfficeView(view) {
+  _officeView = view;
+  localStorage.setItem('office-view', view);
+  const canvas2d = document.getElementById('office-canvas');
+  const container3d = document.getElementById('office-3d-container');
+  const btn2d = document.getElementById('view-2d-btn');
+  const btn3d = document.getElementById('view-3d-btn');
+  if (view === '3d') {
+    canvas2d.style.display = 'none';
+    container3d.style.display = 'block';
+    container3d.style.height = Math.max(500, window.innerHeight - 200) + 'px';
+    btn2d.style.opacity = '0.5'; btn3d.style.opacity = '1';
+    if (typeof Office3D !== 'undefined') {
+      await Office3D.start(container3d);
+      if (typeof agentData !== 'undefined') Office3D.updateAgents(agentData);
+    }
+  } else {
+    canvas2d.style.display = '';
+    container3d.style.display = 'none';
+    btn2d.style.opacity = '1'; btn3d.style.opacity = '0.5';
+    if (typeof Office3D !== 'undefined') Office3D.stop();
+    if (typeof resizeCanvas === 'function') resizeCanvas();
+  }
+}
+// Restore view preference on load
+if (_officeView === '3d') setTimeout(() => switchOfficeView('3d'), 500);
 </script>
 </body>
 </html>
