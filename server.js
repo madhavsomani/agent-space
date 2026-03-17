@@ -1,6 +1,10 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+// Global error handling — keep server alive
+process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err.message); });
+process.on('unhandledRejection', (err) => { console.error('Unhandled rejection:', err); });
 const { execSync, exec: execAsync } = require('child_process');
 
 const DEMO_MODE = process.argv.includes('--demo');
@@ -541,7 +545,13 @@ function getAgents() {
     };
   });
 
-  const result = { agents, timestamp: now };
+  // Filter out stale agents (inactive > 7 days) unless hideStale is disabled in config
+  const STALE_THRESHOLD = (_config.hideStaleAfterDays ?? 7) * 24 * 60; // minutes
+  const filteredAgents = STALE_THRESHOLD > 0
+    ? agents.filter(a => !a.ageMin || a.ageMin < STALE_THRESHOLD)
+    : agents;
+
+  const result = { agents: filteredAgents, timestamp: now };
   _agentsCache = result; _agentsCacheTime = now;
   return result;
 }
@@ -2298,6 +2308,59 @@ const server = http.createServer((req, res) => {
   }
 
   if (url === '/healthz') return json(res, { ok: true, uptime: process.uptime() });
+  // ===== DATA EXPORT =====
+  if (url.startsWith('/api/export/')) { console.log('[export]', url); }
+  if (url === '/api/export/agents') {
+    const fmt = (req.url.split('?')[1] || '').includes('format=csv') ? 'csv' : 'json';
+    const data = getAgents();
+    if (fmt === 'csv') {
+      const header = 'name,role,status,color,lastActivity,activityAge\n';
+      const rows = (data.agents || []).map(a => `"${a.name}","${a.role}","${a.status}","${a.color}","${String(a.lastActivity||'').replace(/"/g,'""')}",${a.activityAge||0}`).join('\n');
+      const body = header + rows;
+      res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="agents.csv"', 'Access-Control-Allow-Origin': '*' });
+      res.end(body);
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="agents.json"', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(data, null, 2));
+  }
+  if (url === '/api/export/tokens') {
+    const fmt = (req.url.split('?')[1] || '').includes('format=csv') ? 'csv' : 'json';
+    const data = getTokens();
+    if (fmt === 'csv') {
+      const header = 'agent,model,input,output,cacheRead,cacheWrite,totalCost\n';
+      const rows = (data.agents || []).map(a => `"${a.name}","${a.model}",${a.input||0},${a.output||0},${a.cacheRead||0},${a.cacheWrite||0},${a.cost||0}`).join('\n');
+      res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="tokens.csv"', 'Access-Control-Allow-Origin': '*' });
+      return res.end(header + rows);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="tokens.json"', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(data, null, 2));
+  }
+  if (url === '/api/export/activity') {
+    const fmt = (req.url.split('?')[1] || '').includes('format=csv') ? 'csv' : 'json';
+    const data = getActivity();
+    if (fmt === 'csv') {
+      const header = 'timestamp,agent,role,text\n';
+      const rows = (data.activity || []).map(a => `"${a.ts}","${a.agent}","${a.role||''}","${(a.text||'').replace(/"/g,'""').replace(/\n/g,' ')}"`).join('\n');
+      res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="activity.csv"', 'Access-Control-Allow-Origin': '*' });
+      return res.end(header + rows);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="activity.json"', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(data, null, 2));
+  }
+  if (url === '/api/export/logs') {
+    const fmt = (req.url.split('?')[1] || '').includes('format=csv') ? 'csv' : 'json';
+    const data = getLiveLogs();
+    if (fmt === 'csv') {
+      const header = 'timestamp,agent,role,speaker,text\n';
+      const rows = (data.logs || []).map(l => `"${l.ts}","${l.agent}","${l.role||''}","${l.speaker||''}","${(l.text||'').replace(/"/g,'""').replace(/\n/g,' ')}"`).join('\n');
+      res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="logs.csv"', 'Access-Control-Allow-Origin': '*' });
+      return res.end(header + rows);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="logs.json"', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(data, null, 2));
+  }
+
   if (url === '/api/health') return json(res, { ok: true });
   if (url === '/api/health-score') return json(res, getHealthScore());
   if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
