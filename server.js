@@ -413,73 +413,68 @@ const AGENT_MAP = { get list() { return discoverAgents(); } };
 
 // Cache for cron run data — serialized queue to avoid spawning many CLI processes at once
 let _cronCache = {};  // jobId -> { ts, data }
-const CRON_CACHE_TTL = 300000; // 5 min — openclaw cron runs is expensive (spawns subprocess)
-let _cronFetchQueue = [];
-let _cronFetchRunning = false;
-
-function _processCronQueue() {
-  if (_cronFetchRunning || !_cronFetchQueue.length) return;
-  _cronFetchRunning = true;
-  const cronJobId = _cronFetchQueue.shift();
-  execAsync(
-    `openclaw cron runs --id ${cronJobId} --limit 1 --timeout 4000 2>&1`,
-    { timeout: 6000, encoding: 'utf8' },
-    (err, stdout) => {
-      _cronFetchRunning = false;
-      if (err) { console.error('[cron-cache] err for', cronJobId.slice(0,8), ':', err.message?.slice(0,100)); }
-      else if (stdout) {
-        try {
-          const lines = stdout.split('\n');
-          let jsonStr = '', braceDepth = 0, collecting = false;
-          for (const line of lines) {
-            if (!collecting && line.trim().startsWith('{')) collecting = true;
-            if (collecting) {
-              jsonStr += line + '\n';
-              for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
-              if (braceDepth === 0 && jsonStr.trim()) break;
-            }
-          }
-          if (jsonStr.trim()) {
-            const parsed = JSON.parse(jsonStr);
-            const entries = parsed.entries || [];
-            if (entries.length) {
-              const latest = entries[0];
-              const finishedTs = latest.ts || 0;
-              const startedTs = latest.runAtMs || 0;
-              const isRunning = latest.action === 'started' || (!latest.status && latest.action !== 'finished');
-              const summary = (latest.summary || '').replace(/[^\x20-\x7E\n]/g, '').slice(0, 200);
-              const summaryLines = summary.split('\n').map(l => l.replace(/\*+/g, '').replace(/^#+\s*/, '').replace(/[✅❌🔧📬]/g, '').trim()).filter(l => l.length > 10);
-              const junkRe = /^(ANNOUNCE_SKIP|NO_REPLY|Agent (Summary|Session\s*Complete)|Should go to|Current time:)/i;
-              let lastMessage = (summaryLines.find(l => !junkRe.test(l) && !/^(Shipped|Next priority):?\s*$/i.test(l)) || '').slice(0, 200);
-              _cronCache[cronJobId] = { ts: Date.now(), data: { lastActivity: finishedTs || startedTs, lastMessage, isRunning, status: latest.status, durationMs: latest.durationMs, nextRunAtMs: latest.nextRunAtMs } };
-              console.log('[cron-cache] OK', cronJobId.slice(0,8), 'age:', Math.round((Date.now() - (finishedTs||startedTs))/60000), 'min');
-            } else {
-              _cronCache[cronJobId] = { ts: Date.now(), data: null };
-            }
-          } else {
-            _cronCache[cronJobId] = { ts: Date.now(), data: null };
-          }
-        } catch (e) { console.error('[cron-cache] parse err', cronJobId.slice(0,8), e.message?.slice(0,80)); }
-      }
-      // Process next in queue after breathing room for event loop
-      setTimeout(_processCronQueue, 2000);
-    }
-  );
-}
+const CRON_CACHE_TTL = 600000; // 10 min — cron data refreshed by background warmer only
 
 function getCronAgentActivity(cronJobId) {
-  const now = Date.now();
+  // Previously spawned openclaw cron runs subprocess — too expensive, starves event loop.
+  // Now returns cached data only; cache is populated by background warmup (never blocks).
   const cached = _cronCache[cronJobId];
-  if (cached && (now - cached.ts) < CRON_CACHE_TTL) return cached.data;
-
-  // Enqueue if not already queued
-  if (!_cronFetchQueue.includes(cronJobId)) {
-    _cronFetchQueue.push(cronJobId);
-    _processCronQueue();
-  }
-
-  // Return stale cache or null — never block
   return cached ? cached.data : null;
+}
+
+// Background cron cache warmer — runs ONCE on startup then every 10 min.
+// Never blocks the event loop since it uses execAsync with strict timeout.
+let _cronWarmRunning = false;
+function _warmCronCacheOnce() {
+  if (_cronWarmRunning) return;
+  const agents = discoverAgents().filter(a => a.cronJobId);
+  if (!agents.length) return;
+  _cronWarmRunning = true;
+  let idx = 0;
+  function next() {
+    if (idx >= agents.length) { _cronWarmRunning = false; return; }
+    const a = agents[idx++];
+    execAsync(
+      `openclaw cron runs --id ${a.cronJobId} --limit 1 --timeout 3000 2>&1`,
+      { timeout: 5000, encoding: 'utf8' },
+      (err, stdout) => {
+        if (!err && stdout) {
+          try {
+            const lines = stdout.split('\n');
+            let jsonStr = '', braceDepth = 0, collecting = false;
+            for (const line of lines) {
+              if (!collecting && line.trim().startsWith('{')) collecting = true;
+              if (collecting) {
+                jsonStr += line + '\n';
+                for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
+                if (braceDepth === 0 && jsonStr.trim()) break;
+              }
+            }
+            if (jsonStr.trim()) {
+              const parsed = JSON.parse(jsonStr);
+              const entries = parsed.entries || [];
+              if (entries.length) {
+                const latest = entries[0];
+                const finishedTs = latest.ts || 0;
+                const startedTs = latest.runAtMs || 0;
+                const isRunning = latest.action === 'started' || (!latest.status && latest.action !== 'finished');
+                const summary = (latest.summary || '').replace(/[^\x20-\x7E\n]/g, '').slice(0, 200);
+                const summaryLines = summary.split('\n').map(l => l.replace(/\*+/g, '').replace(/^#+\s*/, '').replace(/[✅❌🔧📬]/g, '').trim()).filter(l => l.length > 10);
+                const junkRe = /^(ANNOUNCE_SKIP|NO_REPLY|Agent (Summary|Session\s*Complete)|Should go to|Current time:)/i;
+                let lastMessage = (summaryLines.find(l => !junkRe.test(l) && !/^(Shipped|Next priority):?\s*$/i.test(l)) || '').slice(0, 200);
+                _cronCache[a.cronJobId] = { ts: Date.now(), data: { lastActivity: finishedTs || startedTs, lastMessage, isRunning, status: latest.status, durationMs: latest.durationMs, nextRunAtMs: latest.nextRunAtMs } };
+              } else {
+                _cronCache[a.cronJobId] = { ts: Date.now(), data: null };
+              }
+            }
+          } catch {}
+        }
+        // Next agent after 3s breathing room
+        setTimeout(next, 3000);
+      }
+    );
+  }
+  next();
 }
 
 function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
@@ -2587,6 +2582,9 @@ server.listen(18790, '0.0.0.0', () => {
   console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
   setTimeout(() => { warmLightCaches(); }, 2500);
   setTimeout(() => { warmHeavyCaches(); }, 12000);
+  // Background cron cache: first run at 5s, then every 10 min
+  setTimeout(() => { _warmCronCacheOnce(); }, 5000);
+  setInterval(() => { _warmCronCacheOnce(); }, 600000);
   setInterval(() => {
     if (sseClients.size > 0) warmLightCaches();
   }, 60000); // every 60s (was 30s)
