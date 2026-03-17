@@ -2728,36 +2728,30 @@ function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   _ptIdx = 0; // reset point pool each frame
 
-  // Canvas health check: detect corrupted context (blank canvas despite active loop).
-  // Every ~120 frames (~15s at 8fps), write a test pixel and read it back.
-  // If the write is silently swallowed, reset the canvas to recover.
-  if (++_canvasHealthCounter >= 4) { // check every ~500ms at 8fps
+  // Periodic hard reset: flush the canvas save/restore stack every ~2s.
+  // Complex agent drawing code has unavoidable save/restore imbalances
+  // that leak ~1 save per frame. Without periodic reset, the stack overflows
+  // after ~2 minutes and the canvas goes black ("dark void" bug).
+  if (++_canvasHealthCounter >= 16) { // every ~2s at 8fps
     _canvasHealthCounter = 0;
-    oCtx.save();
-    oCtx.setTransform(1, 0, 0, 1, 0, 0); // identity
-    oCtx.fillStyle = '#010101';
-    oCtx.fillRect(0, 0, 1, 1);
-    const px = oCtx.getImageData(0, 0, 1, 1).data;
-    oCtx.restore();
-    if (px[3] === 0) { // write was swallowed → context is dead
-      console.warn('[Agent Space] Canvas context corrupted — resetting');
-      const dpr = window.devicePixelRatio || 1;
-      const w = oCanvas.width, h = oCanvas.height;
-      oCanvas.width = w; // reset canvas
-      oCtx = oCanvas.getContext('2d');
-      oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      invalidateStaticCache();
-    }
+    const w = oCanvas.width, h = oCanvas.height;
+    oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h; // hard reset clears state stack
+    oCtx = oCanvas.getContext('2d');
+    invalidateStaticCache();
   }
 
   const time = rafNow ? Math.round(performance.timeOrigin + rafNow) : Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
 
-  // Reset transform to known-good state before each frame (prevents state leak from unbalanced save/restore)
+  // Reset canvas to pristine state each frame.
+  // Canvas 2D save/restore stack leaks are hard to fully prevent in complex rendering code.
+  // Instead of draining, we reset the canvas dimensions (which clears the entire state stack)
+  // every N frames to prevent accumulation. The per-frame setTransform handles the common case.
   const dpr = window.devicePixelRatio || 1;
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   oCtx.globalAlpha = 1;
-  oCtx.clearRect(0, 0, oCanvas.width, oCanvas.height);
+  oCtx.globalCompositeOperation = 'source-over';
+  oCtx.clearRect(0, 0, oCanvas.width / dpr, oCanvas.height / dpr);
 
   // Apply zoom & pan — center on the iso grid dynamically
   const pivotX = oCanvas.width / (2 * (window.devicePixelRatio || 1));
