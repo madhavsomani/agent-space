@@ -731,14 +731,14 @@ function getMemoryHistory() {
 
 function getMemory() {
   try {
-    const resp = execSync("curl -s --max-time 2 http://localhost:6333/collections", { encoding: 'utf8' });
+    const resp = execSync("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", { encoding: 'utf8' });
     const data = JSON.parse(resp);
     const collections = data.result?.collections || [];
     let totalPoints = 0;
     const details = [];
     for (const c of collections) {
       try {
-        const info = JSON.parse(execSync(`curl -s --max-time 2 http://localhost:6333/collections/${c.name}`, { encoding: 'utf8' }));
+        const info = JSON.parse(execSync(`curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections/${c.name}`, { encoding: 'utf8' }));
         const pts = info.result?.points_count || 0;
         totalPoints += pts;
         details.push({ name: c.name, points: pts, vectors: info.result?.vectors_count || 0, status: info.result?.status || 'unknown' });
@@ -819,7 +819,7 @@ function getHealthScore() {
 
 function getSystem() {
   try {
-    const cpuRaw = execSync("top -l 1 -n 0 | grep 'CPU usage'", { encoding: 'utf8', timeout: 5000 }).trim();
+    const cpuRaw = execSync("top -l 1 -n 0 | grep 'CPU usage'", { encoding: 'utf8', timeout: 2000 }).trim();
     const cpuMatch = cpuRaw.match(/([\d.]+)% user.*?([\d.]+)% sys.*?([\d.]+)% idle/);
     const cpu = cpuMatch ? { user: +cpuMatch[1], sys: +cpuMatch[2], idle: +cpuMatch[3] } : { user: 0, sys: 0, idle: 100 };
 
@@ -837,7 +837,7 @@ function getSystem() {
     const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
 
     const services = [];
-    try { execSync("curl -s --max-time 1 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* Qdrant not running — omit from list */ }
+    try { execSync("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* Qdrant not running — omit from list */ }
     try { execSync("/usr/bin/pgrep -f 'openclaw-gateway' > /dev/null 2>&1"); services.push({ name: 'Gateway', status: 'running', port: 18789 }); } catch { services.push({ name: 'Gateway', status: 'stopped', port: 18789 }); }
     services.push({ name: 'Agent Space', status: 'running', port: 18790 });
 
@@ -886,7 +886,7 @@ function getSystemAsync() {
         const diskRaw = execSync("df -h / | tail -1", { encoding: 'utf8' }).trim().split(/\s+/);
         const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
         const services = [];
-        try { execSync("curl -s --max-time 1 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* omit if not running */ }
+        try { execSync("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* omit if not running */ }
         try { execSync("/usr/bin/pgrep -f 'openclaw-gateway' > /dev/null 2>&1"); services.push({ name: 'Gateway', status: 'running', port: 18789 }); } catch { services.push({ name: 'Gateway', status: 'stopped', port: 18789 }); }
         services.push({ name: 'Agent Space', status: 'running', port: 18790 });
         let uptime = '';
@@ -966,7 +966,7 @@ function getDiskBreakdown() {
     const breakdown = [];
     for (const d of dirs) {
       try {
-        const raw = execSync(`du -sk "${d.path}" 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 8000 }).trim();
+        const raw = execSync(`du -sk "${d.path}" 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 3000 }).trim();
         const sizeKB = parseInt(raw) || 0;
         if (sizeKB > 0) breakdown.push({ label: d.label, path: d.path, sizeKB, sizeGB: (sizeKB / 1048576).toFixed(2) });
       } catch {}
