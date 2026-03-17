@@ -1822,25 +1822,7 @@ function drawVisitor(agent, screenX, screenY, time) {
 }
 
 function drawAgent(agent, gx, gy, time) {
-  // Save full transform matrix + state before drawing each agent.
-  // _drawAgentInner has complex conditional save/restore paths.
-  // We drain any leaked save/restore imbalance by resetting to a known state.
-  const savedTransform = oCtx.getTransform();
-  const savedAlpha = oCtx.globalAlpha;
-  // Use a depth counter to detect and repair stack imbalance
-  const origSave = oCtx.save.bind(oCtx);
-  const origRestore = oCtx.restore.bind(oCtx);
-  let stackDepth = 0;
-  oCtx.save = function() { stackDepth++; origSave(); };
-  oCtx.restore = function() { if (stackDepth > 0) { stackDepth--; origRestore(); } };
   try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
-  // Drain any unmatched saves
-  while (stackDepth > 0) { stackDepth--; origRestore(); }
-  // Restore original methods and reset state
-  oCtx.save = origSave;
-  oCtx.restore = origRestore;
-  oCtx.setTransform(savedTransform);
-  oCtx.globalAlpha = savedAlpha;
 }
 function _drawAgentInner(agent, gx, gy, time) {
   // Role category mapper for dynamic lookups (no hardcoded agent names)
@@ -2496,7 +2478,7 @@ function _drawAgentInner(agent, gx, gy, time) {
     const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
     oCtx.fillText(txt, baseP.x, baseP.y+66);
   }
-  // (outer drawAgent wrapper handles final restore)
+  oCtx.restore();
 }
 
 function getCanvasTheme(){
