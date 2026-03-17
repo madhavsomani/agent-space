@@ -77,15 +77,6 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .tab.slide-in-left { animation:slideInLeft .3s cubic-bezier(.4,0,.2,1) both; }
 @keyframes cardEntrance { from{opacity:0;transform:translateY(16px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
 .tab.active .card { animation:cardEntrance .4s cubic-bezier(.4,0,.2,1) both; }
-.tab.active .card:nth-child(1) { animation-delay:0ms; }
-.tab.active .card:nth-child(2) { animation-delay:50ms; }
-.tab.active .card:nth-child(3) { animation-delay:100ms; }
-.tab.active .card:nth-child(4) { animation-delay:150ms; }
-.tab.active .card:nth-child(5) { animation-delay:200ms; }
-.tab.active .card:nth-child(6) { animation-delay:250ms; }
-.tab.active .grid .card:nth-child(1) { animation-delay:0ms; }
-.tab.active .grid .card:nth-child(2) { animation-delay:60ms; }
-.tab.active .grid .card:nth-child(3) { animation-delay:120ms; }
 .tab.active .card:nth-child(1) { animation-delay:0s; }
 .tab.active .card:nth-child(2) { animation-delay:.05s; }
 .tab.active .card:nth-child(3) { animation-delay:.1s; }
@@ -163,8 +154,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .feed-agent { font-weight:600; }
 
 /* Office canvas */
-#office-canvas { width:100%; max-width:1000px; margin:0 auto; display:block; border:1px solid var(--border); border-radius:12px; background:linear-gradient(180deg,#1a1050,#241868); height:auto; }
-.office-wrap { position:relative; width:100%; max-width:1000px; margin:0 auto; }
+#office-canvas { width:100%; margin:0 auto; display:block; border:1px solid var(--border); border-radius:12px; background:var(--canvas-floor); height:auto; }
+.office-wrap { position:relative; width:100%; margin:0 auto; }
 .office-legend { display:flex; gap:16px; justify-content:center; margin-top:12px; font-size:11px; flex-wrap:wrap; }
 .legend-item { display:flex; align-items:center; gap:6px; padding:5px 12px; border-radius:8px; background:rgba(255,255,255,0.03); cursor:pointer; transition:background .15s,border-color .15s; border:1px solid transparent; }
 .legend-item:hover { background:rgba(255,255,255,0.07); border-color:var(--border); }
@@ -189,14 +180,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .activity-filter:hover { color:var(--text); border-color:var(--accent); background:var(--accent-glow); }
 .activity-filter.active { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
 
-/* Toast notifications */
-.toast-container { position:fixed; bottom:20px; right:20px; z-index:300; display:flex; flex-direction:column-reverse; gap:8px; pointer-events:none; }
-.toast { background:var(--glass); border:1px solid var(--border); backdrop-filter:blur(16px); padding:10px 16px; border-radius:10px; font-size:12px; color:var(--text); pointer-events:auto; animation:toastIn 0.3s ease, toastOut 0.3s ease 3.7s forwards; max-width:320px; box-shadow:0 4px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:8px; }
-.toast .toast-icon { font-size:16px; flex-shrink:0; }
-.toast .toast-text { flex:1; }
-.toast .toast-time { font-size:10px; color:var(--dim); font-family:'SF Mono',Menlo,monospace; flex-shrink:0; }
-@keyframes toastIn { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes toastOut { from{opacity:1} to{opacity:0;transform:translateY(-8px)} }
+/* (toast styles consolidated above in #toast-container block) */
 
 /* Help overlay */
 .help-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); z-index:400; display:none; justify-content:center; align-items:center; animation:fadeIn .15s; }
@@ -414,7 +398,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
     <div style="margin-top:12px;font-size:11px;color:var(--dim);text-align:center">Hover agents in the office for details · Scroll to zoom</div>
   </div>
 </div>
-<div class="toast-container" id="toast-container"></div>
+<!-- toast container above -->
 <div class="agent-detail-overlay" id="agent-detail-overlay" onclick="if(event.target===this)closeAgentDetail()">
   <div class="agent-detail-panel" id="agent-detail-panel"></div>
 </div>
@@ -487,18 +471,18 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 <div class="tab active" id="tab-office">
   <canvas id="office-canvas"></canvas>
   <div class="office-legend" id="office-legend"></div>
-  <div id="office-ticker" style="max-width:1000px;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
+  <div id="office-ticker" style="max-width:100%;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
     <span style="flex-shrink:0;font-size:13px">📡</span>
     <span id="office-ticker-text">Waiting for activity...</span>
     <span id="office-ticker-time" style="margin-left:auto;font-family:'SF Mono',Menlo,monospace;font-size:10px;flex-shrink:0"></span>
   </div>
-  <div id="office-quickstats" style="max-width:1000px;margin:8px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+  <div id="office-quickstats" style="max-width:100%;margin:8px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=tokens]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--accent)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Tokens</div><div style="font-size:18px;font-weight:800;color:var(--accent)" id="qs-tokens">--</div></div>
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=memory]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--purple)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Memories</div><div style="font-size:18px;font-weight:800;color:var(--purple)" id="qs-memories">--</div></div>
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=queue]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--green)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Active WRs</div><div style="font-size:18px;font-weight:800;color:var(--green)" id="qs-wrs">0</div></div>
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=tokens]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--green)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Est. Cost</div><div style="font-size:18px;font-weight:800;color:var(--green)" id="qs-cost">--</div></div>
   </div>
-  <div id="agent-search-bar" style="max-width:1000px;margin:12px auto 0;display:flex;align-items:center;gap:8px">
+  <div id="agent-search-bar" style="max-width:100%;margin:12px auto 0;display:flex;align-items:center;gap:8px">
     <div style="position:relative;flex:1">
       <input id="agent-search-input" type="text" placeholder="🔍 Search agents by name, role, or status..." style="width:100%;padding:8px 12px 8px 32px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="filterAgents(this.value)">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:0.5">🔍</span>
@@ -511,23 +495,23 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
       <button class="agent-status-filter" data-status="sleeping" onclick="setStatusFilter('sleeping')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">💤 Sleep</button>
     </div>
   </div>
-  <div id="agent-search-results-count" style="max-width:1000px;margin:4px auto 0;font-size:10px;color:var(--dim);display:none"></div>
-  <div id="agent-status-cards" style="max-width:1000px;margin:8px auto 0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px"></div>
-  <div id="agent-timeline" class="card" style="max-width:1000px;margin:12px auto 0;padding:14px 16px">
+  <div id="agent-search-results-count" style="max-width:100%;margin:4px auto 0;font-size:10px;color:var(--dim);display:none"></div>
+  <div id="agent-status-cards" style="max-width:100%;margin:8px auto 0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px"></div>
+  <div id="agent-timeline" class="card" style="max-width:100%;margin:12px auto 0;padding:14px 16px">
     <h3 style="margin-bottom:10px">📊 Agent Activity Timeline <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--dim)">(last 6 hours, 15-min buckets)</span></h3>
     <div id="timeline-filter-bar" class="timeline-filter-bar">🔍 <span id="timeline-filter-label"></span><button class="clear-btn" onclick="clearTimelineFilter()">✕ Clear</button></div>
     <div id="timeline-content" style="font-size:11px;color:var(--dim)">Loading...</div>
   </div>
-  <div id="agent-uptime" class="card" style="max-width:1000px;margin:12px auto 0;padding:14px 16px">
+  <div id="agent-uptime" class="card" style="max-width:100%;margin:12px auto 0;padding:14px 16px">
     <h3 style="margin-bottom:10px">⏱ Agent Uptime <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--dim)">(last 24 hours, % of time active)</span></h3>
     <div id="uptime-content" style="font-size:11px;color:var(--dim)">Loading...</div>
   </div>
-  <div id="heatmap-calendar" class="card" style="max-width:1000px;margin:12px auto 0;padding:14px 16px">
+  <div id="heatmap-calendar" class="card" style="max-width:100%;margin:12px auto 0;padding:14px 16px">
     <h3 style="margin-bottom:10px">🟩 Activity Calendar <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--dim)">(GitHub-style, last 90 days)</span></h3>
     <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap" id="heatmap-agent-filter"></div>
     <div id="heatmap-content" style="font-size:11px;color:var(--dim);overflow-x:auto">Loading...</div>
   </div>
-  <div id="live-logs-panel" class="card" style="max-width:1000px;margin:12px auto 0;padding:14px 16px">
+  <div id="live-logs-panel" class="card" style="max-width:100%;margin:12px auto 0;padding:14px 16px">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer" onclick="toggleLiveLogs()">
       <h3 style="margin:0">📜 Live Agent Logs <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--dim)">(last 30 min)</span></h3>
       <span style="margin-left:auto;font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px"><span id="live-logs-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite"></span> <span id="live-logs-count">0</span> entries</span>
@@ -727,7 +711,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 <script>
 // Theme
 function getTheme() { return localStorage.getItem('hq-theme') || 'dark'; }
-function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️'; }
+function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️'; invalidateStaticCache(); }
 function toggleTheme() { const t = getTheme() === 'dark' ? 'light' : 'dark'; localStorage.setItem('hq-theme', t); applyTheme(t); }
 applyTheme(getTheme());
 
@@ -923,6 +907,7 @@ function triggerHighFive(agentName, color) {
     });
   }
   const partnerAgent = agentData.find(a => a.name === bestName);
+  if (highFives.length >= 10) highFives.shift();
   highFives.push({
     agent1: agentName, agent2: bestName,
     startTime: Date.now(), duration: 2500,
@@ -1187,6 +1172,7 @@ function triggerGoodbyeWave(agentName, color) {
       size: 8 + Math.random() * 6,
     });
   }
+  if (goodbyeWaves.length >= 10) goodbyeWaves.shift();
   goodbyeWaves.push({
     agentName, color, startTime: Date.now(), duration: 3000,
     x: p.x, y: p.y - 20, particles
@@ -1277,11 +1263,13 @@ function drawGoodbyeWaves(time) {
 
 // ===== STATUS CHANGE SPARKLES =====
 const statusSparkles = [];
+const MAX_SPARKLES = 80;
 function emitSparkles(agentName, color) {
   const pos = deskPositions[agentName];
   if(!pos) return;
   const p = isoToScreen(pos.gx, pos.gy);
   for(let i=0;i<12;i++){
+    if(statusSparkles.length>=MAX_SPARKLES) statusSparkles.shift();
     const angle = (i/12)*Math.PI*2 + Math.random()*0.5;
     const speed = 1.5+Math.random()*2;
     statusSparkles.push({x:p.x,y:p.y-20,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:1,color,size:2+Math.random()*2});
@@ -1297,8 +1285,8 @@ function showToast(name, color, text, icon) {
   el.innerHTML = `<span class="toast-dot" style="background:${color}"></span><span class="toast-text">${icon} <span class="toast-name" style="color:${color}">${name}</span> ${text}</span>`;
   c.appendChild(el);
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2500);
-  // Max 3 toasts
-  while (c.children.length > 3) c.removeChild(c.firstChild);
+  // Max 5 toasts
+  while (c.children.length > 5) c.removeChild(c.firstChild);
 }
 function checkStatusChanges(agents) {
   agents.forEach(a => {
@@ -1336,38 +1324,35 @@ async function refreshAgents() {
 }
 
 // ===== ISOMETRIC 3D OFFICE =====
-const ISO = { tileW: 64, tileH: 32 };
-const GRID = { cols: 14, rows: 10 };
+const ISO = { tileW: 80, tileH: 40 };
+const GRID = { cols: 16, rows: 10 };
 const oCanvas = document.getElementById('office-canvas');
-const oCtx = oCanvas.getContext('2d');
+let oCtx = oCanvas.getContext('2d');
 
-// OFFICE LAYOUT:
-// Top center: BenMac (CEO desk, large)
-// Left wing: CONTENT TEAM — Director (lead), Writer, Designer, Producer, Publisher
-// Right wing: ENGINEERING TEAM — Coding Agent 1, Coding Agent 2
-// Bottom center: SUPPORT — Mail Manager, QA Agent
+// OFFICE LAYOUT — wide open-plan tech office
+// Agents spread across the full grid with breathing room between teams
 const deskPositions = {
-  // CEO — top center
-  'BenMac': {gx:7, gy:2},
-  // Content Team — left wing (Director leads, team below)
-  'Director': {gx:3, gy:4},
-  'Writer': {gx:2, gy:6},
-  'Designer': {gx:4, gy:6},
+  // CEO — corner office, top-center
+  'BenMac': {gx:8, gy:1},
+  // Content Team — left wing, spread wide
+  'Director': {gx:2, gy:2},
+  'Writer': {gx:2, gy:5},
+  'Designer': {gx:5, gy:3},
   'Producer': {gx:2, gy:8},
-  'Publisher': {gx:4, gy:8},
-  // Engineering Team — right wing
-  'Coding Agent 1': {gx:11, gy:4},
-  'Coding Agent 2': {gx:11, gy:6},
-  'Coding Agent': {gx:11, gy:4},
-  // Support — bottom center
-  'Mail Manager': {gx:7, gy:7},
-  'QA Agent': {gx:9, gy:5},
+  'Publisher': {gx:5, gy:7},
+  // Engineering Team — right wing, spread wide
+  'Coding Agent 1': {gx:14, gy:2},
+  'Coding Agent 2': {gx:14, gy:6},
+  'Coding Agent': {gx:14, gy:2},
+  // Support — center & bottom-right
+  'Mail Manager': {gx:8, gy:5},
+  'QA Agent': {gx:11, gy:8},
 };
 
 // Overflow desk positions for dynamically discovered agents (auto-assigned)
 const overflowDesks = [
-  {gx:9, gy:7}, {gx:11, gy:8}, {gx:9, gy:9}, {gx:13, gy:6},
-  {gx:13, gy:7}, {gx:5, gy:9}, {gx:3, gy:9}, {gx:1, gy:7},
+  {gx:10, gy:3}, {gx:11, gy:5}, {gx:7, gy:8}, {gx:3, gy:4},
+  {gx:6, gy:6}, {gx:9, gy:8}, {gx:12, gy:4}, {gx:15, gy:8},
 ];
 const _assignedOverflow = {};
 let _overflowIdx = 0;
@@ -1377,6 +1362,9 @@ function getAutoDesk(name) {
     _assignedOverflow[name] = overflowDesks[_overflowIdx++];
     // Also dynamically add a desk furniture item at this position
     furniture.push({ type:'desk', gx: _assignedOverflow[name].gx, gy: _assignedOverflow[name].gy });
+    _sortedFurniture.push(furniture[furniture.length-1]);
+    _sortedFurniture.sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
+    invalidateStaticCache();
     return _assignedOverflow[name];
   }
   return null;
@@ -1392,27 +1380,26 @@ const agentInteractions = {}; // {agentName: {type, target, startTime, duration,
 const deskItems = {};
 const DESK_ITEM_LIFETIME = 45000; // items stay on desk for 45 seconds then fade
 const POI = { // Points of Interest
-  whiteboard: {gx:6, gy:4},
-  coffee: {gx:13, gy:9},
-  server: {gx:12, gy:8},
-  door: {gx:14, gy:4},
+  whiteboard: {gx:6, gy:3},
+  coffee: {gx:8, gy:9},
+  server: {gx:15, gy:7},
+  door: {gx:15, gy:4},
   plant: {gx:1, gy:1},
-  bookshelf: {gx:6, gy:1},
 };
-const INTERACTION_TYPES = ['coffee','whiteboard','chat','stretch','server-check','read-bookshelf','water-plant','phone-call'];
+const INTERACTION_TYPES = ['coffee','whiteboard','chat','stretch','server-check','water-plant','phone-call'];
 
 // Agent-specific interaction preferences (weighted)
 const AGENT_INTERACTION_PREFS = {
-  'BenMac':         {coffee:3, whiteboard:2, chat:4, stretch:1, 'phone-call':3, 'read-bookshelf':1},
-  'Director':       {coffee:2, whiteboard:4, chat:3, stretch:1, 'read-bookshelf':2, 'phone-call':1},
-  'Writer':         {coffee:3, whiteboard:1, chat:1, stretch:2, 'read-bookshelf':5, 'water-plant':2},
-  'Designer':       {coffee:2, whiteboard:3, chat:2, stretch:2, 'water-plant':4, 'read-bookshelf':1},
+  'BenMac':         {coffee:3, whiteboard:2, chat:4, stretch:1, 'phone-call':3},
+  'Director':       {coffee:2, whiteboard:4, chat:3, stretch:1, 'phone-call':1},
+  'Writer':         {coffee:3, whiteboard:1, chat:1, stretch:2, 'water-plant':2},
+  'Designer':       {coffee:2, whiteboard:3, chat:2, stretch:2, 'water-plant':4},
   'Producer':       {coffee:3, whiteboard:2, chat:2, stretch:1, 'server-check':2, 'phone-call':1},
-  'Publisher':      {coffee:2, whiteboard:1, chat:3, stretch:1, 'phone-call':3, 'read-bookshelf':1},
-  'Coding Agent 1': {coffee:3, whiteboard:1, chat:1, stretch:2, 'server-check':5, 'read-bookshelf':2},
-  'Coding Agent 2': {coffee:3, whiteboard:2, chat:1, stretch:2, 'server-check':5, 'read-bookshelf':1},
-  'Mail Manager':   {coffee:2, whiteboard:1, chat:2, stretch:2, 'phone-call':5, 'read-bookshelf':1},
-  'QA Agent':       {coffee:2, whiteboard:3, chat:2, stretch:1, 'server-check':4, 'read-bookshelf':2},
+  'Publisher':      {coffee:2, whiteboard:1, chat:3, stretch:1, 'phone-call':3},
+  'Coding Agent 1': {coffee:3, whiteboard:1, chat:1, stretch:2, 'server-check':5},
+  'Coding Agent 2': {coffee:3, whiteboard:2, chat:1, stretch:2, 'server-check':5},
+  'Mail Manager':   {coffee:2, whiteboard:1, chat:2, stretch:2, 'phone-call':5},
+  'QA Agent':       {coffee:2, whiteboard:3, chat:2, stretch:1, 'server-check':4},
 };
 
 function pickWeightedInteraction(agentName, availableTypes, time) {
@@ -1513,7 +1500,7 @@ function tickInteractions(agents, time) {
       }
 
       // Build available interaction types
-      const types = ['coffee','whiteboard','stretch','read-bookshelf','water-plant','phone-call'];
+      const types = ['coffee','whiteboard','stretch','water-plant','phone-call'];
       if (a.name.includes('Coding') || a.name.includes('QA') || a.name.includes('Producer')) types.push('server-check');
       // Chat: find a nearby idle agent
       const nearbyIdle = agents.filter(b => b.name !== a.name && b.status === 'idle' && deskPositions[b.name] && !agentInteractions[b.name]);
@@ -1525,7 +1512,6 @@ function tickInteractions(agents, time) {
       if (type === 'coffee') { toGx = POI.coffee.gx; toGy = POI.coffee.gy; }
       else if (type === 'whiteboard') { toGx = POI.whiteboard.gx; toGy = POI.whiteboard.gy; }
       else if (type === 'server-check') { toGx = POI.server.gx; toGy = POI.server.gy; }
-      else if (type === 'read-bookshelf') { toGx = POI.bookshelf.gx; toGy = POI.bookshelf.gy; }
       else if (type === 'water-plant') {
         // Walk to nearest plant
         const plantPoi = [POI.plant, {gx:13,gy:1}, {gx:1,gy:9}];
@@ -1595,34 +1581,30 @@ function getInteractionOffset(agentName, time) {
 }
 
 const furniture = [
-  // CEO desk
-  { type:'desk-large', gx:7, gy:2 },
-  // Content team desks
-  { type:'desk', gx:3, gy:4 }, { type:'desk', gx:2, gy:6 },
-  { type:'desk', gx:4, gy:6 }, { type:'desk', gx:2, gy:8 },
-  { type:'desk', gx:4, gy:8 },
-  // Engineering desks
-  { type:'desk', gx:11, gy:4 }, { type:'desk', gx:11, gy:6 },
-  // Support desks
-  { type:'desk', gx:7, gy:7 }, { type:'desk', gx:9, gy:5 },
-  // Decor
-  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:13, gy:1 }, { type:'plant', gx:1, gy:9 },
-  { type:'coffee', gx:13, gy:9 }, { type:'whiteboard', gx:6, gy:4 }, { type:'server', gx:12, gy:8 },
-  { type:'lamp', gx:6, gy:3 }, { type:'lamp', gx:8, gy:3 },
-  { type:'clock', gx:7, gy:0 },
-  { type:'frame', gx:5, gy:0, hue:200 }, { type:'frame', gx:9, gy:0, hue:30 }, { type:'frame', gx:11, gy:0, hue:120 },
-  { type:'door', gx:14, gy:4 },
-  { type:'filing-cabinet', gx:13, gy:5 },
-  { type:'trash-can', gx:6, gy:4 },
-  { type:'coat-rack', gx:1, gy:5 },
-  { type:'cactus', gx:14, gy:1 }, { type:'cactus', gx:0, gy:8 },
-  { type:'sticky-notes', gx:4, gy:5 }, { type:'sticky-notes', gx:10, gy:7 }, { type:'sticky-notes', gx:7, gy:2 },
-  { type:'coffee-mug', gx:2, gy:7 }, { type:'coffee-mug', gx:12, gy:5 }, { type:'coffee-mug', gx:7, gy:8 },
+  // CEO desk — top center
+  { type:'desk-large', gx:8, gy:2 },
+  // Content team desks — left wing
+  { type:'desk', gx:2, gy:3 }, { type:'desk', gx:2, gy:6 },
+  { type:'desk', gx:4, gy:4 }, { type:'desk', gx:4, gy:7 },
+  { type:'desk', gx:2, gy:9 },
+  // Engineering desks — right wing
+  { type:'desk', gx:13, gy:3 }, { type:'desk', gx:13, gy:6 },
+  // Support desks — center-bottom
+  { type:'desk', gx:8, gy:6 }, { type:'desk', gx:11, gy:8 },
+  // Decor — minimal: plants (corners), 1 whiteboard, 1 server, 1 coffee machine
+  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:15, gy:1 }, { type:'plant', gx:1, gy:9 }, { type:'plant', gx:15, gy:9 },
+  { type:'whiteboard', gx:6, gy:3 },
+  { type:'server', gx:15, gy:7 },
+  { type:'coffee', gx:8, gy:9 },
+  { type:'clock', gx:8, gy:0 },
+  { type:'door', gx:15, gy:4 },
 ];
+const _sortedFurniture = [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
 
+// Dynamic iso origin — recalculated on resize
+let _isoOriginX = 404, _isoOriginY = 40;
 function isoToScreen(gx, gy) {
-  // Use logical 1000px width — tighter vertical offset to reduce dead space
-  return { x: 500 + (gx-gy)*ISO.tileW/2, y: 40 + (gx+gy)*ISO.tileH/2 };
+  return { x: _isoOriginX + (gx-gy)*ISO.tileW/2, y: _isoOriginY + (gx+gy)*ISO.tileH/2 };
 }
 
 function drawIsoTile(gx, gy, fill, stroke) {
@@ -1646,13 +1628,13 @@ function shadeColor(c,pct){const n=parseInt(c.replace('#',''),16),a=Math.round(2
 
 function drawDesk(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,14,t.deskTop,t.deskL,t.deskR);const p=isoToScreen(gx,gy);oCtx.fillStyle=t.monitorBg;oCtx.fillRect(p.x-8,p.y-28,16,12);oCtx.fillStyle=t.monitorScr;oCtx.fillRect(p.x-6,p.y-26,12,8);}
 function drawLargeDesk(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,16,t.lgDeskTop,t.lgDeskL,t.lgDeskR);const p=isoToScreen(gx,gy);oCtx.fillStyle=t.monitorBg;oCtx.fillRect(p.x-16,p.y-32,14,12);oCtx.fillRect(p.x+2,p.y-32,14,12);oCtx.fillStyle=t.monitorScr;oCtx.fillRect(p.x-14,p.y-30,10,8);oCtx.fillStyle=t.monitorScr2;oCtx.fillRect(p.x+4,p.y-30,10,8);}
-function drawPlant(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.fillStyle=t.potBrown;oCtx.fillRect(p.x-6,p.y-4,12,10);const tm=Date.now()/1000;for(let i=0;i<5;i++){const a=(i/5)*Math.PI*2+Math.sin(tm*0.5+i)*0.15;oCtx.beginPath();oCtx.arc(p.x+Math.cos(a)*10,p.y-14+Math.sin(a)*5,5,0,Math.PI*2);oCtx.fillStyle=i%2===0?t.leafDk:t.leafLt;oCtx.fill();}}
+function drawPlant(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.fillStyle=t.potBrown;oCtx.fillRect(p.x-6,p.y-4,12,10);const tm=_frameTime/1000;for(let i=0;i<5;i++){const a=(i/5)*Math.PI*2+Math.sin(tm*0.5+i)*0.15;oCtx.beginPath();oCtx.arc(p.x+Math.cos(a)*10,p.y-14+Math.sin(a)*5,5,0,Math.PI*2);oCtx.fillStyle=i%2===0?t.leafDk:t.leafLt;oCtx.fill();}}
 function drawCoffee(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);drawIsoCube(gx,gy,20,t.coffeeTop,t.coffeeL,t.coffeeR);oCtx.font='14px serif';oCtx.textAlign='center';oCtx.fillText('☕',p.x,p.y-24);}
 function drawWhiteboard(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.fillStyle=t.wbBg;oCtx.fillRect(p.x-28,p.y-40,56,36);oCtx.strokeStyle=t.wbBorder;oCtx.lineWidth=2;oCtx.strokeRect(p.x-28,p.y-40,56,36);oCtx.font='7px system-ui';oCtx.fillStyle=t.wbText;oCtx.textAlign='left';oCtx.fillText('Sprint Tasks:',p.x-22,p.y-28);oCtx.fillStyle=t.wbCheck;oCtx.fillText('✓ Dashboard v3',p.x-22,p.y-18);oCtx.fillText('✓ Agent system',p.x-22,p.y-10);}
-function drawServer(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,30,t.srvTop,t.srvL,t.srvR);const p=isoToScreen(gx,gy);const tm=Date.now();for(let i=0;i<3;i++){oCtx.beginPath();oCtx.arc(p.x-4,p.y-10-i*8,2,0,Math.PI*2);oCtx.fillStyle=(Math.sin(tm/300+i)>0)?t.srvLed:t.srvLedOff;oCtx.fill();}oCtx.font='8px system-ui';oCtx.fillStyle=t.srvLabel;oCtx.textAlign='center';oCtx.fillText('SERVER',p.x,p.y+ISO.tileH+10);}
+function drawServer(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,30,t.srvTop,t.srvL,t.srvR);const p=isoToScreen(gx,gy);const tm=_frameTime;for(let i=0;i<3;i++){oCtx.beginPath();oCtx.arc(p.x-4,p.y-10-i*8,2,0,Math.PI*2);oCtx.fillStyle=(Math.sin(tm/300+i)>0)?t.srvLed:t.srvLedOff;oCtx.fill();}oCtx.font='8px system-ui';oCtx.fillStyle=t.srvLabel;oCtx.textAlign='center';oCtx.fillText('SERVER',p.x,p.y+ISO.tileH+10);}
 function drawBookshelf(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,36,t.bsTop,t.bsL,t.bsR);const p=isoToScreen(gx,gy);const colors=['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6','#e67e22'];for(let row=0;row<3;row++){for(let i=0;i<3;i++){oCtx.fillStyle=colors[(row*3+i)%colors.length];oCtx.fillRect(p.x-9+i*7,p.y-32+row*10,5,8);}}oCtx.font='7px system-ui';oCtx.fillStyle=t.bsLabel;oCtx.textAlign='center';oCtx.fillText('📚',p.x,p.y+ISO.tileH+8);}
-function drawLamp(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);const tm=Date.now();const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-45,8,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+(flicker+0.1)+')';oCtx.fill();oCtx.strokeStyle=t.lampPole;oCtx.lineWidth=1.5;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-38);oCtx.stroke();oCtx.fillStyle=t.lampShade;oCtx.beginPath();oCtx.moveTo(p.x-8,p.y-44);oCtx.lineTo(p.x+8,p.y-44);oCtx.lineTo(p.x+5,p.y-38);oCtx.lineTo(p.x-5,p.y-38);oCtx.closePath();oCtx.fill();}
-function drawRug(){const cx=isoToScreen(7,5);oCtx.save();oCtx.globalAlpha=0.25;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,120,50,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,120);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
+function drawLamp(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-45,8,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+(flicker+0.1)+')';oCtx.fill();oCtx.strokeStyle=t.lampPole;oCtx.lineWidth=1.5;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-38);oCtx.stroke();oCtx.fillStyle=t.lampShade;oCtx.beginPath();oCtx.moveTo(p.x-8,p.y-44);oCtx.lineTo(p.x+8,p.y-44);oCtx.lineTo(p.x+5,p.y-38);oCtx.lineTo(p.x-5,p.y-38);oCtx.closePath();oCtx.fill();}
+function drawRug(){const cx=isoToScreen(8,5);oCtx.save();oCtx.globalAlpha=0.25;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,120,50,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,120);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
 function drawWindows(time){
   const hr=new Date().getHours()+new Date().getMinutes()/60;
   let nightAmt=0;
@@ -1722,7 +1704,7 @@ function drawTrashCan(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(g
 function drawCoatRack(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();oCtx.strokeStyle=t.crPole;oCtx.lineWidth=2;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-40);oCtx.stroke();oCtx.strokeStyle=t.crPole;oCtx.lineWidth=1.5;const hooks=[[-8,-36],[8,-36],[-6,-30],[6,-30]];hooks.forEach(([dx,dy])=>{oCtx.beginPath();oCtx.moveTo(p.x,p.y+dy+4);oCtx.lineTo(p.x+dx,p.y+dy);oCtx.stroke();oCtx.beginPath();oCtx.arc(p.x+dx,p.y+dy,1.5,0,Math.PI*2);oCtx.fillStyle=t.crKnob;oCtx.fill();});oCtx.beginPath();oCtx.arc(p.x,p.y-42,3,0,Math.PI*2);oCtx.fillStyle=t.crPole;oCtx.fill();oCtx.fillStyle=t.crBase;oCtx.beginPath();oCtx.ellipse(p.x,p.y,8,4,0,0,Math.PI*2);oCtx.fill();oCtx.restore();}
 function drawCactus(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();oCtx.fillStyle=t.cacPot;oCtx.fillRect(p.x-5,p.y-2,10,6);oCtx.fillStyle=t.cacPotIn;oCtx.fillRect(p.x-4,p.y-1,8,4);oCtx.fillStyle=t.cacBody;oCtx.beginPath();oCtx.moveTo(p.x-4,p.y-4);oCtx.lineTo(p.x+4,p.y-4);oCtx.lineTo(p.x+3,p.y-22);oCtx.lineTo(p.x-3,p.y-22);oCtx.closePath();oCtx.fill();oCtx.fillStyle=t.cacArm;oCtx.beginPath();oCtx.moveTo(p.x+3,p.y-14);oCtx.lineTo(p.x+9,p.y-18);oCtx.lineTo(p.x+8,p.y-24);oCtx.lineTo(p.x+3,p.y-18);oCtx.closePath();oCtx.fill();oCtx.beginPath();oCtx.moveTo(p.x-3,p.y-10);oCtx.lineTo(p.x-8,p.y-14);oCtx.lineTo(p.x-7,p.y-19);oCtx.lineTo(p.x-3,p.y-14);oCtx.closePath();oCtx.fill();oCtx.fillStyle='#fff';oCtx.globalAlpha=0.6;for(let i=0;i<5;i++){oCtx.fillRect(p.x-2+((i*3)%5),p.y-20+i*3,1,1);}oCtx.globalAlpha=1;oCtx.beginPath();oCtx.arc(p.x,p.y-23,2,0,Math.PI*2);oCtx.fillStyle=t.cacFlower;oCtx.fill();oCtx.restore();}
 function drawStickyNotes(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();const colors=t.stickyC;const offsets=[[-10,-32,5],[2,-34,-3],[-4,-30,2]];offsets.forEach(([dx,dy,rot],i)=>{oCtx.save();oCtx.translate(p.x+dx,p.y+dy);oCtx.rotate(rot*Math.PI/180);oCtx.fillStyle=colors[i];oCtx.fillRect(-5,-5,10,10);oCtx.fillStyle='rgba(0,0,0,0.3)';oCtx.fillRect(-4,-2,7,1);oCtx.fillRect(-4,1,5,1);oCtx.restore();});oCtx.restore();}
-function drawCoffeeMug(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();oCtx.fillStyle=t.mugBody;oCtx.fillRect(p.x+6,p.y-30,6,8);oCtx.fillStyle=t.mugFill;oCtx.fillRect(p.x+7,p.y-29,4,6);oCtx.strokeStyle=t.mugHandle;oCtx.lineWidth=1;oCtx.beginPath();oCtx.arc(p.x+14,p.y-26,2.5,Math.PI*1.5,Math.PI*0.5);oCtx.stroke();const tm=Date.now()/1000;if(Math.sin(tm+gx*2)>0.3){oCtx.globalAlpha=0.3;oCtx.fillStyle='#fff';oCtx.beginPath();oCtx.arc(p.x+9,p.y-32-Math.sin(tm)*2,2,0,Math.PI*2);oCtx.fill();oCtx.beginPath();oCtx.arc(p.x+11,p.y-35-Math.sin(tm+1)*2,1.5,0,Math.PI*2);oCtx.fill();}oCtx.restore();}
+function drawCoffeeMug(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();oCtx.fillStyle=t.mugBody;oCtx.fillRect(p.x+6,p.y-30,6,8);oCtx.fillStyle=t.mugFill;oCtx.fillRect(p.x+7,p.y-29,4,6);oCtx.strokeStyle=t.mugHandle;oCtx.lineWidth=1;oCtx.beginPath();oCtx.arc(p.x+14,p.y-26,2.5,Math.PI*1.5,Math.PI*0.5);oCtx.stroke();const tm=_frameTime/1000;if(Math.sin(tm+gx*2)>0.3){oCtx.globalAlpha=0.3;oCtx.fillStyle='#fff';oCtx.beginPath();oCtx.arc(p.x+9,p.y-32-Math.sin(tm)*2,2,0,Math.PI*2);oCtx.fill();oCtx.beginPath();oCtx.arc(p.x+11,p.y-35-Math.sin(tm+1)*2,1.5,0,Math.PI*2);oCtx.fill();}oCtx.restore();}
 function drawDoor(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();oCtx.fillStyle=t.doorFrame;oCtx.fillRect(p.x-14,p.y-48,28,44);oCtx.fillStyle=t.doorFace;oCtx.fillRect(p.x-12,p.y-46,24,40);const dg=oCtx.createLinearGradient(p.x-12,p.y-46,p.x+12,p.y-6);dg.addColorStop(0,t.doorFace);dg.addColorStop(0.5,t.doorFace);dg.addColorStop(1,t.doorFrame);oCtx.fillStyle=dg;oCtx.fillRect(p.x-12,p.y-46,24,40);oCtx.fillStyle=t.doorFrame;oCtx.fillRect(p.x-10,p.y-44,20,2);oCtx.fillRect(p.x-10,p.y-24,20,2);oCtx.beginPath();oCtx.arc(p.x+7,p.y-26,2.5,0,Math.PI*2);oCtx.fillStyle=t.doorKnob;oCtx.fill();oCtx.strokeStyle=t.doorStroke;oCtx.lineWidth=1.5;oCtx.strokeRect(p.x-14,p.y-48,28,44);oCtx.fillStyle='rgba(255,255,255,0.03)';oCtx.fillRect(p.x-12,p.y-46,12,40);oCtx.restore();}
 
 // ===== VISITOR (discovered/sub-agent) — smaller, translucent, no desk =====
@@ -2431,11 +2413,18 @@ function getCanvasTheme(){
   const dark=document.documentElement.getAttribute('data-theme')!=='light';
   return dark?{floor1:'#344e6e',floor2:'#3c5a80',floorStroke:'#4a6a90',wall1:'#4a6585',wall2:'#3e5872',wall3:'#354d66',nameTag:'rgba(0,0,0,0.7)',nameText:'#fff',deskTop:'#5a4630',deskL:'#3b2f1e',deskR:'#4a3828',lgDeskTop:'#6a5640',lgDeskL:'#4b3f2e',lgDeskR:'#5a4838',monitorBg:'#1a1f2e',monitorScr:'#3b82f6',monitorScr2:'#22c55e',potBrown:'#6b3a1f',leafDk:'#166534',leafLt:'#22c55e',clockFrame:'#2a2a2a',clockFace:'#f0ead6',clockTick:'#333',clockHand:'#333',clockSec:'#e74c3c',coffeeTop:'#444',coffeeL:'#2a2a2a',coffeeR:'#333',wbBg:'#f0f0f0',wbBorder:'#555',wbText:'#333',wbCheck:'#16a34a',srvTop:'#2d333b',srvL:'#1a1f2e',srvR:'#252b35',srvLed:'#22c55e',srvLedOff:'#0a3a1a',srvLabel:'#64748b',bsTop:'#5a3a20',bsL:'#3a2210',bsR:'#4a3018',bsLabel:'#64748b',lampPole:'#555',lampShade:'#c8a84e',lampGlow:'rgba(255,220,120,',fcTop:'#4a4a4a',fcL:'#333',fcR:'#3a3a3a',fcDrawer:'#555',fcKnob:'#c8a84e',tcBody:'#3a3a3a',tcLid:'#4a4a4a',tcLine:'#555',crPole:'#5a4a30',crKnob:'#c8a84e',crBase:'#3a3a3a',cacPot:'#8B4513',cacPotIn:'#a0522d',cacBody:'#2d6b2d',cacArm:'#3a8a3a',cacFlower:'#ff6b6b',stickyC:['#fef08a','#86efac','#93c5fd'],mugBody:'#e8e8e8',mugFill:'#8B4513',mugHandle:'#ccc',doorFrame:'#3a2820',doorFace:'#5a4030',doorKnob:'#c8a84e',doorStroke:'#2a1a10'}:{floor1:'#b8c8d8',floor2:'#c8d8e8',floorStroke:'#9ab0c4',wall1:'#8aa0b8',wall2:'#7a90a8',wall3:'#6a8098',nameTag:'rgba(255,255,255,0.85)',nameText:'#1a1a2e',deskTop:'#c9a87c',deskL:'#a8875d',deskR:'#b8976d',lgDeskTop:'#d4b88c',lgDeskL:'#b8976d',lgDeskR:'#c9a87c',monitorBg:'#e8ecf0',monitorScr:'#60a5fa',monitorScr2:'#4ade80',potBrown:'#a0724e',leafDk:'#22863a',leafLt:'#4ade80',clockFrame:'#d0d0d0',clockFace:'#ffffff',clockTick:'#555',clockHand:'#444',clockSec:'#e74c3c',coffeeTop:'#6a6a6a',coffeeL:'#505050',coffeeR:'#5a5a5a',wbBg:'#ffffff',wbBorder:'#aaa',wbText:'#555',wbCheck:'#22863a',srvTop:'#c0c8d0',srvL:'#a0a8b0',srvR:'#b0b8c0',srvLed:'#4ade80',srvLedOff:'#b0d8b0',srvLabel:'#8090a0',bsTop:'#a07850',bsL:'#806030',bsR:'#907040',bsLabel:'#8090a0',lampPole:'#888',lampShade:'#d4b870',lampGlow:'rgba(255,230,150,',fcTop:'#8a8a8a',fcL:'#707070',fcR:'#7a7a7a',fcDrawer:'#999',fcKnob:'#d4b870',tcBody:'#808080',tcLid:'#909090',tcLine:'#aaa',crPole:'#907860',crKnob:'#d4b870',crBase:'#808080',cacPot:'#b87040',cacPotIn:'#c08050',cacBody:'#3a8a3a',cacArm:'#4aba4a',cacFlower:'#ff8a8a',stickyC:['#fef9c3','#bbf7d0','#bfdbfe'],mugBody:'#f0f0f0',mugFill:'#a06030',mugHandle:'#ddd',doorFrame:'#6a5040',doorFace:'#907060',doorKnob:'#d4b870',doorStroke:'#5a4030'};
 }
-let _th=null;
+let _th=null, _frameTime=0;
+let _themeCache=null, _themeCacheKey=null;
+const _getCanvasTheme = getCanvasTheme;
+getCanvasTheme = function(){
+  const key = document.documentElement.getAttribute('data-theme') || 'dark';
+  if(key===_themeCacheKey && _themeCache) return _themeCache;
+  _themeCacheKey=key; _themeCache=_getCanvasTheme(); return _themeCache;
+};
 
 // Ambient floating particles (dust motes / data particles)
 const particles = [];
-for(let i=0;i<25;i++) particles.push({x:Math.random()*1000,y:Math.random()*520,vx:(Math.random()-0.5)*0.3,vy:-0.1-Math.random()*0.2,size:0.8+Math.random()*1.5,alpha:0.1+Math.random()*0.25,hue:200+Math.random()*60});
+for(let i=0;i<15;i++) particles.push({x:Math.random()*1000,y:Math.random()*520,vx:(Math.random()-0.5)*0.3,vy:-0.1-Math.random()*0.2,size:0.8+Math.random()*1.5,alpha:0.1+Math.random()*0.25,hue:200+Math.random()*60});
 function drawParticles(time){
   oCtx.save();
   particles.forEach(p=>{
@@ -2518,13 +2507,17 @@ function drawEmotes(time) {
 }
 
 // ===== ZOOM & PAN =====
-let camZoom = 1, camPanX = 0, camPanY = 0;
+let camZoom = 1.3, camPanX = 0, camPanY = 0;
+// Dynamic camera pivot — center of isometric grid
+const _gridCenterGx = GRID.cols / 2, _gridCenterGy = GRID.rows / 2;
+let camPivotX = _isoOriginX + (_gridCenterGx - _gridCenterGy) * ISO.tileW / 2;
+let camPivotY = _isoOriginY + (_gridCenterGx + _gridCenterGy) * ISO.tileH / 2;
 let _dragging = false, _dragStartX = 0, _dragStartY = 0, _panStartX = 0, _panStartY = 0;
 const ZOOM_MIN = 0.6, ZOOM_MAX = 3.0, ZOOM_STEP = 0.15;
 
 function zoomIn() { camZoom = Math.min(ZOOM_MAX, camZoom + ZOOM_STEP); }
 function zoomOut() { camZoom = Math.max(ZOOM_MIN, camZoom - ZOOM_STEP); }
-function zoomReset() { camZoom = 1; camPanX = 0; camPanY = 0; }
+function zoomReset() { camPanX = 0; camPanY = 0; resizeCanvas(); }
 
 oCanvas.addEventListener('wheel', e => {
   e.preventDefault();
@@ -2549,7 +2542,7 @@ window.addEventListener('mouseup', () => {
 const MINIMAP_W = 140, MINIMAP_H = 80, MINIMAP_PAD = 8;
 
 function drawMiniMap(agents) {
-  if (camZoom <= 1.05 && Math.abs(camPanX) < 5 && Math.abs(camPanY) < 5) return; // skip at default view
+  if (camZoom <= 1.32 && Math.abs(camPanX) < 5 && Math.abs(camPanY + 5) < 5) return; // skip at default view
   const mx = 1000 - MINIMAP_W - MINIMAP_PAD;
   const my = MINIMAP_PAD;
   oCtx.save();
@@ -2576,8 +2569,8 @@ function drawMiniMap(agents) {
   // Viewport rectangle
   oCtx.globalAlpha = 0.5;
   const vpW = 1000 / camZoom, vpH = 520 / camZoom;
-  const vpX = (500 - camPanX * camZoom - vpW / 2);
-  const vpY = (260 - camPanY * camZoom - vpH / 2);
+  const vpX = (camPivotX - camPanX * camZoom - vpW / 2);
+  const vpY = (camPivotY - camPanY * camZoom - vpH / 2);
   // Map screen coords to minimap
   const mmvx = ox + (vpX / 1000) * (MINIMAP_W - 16);
   const mmvy = oy + (vpY / 520) * (MINIMAP_H - 16);
@@ -2615,87 +2608,50 @@ function drawZoomControls() {
   oCtx.save();
   oCtx.font = 'bold 9px system-ui'; oCtx.textAlign = 'left';
   oCtx.fillStyle = 'rgba(148,163,184,0.5)';
-  oCtx.fillText('🔍 Scroll to zoom · Drag to pan · ` to reset', 8, 516);
+  oCtx.fillText('🔍 Scroll to zoom · Drag to pan · ` to reset', 8, 390);
   oCtx.restore();
 }
 
 function drawOffice() {
-  const time = Date.now();
+  const time = Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
   oCtx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
-  // Apply zoom & pan
+  // Apply zoom & pan — center on the iso grid dynamically
+  const pivotX = oCanvas.width / (2 * (window.devicePixelRatio || 1));
+  const pivotY = oCanvas.height / (2 * (window.devicePixelRatio || 1));
   oCtx.save();
-  oCtx.translate(500, 210); // pivot at center
+  oCtx.translate(pivotX, pivotY);
   oCtx.scale(camZoom, camZoom);
-  oCtx.translate(-500 + camPanX, -210 + camPanY);
+  oCtx.translate(-camPivotX + camPanX, -camPivotY + camPanY);
 
-  // Floor
-  for(let r=0;r<GRID.rows;r++) for(let c=0;c<GRID.cols;c++)
-    drawIsoTile(c,r,(r+c)%2===0?th.floor1:th.floor2,th.floorStroke);
+  // Blit cached static layer (floor, walls, labels, static furniture)
+  // The static canvas is rendered at the same internal coordinate space as isoToScreen.
+  // We're currently in the zoom/pan transformed space, so drawing at (0,0)-(internalW,internalH)
+  // will correctly zoom and pan the static content.
+  buildStaticLayer();
+  if (_staticCanvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const iW = oCanvas.width / dpr, iH = oCanvas.height / dpr;
+    oCtx.drawImage(_staticCanvas, 0, 0, _staticCanvas.width, _staticCanvas.height, 0, 0, iW, iH);
+  }
 
-  // Rug
-  drawRug();
-
-  // Walls
-  for(let c=0;c<GRID.cols;c++) drawIsoCube(c,0,16,th.wall1,th.wall2,th.wall3);
-  for(let r=0;r<GRID.rows;r++) drawIsoCube(0,r,16,th.wall1,th.wall2,th.wall3);
-
-  // Windows on back wall
+  // Windows on back wall (animated — sky changes over time)
   drawWindows(time);
 
-  // Title with time-of-day greeting
-  const tp=isoToScreen(7,0);
-  oCtx.font='bold 11px system-ui';oCtx.textAlign='center';
-  oCtx.fillStyle='#3b82f6';
-  oCtx.fillText('⚡ AGENT SPACE',tp.x,tp.y-26);
-  {const hr=new Date().getHours();
-  const greet=hr<5?'🌙 Late night ops':hr<7?'🌅 Early bird mode':hr<12?'☀️ Good morning':hr<17?'🏢 Afternoon shift':hr<20?'🌆 Evening mode':'🌙 Night shift';
-  oCtx.font='8px system-ui';oCtx.fillStyle='rgba(148,163,184,0.6)';
-  oCtx.fillText(greet,tp.x,tp.y-16);}
-
-  // Team section labels on the floor
-  oCtx.save();
-  oCtx.globalAlpha=0.18;
-  oCtx.font='bold 9px system-ui';oCtx.textAlign='center';oCtx.letterSpacing='2px';
-  // Content Team — left wing
-  const ctP=isoToScreen(3,6);
-  oCtx.fillStyle='#FF6B6B';
-  oCtx.fillText('CONTENT TEAM',ctP.x,ctP.y+ISO.tileH+6);
-  // Engineering — right wing
-  const enP=isoToScreen(11,5);
-  oCtx.fillStyle='#00D4FF';
-  oCtx.fillText('ENGINEERING',enP.x,enP.y+ISO.tileH+6);
-  // CEO — top center
-  const ceoP=isoToScreen(7,2);
-  oCtx.fillStyle='#FFD700';
-  oCtx.fillText('CEO',ceoP.x,ceoP.y+ISO.tileH+42);
-  // Support — bottom center
-  const supP=isoToScreen(8,6);
-  oCtx.fillStyle='#FF69B4';
-  oCtx.fillText('SUPPORT',supP.x,supP.y+ISO.tileH+6);
-  oCtx.restore();
-
-  // Furniture
-  [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy)).forEach(f=>{
-    if(f.type==='desk') drawDesk(f.gx,f.gy);
-    else if(f.type==='desk-large') drawLargeDesk(f.gx,f.gy);
-    else if(f.type==='plant') drawPlant(f.gx,f.gy);
-    else if(f.type==='coffee') drawCoffee(f.gx,f.gy);
-    else if(f.type==='whiteboard') drawWhiteboard(f.gx,f.gy);
-    else if(f.type==='server') drawServer(f.gx,f.gy);
-    else if(f.type==='bookshelf') drawBookshelf(f.gx,f.gy);
-    else if(f.type==='lamp') drawLamp(f.gx,f.gy);
-    else if(f.type==='clock') drawWallClock(f.gx,f.gy);
-    else if(f.type==='frame') drawPictureFrame(f.gx,f.gy,f.hue||0);
-    else if(f.type==='door') drawDoor(f.gx,f.gy);
-    else if(f.type==='filing-cabinet') drawFilingCabinet(f.gx,f.gy);
-    else if(f.type==='trash-can') drawTrashCan(f.gx,f.gy);
-    else if(f.type==='coat-rack') drawCoatRack(f.gx,f.gy);
-    else if(f.type==='cactus') drawCactus(f.gx,f.gy);
-    else if(f.type==='sticky-notes') drawStickyNotes(f.gx,f.gy);
-    else if(f.type==='coffee-mug') drawCoffeeMug(f.gx,f.gy);
-  });
+  // Animated furniture only (plants, servers, lamps, clocks, coffee mugs)
+  // LOD: skip detailed animated furniture when zoomed out far
+  const _lodSkipDetail = camZoom < 0.55;
+  if (!_lodSkipDetail) {
+    _sortedFurniture.forEach(f=>{
+      if(!ANIMATED_FURNITURE.has(f.type)) return;
+      if(f.type==='plant') drawPlant(f.gx,f.gy);
+      else if(f.type==='server') drawServer(f.gx,f.gy);
+      else if(f.type==='lamp') drawLamp(f.gx,f.gy);
+      else if(f.type==='clock') drawWallClock(f.gx,f.gy);
+      else if(f.type==='coffee-mug') drawCoffeeMug(f.gx,f.gy);
+    });
+  }
 
   // Agents — separate desk agents from visitors (discovered/sub-agents)
   const allAgents = agentData.length ? agentData : [
@@ -2787,7 +2743,7 @@ function drawOffice() {
     oCtx.save();
     oCtx.globalAlpha = 0.6;
     oCtx.font = 'bold 8px system-ui'; oCtx.textAlign = 'center'; oCtx.fillStyle = '#64748b';
-    oCtx.fillText('VISITOR LOUNGE', loungeBase.x - 40, loungeBase.y - 20);
+    oCtx.fillText('SUB-AGENTS', loungeBase.x - 40, loungeBase.y - 20);
     // Dotted border area
     oCtx.strokeStyle = 'rgba(100,116,139,0.25)'; oCtx.lineWidth = 1; oCtx.setLineDash([4,3]);
     oCtx.strokeRect(loungeBase.x - 90, loungeBase.y - 15, 100, visitors.length * 32 + 10);
@@ -2952,19 +2908,20 @@ function drawOffice() {
   // Ambient floating particles (dust motes / data particles)
   drawParticles(time);
 
-  // Day/night ambient cycle based on real clock
+  // Day/night ambient cycle — cached, recalculated every 30s
   {
-    const hr = new Date().getHours() + new Date().getMinutes()/60;
-    // nightAmount: 0 = full day, 1 = full night
-    // Night: 20-6, transition: 6-8 (dawn), 18-20 (dusk)
-    let nightAmt = 0;
-    if (hr >= 21 || hr < 5) nightAmt = 1;
-    else if (hr >= 5 && hr < 7) nightAmt = 1 - (hr - 5) / 2; // dawn
-    else if (hr >= 7 && hr < 18) nightAmt = 0; // day
-    else if (hr >= 18 && hr < 21) nightAmt = (hr - 18) / 3; // dusk
+    if (!_nightCache || time - _nightCache.t > 30000) {
+      const hr = new Date().getHours() + new Date().getMinutes()/60;
+      let nightAmt = 0;
+      if (hr >= 21 || hr < 5) nightAmt = 1;
+      else if (hr >= 5 && hr < 7) nightAmt = 1 - (hr - 5) / 2;
+      else if (hr >= 7 && hr < 18) nightAmt = 0;
+      else if (hr >= 18 && hr < 21) nightAmt = (hr - 18) / 3;
+      _nightCache = { t: time, n: nightAmt };
+    }
+    const nightAmt = _nightCache.n;
 
     if (nightAmt > 0.01) {
-      // Blue night overlay
       oCtx.save();
       oCtx.globalAlpha = nightAmt * 0.25;
       oCtx.fillStyle = '#0a1840';
@@ -2973,31 +2930,38 @@ function drawOffice() {
     }
 
     if (nightAmt < 0.8) {
-      // Daytime warm sunlight from windows
       const sunAlpha = (1 - nightAmt) * 0.06;
-      for (let c = 2; c < GRID.cols; c += 3) {
-        const wp = isoToScreen(c, 0);
-        const sg = oCtx.createLinearGradient(wp.x, wp.y, wp.x, wp.y + 120);
+      // Cache sunlight gradient positions — only rebuild when iso origin changes
+      if (!_sunGradCache || _sunGradCache.ox !== _isoOriginX || _sunGradCache.oy !== _isoOriginY || _sunGradCache.a !== sunAlpha) {
+        _sunGradCache = { ox: _isoOriginX, oy: _isoOriginY, a: sunAlpha, rects: [] };
+        for (let c = 2; c < GRID.cols; c += 3) {
+          const wp = isoToScreen(c, 0);
+          _sunGradCache.rects.push({ x: wp.x, y: wp.y });
+        }
+      }
+      _sunGradCache.rects.forEach(r => {
+        const sg = oCtx.createLinearGradient(r.x, r.y, r.x, r.y + 120);
         sg.addColorStop(0, `rgba(255,220,130,${sunAlpha})`);
         sg.addColorStop(1, 'rgba(255,220,130,0)');
         oCtx.fillStyle = sg;
-        oCtx.fillRect(wp.x - 20, wp.y, 40, 120);
-      }
+        oCtx.fillRect(r.x - 20, r.y, 40, 120);
+      });
     }
-
-    // Stars already drawn by drawWindows() — no duplicate needed
   }
 
-  // Status change sparkle particles
-  for(let i=statusSparkles.length-1;i>=0;i--){
-    const s=statusSparkles[i];
-    s.x+=s.vx; s.y+=s.vy; s.vy+=0.05; s.life-=0.025;
-    if(s.life<=0){statusSparkles.splice(i,1);continue;}
-    oCtx.save(); oCtx.globalAlpha=s.life;
-    oCtx.beginPath(); oCtx.arc(s.x,s.y,s.size*s.life,0,Math.PI*2);
-    oCtx.fillStyle=s.color; oCtx.fill();
-    oCtx.beginPath(); oCtx.arc(s.x,s.y,s.size*s.life*2,0,Math.PI*2);
-    oCtx.fillStyle=s.color; oCtx.globalAlpha=s.life*0.2; oCtx.fill();
+  // Status change sparkle particles (batched)
+  if (statusSparkles.length > 0) {
+    oCtx.save();
+    for(let i=statusSparkles.length-1;i>=0;i--){
+      const s=statusSparkles[i];
+      s.x+=s.vx; s.y+=s.vy; s.vy+=0.05; s.life-=0.025;
+      if(s.life<=0){statusSparkles.splice(i,1);continue;}
+      oCtx.globalAlpha=s.life;
+      oCtx.beginPath(); oCtx.arc(s.x,s.y,s.size*s.life,0,Math.PI*2);
+      oCtx.fillStyle=s.color; oCtx.fill();
+      oCtx.beginPath(); oCtx.arc(s.x,s.y,s.size*s.life*2,0,Math.PI*2);
+      oCtx.globalAlpha=s.life*0.2; oCtx.fill();
+    }
     oCtx.restore();
   }
 
@@ -3013,16 +2977,89 @@ function drawOffice() {
   drawZoomControls();
 }
 
-// Frame-limited render loop (12 FPS target)
+// ===== OFFSCREEN STATIC LAYER CACHE =====
+// Floor, walls, team labels, and non-animated furniture are cached to avoid redrawing every frame.
+let _staticCanvas = null, _staticCtx = null, _staticValid = false;
+let _nightCache = null; // {t: timestamp, n: nightAmount}
+let _sunGradCache = null; // {ox, oy, a, rects}
+let _staticThemeKey = '', _staticOriginX = 0, _staticOriginY = 0, _staticW = 0, _staticH = 0;
+const STATIC_FURNITURE = new Set(['desk','desk-large','whiteboard','bookshelf','door','filing-cabinet','trash-can','coat-rack','cactus','sticky-notes','frame','coffee']);
+const ANIMATED_FURNITURE = new Set(['plant','server','lamp','clock','coffee-mug']);
+
+function invalidateStaticCache() { try { _staticValid = false; } catch(e) {} }
+
+function buildStaticLayer() {
+  const th = _th || getCanvasTheme();
+  const dpr = window.devicePixelRatio || 1;
+  const w = oCanvas.width, h = oCanvas.height;
+  // Check if we can reuse
+  const themeKey = document.body.classList.contains('light') ? 'light' : 'dark';
+  if (_staticValid && _staticCanvas && _staticW === w && _staticH === h &&
+      _staticThemeKey === themeKey && _staticOriginX === _isoOriginX && _staticOriginY === _isoOriginY) return;
+
+  if (!_staticCanvas) _staticCanvas = document.createElement('canvas');
+  _staticCanvas.width = w; _staticCanvas.height = h;
+  _staticCtx = _staticCanvas.getContext('2d');
+  _staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Temporarily swap oCtx so draw functions render to the offscreen canvas
+  const origCtx = oCtx;
+  oCtx = _staticCtx;
+
+  // Floor
+  for (let r = 0; r < GRID.rows; r++) for (let c = 0; c < GRID.cols; c++)
+    drawIsoTile(c, r, (r + c) % 2 === 0 ? th.floor1 : th.floor2, th.floorStroke);
+
+  // Walls
+  for (let c = 0; c < GRID.cols; c++) drawIsoCube(c, 0, 16, th.wall1, th.wall2, th.wall3);
+  for (let r = 0; r < GRID.rows; r++) drawIsoCube(0, r, 16, th.wall1, th.wall2, th.wall3);
+
+  // Team labels
+  oCtx.save();
+  oCtx.globalAlpha = 0.18;
+  oCtx.font = 'bold 9px system-ui'; oCtx.textAlign = 'center';
+  const ctP = isoToScreen(3, 5); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('CONTENT TEAM', ctP.x, ctP.y + ISO.tileH + 6);
+  const enP = isoToScreen(13, 5); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('ENGINEERING', enP.x, enP.y + ISO.tileH + 6);
+  const ceoP = isoToScreen(8, 2); oCtx.fillStyle = '#FFD700'; oCtx.fillText('CEO', ceoP.x, ceoP.y + ISO.tileH + 42);
+  const supP = isoToScreen(9, 7); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('SUPPORT', supP.x, supP.y + ISO.tileH + 6);
+  oCtx.restore();
+
+  // Static furniture
+  _sortedFurniture.forEach(f => {
+    if (!STATIC_FURNITURE.has(f.type)) return;
+    if (f.type === 'desk') drawDesk(f.gx, f.gy);
+    else if (f.type === 'desk-large') drawLargeDesk(f.gx, f.gy);
+    else if (f.type === 'whiteboard') drawWhiteboard(f.gx, f.gy);
+    else if (f.type === 'bookshelf') drawBookshelf(f.gx, f.gy);
+    else if (f.type === 'door') drawDoor(f.gx, f.gy);
+    else if (f.type === 'filing-cabinet') drawFilingCabinet(f.gx, f.gy);
+    else if (f.type === 'trash-can') drawTrashCan(f.gx, f.gy);
+    else if (f.type === 'coat-rack') drawCoatRack(f.gx, f.gy);
+    else if (f.type === 'cactus') drawCactus(f.gx, f.gy);
+    else if (f.type === 'sticky-notes') drawStickyNotes(f.gx, f.gy);
+    else if (f.type === 'frame') drawPictureFrame(f.gx, f.gy, f.hue || 0);
+    else if (f.type === 'coffee') drawCoffee(f.gx, f.gy);
+  });
+
+  // Restore original context
+  oCtx = origCtx;
+  _staticW = w; _staticH = h; _staticThemeKey = themeKey;
+  _staticOriginX = _isoOriginX; _staticOriginY = _isoOriginY;
+  _staticValid = true;
+}
+
+// Frame-limited render loop (12 FPS target, pauses when tab hidden)
 const FRAME_INTERVAL = 1000 / 12;
 let _lastFrameTime = 0;
 function officeLoop(now) {
   requestAnimationFrame(officeLoop);
+  if (document.hidden) return;
+  if (_currentTab !== 'office') return; // skip render when not viewing office
   if (now - _lastFrameTime < FRAME_INTERVAL) return;
   _lastFrameTime = now;
   drawOffice();
 }
-requestAnimationFrame(officeLoop);
+// officeLoop kicked off after resizeCanvas at end of file
 
 const TEAM_GROUPS = {
   '🏢 Leadership': ['BenMac'],
@@ -3031,6 +3068,8 @@ const TEAM_GROUPS = {
   '📬 Support': ['Mail Manager','QA Agent'],
 };
 
+let _renderCardsTimer = null;
+function scheduleRenderAgentCards() { if (_renderCardsTimer) return; _renderCardsTimer = setTimeout(() => { _renderCardsTimer = null; renderAgentCards(); }, 200); }
 function renderAgentCards() {
   const container = document.getElementById('agent-status-cards');
   if (!container || !agentData.length) return;
@@ -3132,8 +3171,9 @@ function toggleTeamGroup(teamId, teamName) {
   localStorage.setItem('hq-collapsed-teams', JSON.stringify(collapsed));
 }
 
-// Live elapsed status timers on agent cards
+// Live elapsed status timers + cron countdown (combined 1s interval)
 setInterval(() => {
+  if (document.hidden) return; // skip when tab not visible
   document.querySelectorAll('.status-timer').forEach(el => {
     const since = parseInt(el.dataset.since);
     const verb = el.dataset.verb || '';
@@ -3146,10 +3186,6 @@ setInterval(() => {
     else label = Math.floor(elapsed/86400) + 'd ' + Math.floor((elapsed%86400)/3600) + 'h';
     el.textContent = verb + ' ' + label;
   });
-}, 1000);
-
-// Live countdown ticker for cron agent next-run timers
-setInterval(() => {
   document.querySelectorAll('.next-run-countdown').forEach(el => {
     const next = parseInt(el.dataset.next);
     if (!next) return;
@@ -4873,22 +4909,45 @@ function markUpdated() {
   refreshUptime();
 }
 
-// Responsive canvas with HiDPI support
+// Responsive canvas with HiDPI support — fills available viewport
 function resizeCanvas() {
   const container = oCanvas.parentElement;
-  const pad = window.innerWidth < 768 ? 24 : 40;
-  const w = Math.min(container.clientWidth - pad, 1000);
-  const scale = w / 1000;
-  // Taller aspect ratio on narrow screens so agents stay visible
-  const baseH = w < 500 ? 480 : 420;
+  const w = container.clientWidth;
+  // Calculate available height: viewport minus header/nav/status (~110px)
+  const headerH = document.querySelector('header')?.offsetHeight || 40;
+  const navH = document.querySelector('nav')?.offsetHeight || 36;
+  const stripH = document.querySelector('.status-strip')?.offsetHeight || 30;
+  const usedH = headerH + navH + stripH + 24; // 24px padding
+  const availH = Math.max(300, window.innerHeight - usedH);
+  // Use full width, constrain height to sensible iso-grid ratio (max 55% of width)
+  const canvasW = w;
+  const maxIsoH = Math.round(canvasW * 0.65); // iso grid is landscape — generous for mobile
+  const canvasH = Math.min(Math.max(320, availH), maxIsoH);
   const dpr = window.devicePixelRatio || 1;
-  oCanvas.width = 1000 * dpr;
-  oCanvas.height = baseH * dpr;
-  oCanvas.style.width = w + 'px';
-  oCanvas.style.height = (baseH * scale) + 'px';
+  // Internal resolution scaled to width
+  const internalW = Math.max(canvasW, 1000);
+  const internalH = (canvasH / canvasW) * internalW;
+  oCanvas.width = internalW * dpr;
+  oCanvas.height = internalH * dpr;
+  oCanvas.style.width = canvasW + 'px';
+  oCanvas.style.height = canvasH + 'px';
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Recalculate iso origin to center grid in canvas
+  _isoOriginX = internalW / 2 + (GRID.rows * ISO.tileW / 4) - (GRID.cols * ISO.tileW / 4);
+  // Vertically center the grid in available space
+  const gridTotalH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 80;
+  _isoOriginY = Math.max(20, (internalH - gridTotalH) / 2.5);
+  camPivotX = _isoOriginX + (_gridCenterGx - _gridCenterGy) * ISO.tileW / 2;
+  camPivotY = _isoOriginY + (_gridCenterGx + _gridCenterGy) * ISO.tileH / 2;
+  // Auto-fit zoom: scale iso grid to fill canvas
+  const gridPixelW = (GRID.cols + GRID.rows) * ISO.tileW / 2;
+  const gridPixelH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 80; // 80 for agent sprites
+  const fitZoom = Math.min(internalW / gridPixelW, internalH / gridPixelH) * 1.05;
+  if (!_dragging && camPanX === 0 && camPanY <= 0) {
+    camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
+  }
 }
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', () => { invalidateStaticCache(); resizeCanvas(); });
 resizeCanvas();
 
 // Refresh progress bar
@@ -4897,6 +4956,7 @@ let refreshCycle = 0;
 const REFRESH_INTERVAL = 8000;
 function tickRefreshBar() {
   if(autoRefreshPaused) { document.getElementById('ss-next').textContent = 'paused'; return; }
+  if(document.hidden) return; // skip cosmetic tick when tab hidden
   refreshCycle += 100;
   const pct = Math.min((refreshCycle / REFRESH_INTERVAL) * 100, 100);
   refreshBar.style.width = pct + '%';
@@ -4960,7 +5020,7 @@ async function refreshTimeline() {
 
     document.getElementById('timeline-content').innerHTML = headerHtml + rowsHtml;
     timelineData = d; // cache for sparklines in agent cards
-    renderAgentCards(); // re-render cards with sparklines
+    scheduleRenderAgentCards(); // re-render cards with sparklines
   } catch (e) {
     document.getElementById('timeline-content').innerHTML = '<span style="color:var(--dim)">Failed to load timeline</span>';
   }
@@ -5025,8 +5085,13 @@ let _sseConnected = false;
 let _sseLatency = null;
 let _sseClients = 0;
 let _sseEventCount = 0;
+let _sseInstance = null;
+let _sseReconnectTimer = null;
 function connectSSE() {
+  if (_sseInstance) { try { _sseInstance.close(); } catch {} }
+  if (_sseReconnectTimer) { clearTimeout(_sseReconnectTimer); _sseReconnectTimer = null; }
   const es = new EventSource('/api/events');
+  _sseInstance = es;
   es.addEventListener('connected', () => {
     _sseConnected = true;
     updateSSEIndicator();
@@ -5058,7 +5123,7 @@ function connectSSE() {
       }
       agentData = newAgents;
       updateStatusStrip();
-      buildLegend(); renderAgentCards(); markUpdated();
+      buildLegend(); scheduleRenderAgentCards(); markUpdated();
     } catch {}
   });
   es.addEventListener('activity', (e) => {
@@ -5112,7 +5177,8 @@ function connectSSE() {
     _sseLatency = null;
     updateSSEIndicator();
     es.close();
-    setTimeout(connectSSE, 3000);
+    _sseInstance = null;
+    _sseReconnectTimer = setTimeout(connectSSE, 3000);
   };
 }
 function updateSSEIndicator() {
@@ -5178,8 +5244,7 @@ async function fetchPerfForAlerts() {
     _perfAlertData = await r.json();
   } catch { _perfAlertData = null; }
 }
-// Refresh perf data every 60s for alert checks
-setInterval(fetchPerfForAlerts, 60000);
+// Perf data for alerts refreshed in consolidated 5s poll (every 12th tick = 60s)
 fetchPerfForAlerts();
 
 function refreshAlerts() {
@@ -5282,7 +5347,8 @@ function refreshAlerts() {
     banner.style.display = 'none';
   }
 }
-setInterval(refreshAlerts, 5000);
+// Alert refresh + tab title update handled in consolidated 5s poll above
+// (refreshAlerts and updateTabTitle called each tick)
 
 // ===== BROWSER NOTIFICATIONS (for critical alerts when tab is backgrounded) =====
 let _browserNotifsEnabled = false;
@@ -5369,26 +5435,38 @@ function updateTabTitle() {
     updateFaviconBadge(w, hasCritical);
   }
 }
-setInterval(updateTabTitle, 5000);
+// Tab title updated in consolidated 5s poll
 
 connectSSE();
 
-// Fallback polling for non-SSE data (queue, memory, tokens) — less frequent
-setInterval(()=>{ if(!autoRefreshPaused) refreshQueue(); }, 20000);
-setInterval(()=>{ if(!autoRefreshPaused) refreshMemory(); }, 45000);
-setInterval(()=>{ if(!autoRefreshPaused) refreshTimeline(); }, 60000);
-setInterval(()=>{ if(!autoRefreshPaused) refreshUptime(); }, 120000);
-setInterval(()=>{ if(!autoRefreshPaused) refreshDepGraph(); }, 120000);
-setInterval(()=>{ if(!autoRefreshPaused) { refreshTokens(); refreshDailyCost(); } }, 45000);
-setInterval(()=>{ if(!autoRefreshPaused) refreshCompletionStats(); }, 60000);
-// Agents/system/activity now driven by SSE — poll as rare fallback
-setInterval(()=>{ if(!autoRefreshPaused && !_sseConnected){ refreshAgents().then(()=>{buildLegend();renderAgentCards();}); refreshSystem(); refreshHealthScore(); refreshActivity(); markUpdated(); }}, 10000);
-
-// Re-render cached timestamps every 30s so "just now" → "1m ago" etc. without re-fetching
-setInterval(()=>{
-  if(activityCache.length) renderActivityFeed(activityCache);
-  if(_notifications.length) renderNotifCenter();
-}, 30000);
+// ===== CONSOLIDATED POLLING (single 5s tick, counters gate each task) =====
+let _pollTick = 0;
+setInterval(() => {
+  _pollTick++;
+  if (autoRefreshPaused || document.hidden) return;
+  // 5s — alerts + tab title (every tick)
+  refreshAlerts(); updateTabTitle();
+  // 10s — SSE fallback (agents/system/activity)
+  if (_pollTick % 2 === 0 && !_sseConnected) {
+    refreshAgents().then(()=>{buildLegend();scheduleRenderAgentCards();});
+    refreshSystem(); refreshHealthScore(); refreshActivity(); markUpdated();
+  }
+  // 15s — live logs
+  if (_pollTick % 3 === 0) refreshLiveLogs();
+  // 20s — queue
+  if (_pollTick % 4 === 0) refreshQueue();
+  // 45s (~every 9 ticks) — memory, tokens, cost
+  if (_pollTick % 9 === 0) { refreshMemory(); refreshTokens(); refreshDailyCost(); }
+  // 60s — timeline, completion stats, perf alerts
+  if (_pollTick % 12 === 0) { refreshTimeline(); refreshCompletionStats(); fetchPerfForAlerts(); }
+  // 120s — uptime, dep graph
+  if (_pollTick % 24 === 0) { refreshUptime(); refreshDepGraph(); }
+  // 30s — re-render cached timestamps
+  if (_pollTick % 6 === 0) {
+    if(activityCache.length) renderActivityFeed(activityCache);
+    if(_notifications.length) renderNotifCenter();
+  }
+}, 5000);
 
 // ===== STATUS CHANGE NOTIFICATION SOUNDS =====
 let notifSoundsOn = localStorage.getItem('hq-notif-sounds') !== '0'; // on by default
@@ -6075,8 +6153,7 @@ refreshAll = async function() {
 };
 // Initial load
 refreshLiveLogs();
-// Auto-refresh live logs every 15s
-setInterval(() => { if (!autoRefreshPaused) refreshLiveLogs(); }, 15000);
+// Live logs refreshed in consolidated 5s poll (every 3rd tick = 15s)
 </script>
 <!-- Pull-to-refresh indicator -->
 <div class="ptr-indicator" id="ptr-indicator">
@@ -6225,9 +6302,10 @@ switchTab = function(t) { _origSwitchTab(t); syncMobileNav(t); };
     });
   }
 
-  // Run on load and after potential DOM changes
+  // Run on load and after DOM changes via MutationObserver (replaces wasteful 3s interval)
   setupCollapsible();
-  setInterval(setupCollapsible, 3000);
+  const _collObs = new MutationObserver(() => setupCollapsible());
+  _collObs.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 </body>
