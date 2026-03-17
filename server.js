@@ -2289,21 +2289,23 @@ const server = http.createServer((req, res) => {
   const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
   try {
     const content = fs.readFileSync(filePath);
-    res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' });
+    const headers = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' };
+    if (ext === '.html') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    res.writeHead(200, headers);
     res.end(content);
   } catch { res.writeHead(404); res.end('Not found'); }
 });
 
 function warmLightCaches() {
-  try { getAgents(); } catch {}
-  setTimeout(() => { try { getActivity(); } catch {} }, 500);
-  setTimeout(() => { try { getTokens(); } catch {} }, 1000);
-  setTimeout(() => { try { getLiveLogs(); } catch {} }, 1500);
+  setImmediate(() => { try { getAgents(); } catch {} });
+  setTimeout(() => { setImmediate(() => { try { getActivity(); } catch {} }); }, 500);
+  setTimeout(() => { setImmediate(() => { try { getTokens(); } catch {} }); }, 1000);
+  setTimeout(() => { setImmediate(() => { try { getLiveLogs(); } catch {} }); }, 1500);
 }
 function warmHeavyCaches() {
-  try { getUptime(); } catch {}
-  setTimeout(() => { try { getTimelineHeatmap(); } catch {} }, 1000);
-  setTimeout(() => { try { getHeatmapCalendar(); } catch {} }, 2000);
+  setImmediate(() => { try { getUptime(); } catch {} });
+  setTimeout(() => { setImmediate(() => { try { getTimelineHeatmap(); } catch {} }); }, 1000);
+  setTimeout(() => { setImmediate(() => { try { getHeatmapCalendar(); } catch {} }); }, 2000);
 }
 
 server.listen(18790, '0.0.0.0', () => {

@@ -3104,13 +3104,21 @@ function buildStaticLayer() {
   _staticValid = true;
 }
 
-// Frame-limited render loop (12 FPS target, pauses when tab hidden)
-const FRAME_INTERVAL = 1000 / 12;
+// Frame-limited render loop (8 FPS target, pauses when tab hidden or canvas off-screen)
+const FRAME_INTERVAL = 1000 / 8;
 let _lastFrameTime = 0;
+let _canvasVisible = true;
+// Observe canvas visibility to avoid rendering when scrolled out of view
+if (typeof IntersectionObserver !== 'undefined') {
+  const _cvObs = new IntersectionObserver(entries => { _canvasVisible = entries[0]?.isIntersecting ?? true; }, { threshold: 0.01 });
+  const _cvEl = document.getElementById('office-canvas');
+  if (_cvEl) _cvObs.observe(_cvEl);
+}
 function officeLoop(now) {
   requestAnimationFrame(officeLoop);
   if (document.hidden) return;
-  if (_currentTab !== 'office') return; // skip render when not viewing office
+  if (_currentTab !== 'office') return;
+  if (!_canvasVisible) return;
   if (now - _lastFrameTime < FRAME_INTERVAL) return;
   _lastFrameTime = now;
   drawOffice(now);
@@ -4855,8 +4863,8 @@ async function refreshDiskBreakdown() {
   try {
     const r = await fetchWithTimeout(API + '/disk-breakdown', {}, 10000);
     const d = await r.json();
-    if (d.error || !d.breakdown?.length) return;
     const body = document.getElementById('disk-breakdown-body');
+    if (d.error || !d.breakdown?.length) { body.innerHTML = '<span style="color:var(--dim)">No disk data available</span>'; return; }
     const total = d.total;
     const colors = ['#3b82f6','#8b5cf6','#f59e0b','#22c55e','#ef4444','#06b6d4','#ec4899','#84cc16'];
     // Stacked bar
@@ -6285,7 +6293,7 @@ async function refreshLiveLogs() {
       refreshDiskBreakdown(),
     ]);
     buildLegend(); renderAgentCards(); markUpdated();
-  }, 150);
+  }, 3000);
 })();
 // Live logs refreshed in consolidated 5s poll (every 3rd tick = 15s)
 </script>
