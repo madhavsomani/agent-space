@@ -2705,6 +2705,7 @@ function drawZoomControls() {
 const _deskAgentsBuf = [], _visitorsBuf = [], _sortedBuf = [], _workingBuf = [];
 const _defaultDeskPos = {gx:7, gy:5};
 let _canvasHealthCounter = 0;
+let _frameCounter = 0;
 function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   _ptIdx = 0; // reset point pool each frame
@@ -2724,9 +2725,14 @@ function drawOffice(rafNow) {
 
   // Reset canvas to pristine state each frame.
   // Canvas 2D save/restore stack leaks are hard to fully prevent in complex rendering code.
-  // Instead of draining, we reset the canvas dimensions (which clears the entire state stack)
-  // every N frames to prevent accumulation. The per-frame setTransform handles the common case.
+  // A full canvas reset (width assignment) drains the entire state stack and clears all state.
+  // We do this every 60 frames (~7.5s at 8fps) to prevent save/restore imbalance accumulation.
   const dpr = window.devicePixelRatio || 1;
+  _frameCounter = (_frameCounter || 0) + 1;
+  if (_frameCounter % 60 === 0) {
+    oCanvas.width = oCanvas.width; // full state reset — drains save/restore stack
+    oCtx = oCanvas.getContext('2d');
+  }
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   oCtx.globalAlpha = 1;
   oCtx.globalCompositeOperation = 'source-over';
