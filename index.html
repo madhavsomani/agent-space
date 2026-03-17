@@ -2823,7 +2823,7 @@ function drawOffice(rafNow) {
   const sorted = _sortedBuf;
   const visitors = _visitorsBuf;
 
-  sorted.forEach(a => drawAgent(a, a._gx, a._gy, time));
+  sorted.forEach(a => { oCtx.save(); drawAgent(a, a._gx, a._gy, time); oCtx.restore(); });
 
   // Activity speech bubbles for working agents — show what they're doing
   sorted.forEach(a => {
