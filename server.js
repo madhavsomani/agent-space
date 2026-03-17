@@ -2502,7 +2502,10 @@ const server = http.createServer((req, res) => {
     if (ext === '.html') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
     res.writeHead(200, headers);
     res.end(content);
-  } catch { res.writeHead(404); res.end('Not found'); }
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/html' });
+    res.end('<!DOCTYPE html><html><head><title>404 — Agent Space</title><style>body{font-family:system-ui;background:#1a1a2e;color:#e0e0e0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}div{text-align:center}h1{font-size:4em;margin:0;opacity:.6}p{opacity:.5}a{color:#60a5fa;text-decoration:none}</style></head><body><div><h1>404</h1><p>Nothing here.</p><a href="/">← Back to Agent Space</a></div></body></html>');
+  }
 });
 
 function warmLightCaches() {
