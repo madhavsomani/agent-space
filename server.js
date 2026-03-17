@@ -817,7 +817,17 @@ function getHealthScore() {
   } catch (e) { return { score: -1, grade: '?', error: e.message }; }
 }
 
+let _systemCache = null, _systemCacheTime = 0;
+const SYSTEM_CACHE_TTL = 15000; // 15s — system metrics don't need sub-second freshness
 function getSystem() {
+  const now = Date.now();
+  if (_systemCache && (now - _systemCacheTime) < SYSTEM_CACHE_TTL) return _systemCache;
+  const result = _getSystemUncached();
+  _systemCache = result;
+  _systemCacheTime = now;
+  return result;
+}
+function _getSystemUncached() {
   try {
     const cpuRaw = execSync("top -l 1 -n 0 | grep 'CPU usage'", { encoding: 'utf8', timeout: 2000 }).trim();
     const cpuMatch = cpuRaw.match(/([\d.]+)% user.*?([\d.]+)% sys.*?([\d.]+)% idle/);
