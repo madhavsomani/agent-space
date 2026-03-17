@@ -818,7 +818,7 @@ function getHealthScore() {
 }
 
 let _systemCache = null, _systemCacheTime = 0;
-const SYSTEM_CACHE_TTL = 15000; // 15s — system metrics don't need sub-second freshness
+const SYSTEM_CACHE_TTL = 60000; // 60s — system metrics (top/vm_stat/df) use execSync, minimize calls
 function getSystem() {
   const now = Date.now();
   if (_systemCache && (now - _systemCacheTime) < SYSTEM_CACHE_TTL) return _systemCache;
