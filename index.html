@@ -1352,6 +1352,41 @@ const GRID = { cols: 16, rows: 10 };
 const oCanvas = document.getElementById('office-canvas');
 let oCtx = oCanvas.getContext('2d');
 
+// Canvas context loss recovery — handles browser GC, tab backgrounding, GPU reset
+oCanvas.addEventListener('contextlost', (e) => {
+  e.preventDefault(); // allow restoration
+  console.warn('[Agent Space] Canvas context lost');
+});
+oCanvas.addEventListener('contextrestored', () => {
+  console.log('[Agent Space] Canvas context restored');
+  oCtx = oCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  invalidateStaticCache();
+});
+// Also recover on tab re-focus (common trigger for context loss)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    setTimeout(() => {
+      const dpr = window.devicePixelRatio || 1;
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0);
+      oCtx.fillStyle = '#010101';
+      oCtx.fillRect(0, 0, 1, 1);
+      const px = oCtx.getImageData(0, 0, 1, 1).data;
+      oCtx.restore();
+      if (px[3] === 0) {
+        console.warn('[Agent Space] Canvas dead after tab focus — resetting');
+        const w = oCanvas.width, h = oCanvas.height;
+        oCanvas.width = w;
+        oCtx = oCanvas.getContext('2d');
+        oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        invalidateStaticCache();
+      }
+    }, 100);
+  }
+});
+
 // OFFICE LAYOUT — auto-assigned from agent list
 // Empty by default — auto-desk assignment handles placement dynamically
 const deskPositions = {};
