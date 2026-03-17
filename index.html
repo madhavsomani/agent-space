@@ -2725,6 +2725,9 @@ let _canvasHealthCounter = 0;
 let _frameCounter = 0;
 function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
+  try { _drawOfficeInner(rafNow); } catch(e) { console.warn('drawOffice error:', e.message); }
+}
+function _drawOfficeInner(rafNow) {
   _ptIdx = 0; // reset point pool each frame
 
   const dpr = window.devicePixelRatio || 1;
@@ -2858,11 +2861,11 @@ function drawOffice(rafNow) {
 
   // Activity speech bubbles for working agents — show what they're doing
   sorted.forEach(a => {
-    if (a.status !== 'working' || !a.lastActivity) return;
+    if (a.status !== 'working' || !a.lastMessage) return;
     const pos = deskPositions[a.name];
     if (!pos) return;
     const p = isoToScreen(pos.gx, pos.gy);
-    const msg = (a.lastActivity || '').slice(0, 40);
+    const msg = String(a.lastMessage || '').slice(0, 40);
     if (!msg || msg.length < 5) return;
     // Stagger which agents show bubbles — rotate every 5s
     const slot = Math.floor(time / 5000) % sorted.filter(x => x.status === 'working').length;
