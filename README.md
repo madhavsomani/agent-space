@@ -4,6 +4,8 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
 
+![Agent Space Dashboard](screenshot.jpg)
+
 ## Features
 
 - **Live agent status** — see which agents are working, idle, or sleeping
