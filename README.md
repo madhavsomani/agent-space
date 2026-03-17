@@ -43,6 +43,14 @@ node server.js
 
 ## Configuration
 
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BIND_HOST` | `127.0.0.1` | Network interface. Use `0.0.0.0` for LAN/remote access. |
+
+### Agent Config
+
 Agent Space auto-discovers agents from `~/.openclaw/agents/` by scanning for directories with `sessions/` or `memory/` subdirectories.
 
 To customize agent display names, colors, roles, or link cron jobs, create `config.json` from the example:
