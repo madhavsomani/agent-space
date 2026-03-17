@@ -1334,6 +1334,7 @@ let oCtx = oCanvas.getContext('2d');
 const deskPositions = {
   // CEO — corner office, top-center
   'BenMac': {gx:8, gy:1},
+  'Main': {gx:8, gy:1},
   // Content Team — left wing, spread wide
   'Director': {gx:2, gy:2},
   'Writer': {gx:2, gy:5},
@@ -1347,6 +1348,10 @@ const deskPositions = {
   // Support — center & bottom-right
   'Mail Manager': {gx:8, gy:5},
   'QA Agent': {gx:11, gy:8},
+  'Qa': {gx:11, gy:8},
+  'QA': {gx:11, gy:8},
+  // Retired/deprecated — still give them a desk if they show up
+  'Scout': {gx:10, gy:3},
 };
 
 // Overflow desk positions for dynamically discovered agents (auto-assigned)
@@ -1603,8 +1608,14 @@ const _sortedFurniture = [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
 
 // Dynamic iso origin — recalculated on resize
 let _isoOriginX = 404, _isoOriginY = 40;
+// Pool of reusable point objects to reduce GC pressure
+const _ptPool = Array.from({length:64}, ()=>({x:0,y:0}));
+let _ptIdx = 0;
 function isoToScreen(gx, gy) {
-  return { x: _isoOriginX + (gx-gy)*ISO.tileW/2, y: _isoOriginY + (gx+gy)*ISO.tileH/2 };
+  const p = _ptPool[_ptIdx]; _ptIdx = (_ptIdx + 1) & 63;
+  p.x = _isoOriginX + (gx-gy)*ISO.tileW/2;
+  p.y = _isoOriginY + (gx+gy)*ISO.tileH/2;
+  return p;
 }
 
 function drawIsoTile(gx, gy, fill, stroke) {
@@ -1636,7 +1647,7 @@ function drawBookshelf(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,36
 function drawLamp(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-45,8,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+(flicker+0.1)+')';oCtx.fill();oCtx.strokeStyle=t.lampPole;oCtx.lineWidth=1.5;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-38);oCtx.stroke();oCtx.fillStyle=t.lampShade;oCtx.beginPath();oCtx.moveTo(p.x-8,p.y-44);oCtx.lineTo(p.x+8,p.y-44);oCtx.lineTo(p.x+5,p.y-38);oCtx.lineTo(p.x-5,p.y-38);oCtx.closePath();oCtx.fill();}
 function drawRug(){const cx=isoToScreen(8,5);oCtx.save();oCtx.globalAlpha=0.25;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,120,50,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,120);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
 function drawWindows(time){
-  const hr=new Date().getHours()+new Date().getMinutes()/60;
+  _clockDate.setTime(_frameTime);const hr=_clockDate.getHours()+_clockDate.getMinutes()/60;
   let nightAmt=0;
   if(hr>=21||hr<5) nightAmt=1;
   else if(hr>=5&&hr<7) nightAmt=1-(hr-5)/2;
@@ -1697,7 +1708,8 @@ function drawWindows(time){
     roundRect(oCtx,p.x-13,p.y-31,26,18,2);oCtx.stroke();
   }
 }
-function drawWallClock(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);const r=14;oCtx.save();oCtx.beginPath();oCtx.arc(p.x,p.y-42,r+2,0,Math.PI*2);oCtx.fillStyle=t.clockFrame;oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-42,r,0,Math.PI*2);oCtx.fillStyle=t.clockFace;oCtx.fill();oCtx.strokeStyle=t.clockTick;oCtx.lineWidth=1.5;oCtx.stroke();const now=new Date();const h=now.getHours()%12,m=now.getMinutes(),s=now.getSeconds();for(let i=0;i<12;i++){const a=(i/12)*Math.PI*2-Math.PI/2;oCtx.fillStyle=t.clockTick;oCtx.fillRect(p.x+Math.cos(a)*(r-3)-1,p.y-42+Math.sin(a)*(r-3)-1,2,2);}oCtx.strokeStyle=t.clockHand;oCtx.lineWidth=1.5;const ha=(h+m/60)/12*Math.PI*2-Math.PI/2;oCtx.beginPath();oCtx.moveTo(p.x,p.y-42);oCtx.lineTo(p.x+Math.cos(ha)*7,p.y-42+Math.sin(ha)*7);oCtx.stroke();oCtx.lineWidth=1;const ma=m/60*Math.PI*2-Math.PI/2;oCtx.beginPath();oCtx.moveTo(p.x,p.y-42);oCtx.lineTo(p.x+Math.cos(ma)*10,p.y-42+Math.sin(ma)*10);oCtx.stroke();oCtx.strokeStyle=t.clockSec;oCtx.lineWidth=0.5;const sa=s/60*Math.PI*2-Math.PI/2;oCtx.beginPath();oCtx.moveTo(p.x,p.y-42);oCtx.lineTo(p.x+Math.cos(sa)*11,p.y-42+Math.sin(sa)*11);oCtx.stroke();oCtx.beginPath();oCtx.arc(p.x,p.y-42,1.5,0,Math.PI*2);oCtx.fillStyle=t.clockSec;oCtx.fill();oCtx.restore();}
+const _clockDate = new Date(); // reuse single Date object
+function drawWallClock(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);const r=14;oCtx.save();oCtx.beginPath();oCtx.arc(p.x,p.y-42,r+2,0,Math.PI*2);oCtx.fillStyle=t.clockFrame;oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-42,r,0,Math.PI*2);oCtx.fillStyle=t.clockFace;oCtx.fill();oCtx.strokeStyle=t.clockTick;oCtx.lineWidth=1.5;oCtx.stroke();_clockDate.setTime(_frameTime);const h=_clockDate.getHours()%12,m=_clockDate.getMinutes(),s=_clockDate.getSeconds();for(let i=0;i<12;i++){const a=(i/12)*Math.PI*2-Math.PI/2;oCtx.fillStyle=t.clockTick;oCtx.fillRect(p.x+Math.cos(a)*(r-3)-1,p.y-42+Math.sin(a)*(r-3)-1,2,2);}oCtx.strokeStyle=t.clockHand;oCtx.lineWidth=1.5;const ha=(h+m/60)/12*Math.PI*2-Math.PI/2;oCtx.beginPath();oCtx.moveTo(p.x,p.y-42);oCtx.lineTo(p.x+Math.cos(ha)*7,p.y-42+Math.sin(ha)*7);oCtx.stroke();oCtx.lineWidth=1;const ma=m/60*Math.PI*2-Math.PI/2;oCtx.beginPath();oCtx.moveTo(p.x,p.y-42);oCtx.lineTo(p.x+Math.cos(ma)*10,p.y-42+Math.sin(ma)*10);oCtx.stroke();oCtx.strokeStyle=t.clockSec;oCtx.lineWidth=0.5;const sa=s/60*Math.PI*2-Math.PI/2;oCtx.beginPath();oCtx.moveTo(p.x,p.y-42);oCtx.lineTo(p.x+Math.cos(sa)*11,p.y-42+Math.sin(sa)*11);oCtx.stroke();oCtx.beginPath();oCtx.arc(p.x,p.y-42,1.5,0,Math.PI*2);oCtx.fillStyle=t.clockSec;oCtx.fill();oCtx.restore();}
 function drawPictureFrame(gx,gy,hue){const p=isoToScreen(gx,gy);oCtx.save();oCtx.fillStyle='#3a2a1a';oCtx.fillRect(p.x-12,p.y-38,24,18);oCtx.fillStyle=`hsl(${hue},40%,25%)`;oCtx.fillRect(p.x-10,p.y-36,20,14);const grad=oCtx.createLinearGradient(p.x-10,p.y-36,p.x+10,p.y-22);grad.addColorStop(0,`hsl(${hue},50%,40%)`);grad.addColorStop(0.5,`hsl(${hue},60%,50%)`);grad.addColorStop(1,`hsl(${hue},40%,35%)`);oCtx.fillStyle=grad;oCtx.fillRect(p.x-9,p.y-35,18,12);oCtx.strokeStyle='#5a4a30';oCtx.lineWidth=1.5;oCtx.strokeRect(p.x-12,p.y-38,24,18);oCtx.restore();}
 function drawFilingCabinet(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();drawIsoCube(gx,gy,28,t.fcTop,t.fcL,t.fcR);oCtx.fillStyle=t.fcDrawer;oCtx.fillRect(p.x-7,p.y-30,14,3);oCtx.fillRect(p.x-7,p.y-22,14,3);oCtx.fillRect(p.x-7,p.y-14,14,3);for(let i=0;i<3;i++){oCtx.beginPath();oCtx.arc(p.x,p.y-28+i*8,1.2,0,Math.PI*2);oCtx.fillStyle=t.fcKnob;oCtx.fill();}oCtx.restore();}
 function drawTrashCan(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);oCtx.save();oCtx.fillStyle=t.tcBody;oCtx.beginPath();oCtx.moveTo(p.x-6,p.y-2);oCtx.lineTo(p.x-5,p.y-14);oCtx.lineTo(p.x+5,p.y-14);oCtx.lineTo(p.x+6,p.y-2);oCtx.closePath();oCtx.fill();oCtx.fillStyle=t.tcLid;oCtx.fillRect(p.x-7,p.y-16,14,3);oCtx.strokeStyle=t.tcLine;oCtx.lineWidth=0.5;oCtx.beginPath();oCtx.moveTo(p.x-2,p.y-13);oCtx.lineTo(p.x-2,p.y-3);oCtx.moveTo(p.x+2,p.y-13);oCtx.lineTo(p.x+2,p.y-3);oCtx.stroke();oCtx.restore();}
@@ -2612,7 +2624,10 @@ function drawZoomControls() {
   oCtx.restore();
 }
 
+// Reusable arrays for drawOffice to avoid per-frame allocations
+const _deskAgentsBuf = [], _visitorsBuf = [], _sortedBuf = [], _workingBuf = [];
 function drawOffice() {
+  _ptIdx = 0; // reset point pool each frame
   const time = Date.now(); _frameTime=time;
   const th=getCanvasTheme(); _th=th;
   oCtx.clearRect(0, 0, oCanvas.width, oCanvas.height);
@@ -2667,21 +2682,26 @@ function drawOffice() {
   ];
 
   // Desk agents = have a desk position (static or auto-assigned) AND are not "discovered" without a desk
-  // Auto-assign overflow desks to discovered agents
-  const deskAgents = allAgents.filter(a => {
-    if (deskPositions[a.name] && !a.discovered) return true;
-    if (a.discovered || !deskPositions[a.name]) {
+  // Auto-assign overflow desks to discovered agents — reuse buffers
+  _deskAgentsBuf.length = 0; _visitorsBuf.length = 0; _sortedBuf.length = 0;
+  for (let i = 0; i < allAgents.length; i++) {
+    const a = allAgents[i];
+    let hasDeskPos = false;
+    if (deskPositions[a.name]) { hasDeskPos = true; }
+    else {
       const auto = getAutoDesk(a.name);
-      if (auto) { deskPositions[a.name] = auto; return true; }
+      if (auto) { deskPositions[a.name] = auto; hasDeskPos = true; }
     }
-    return false;
-  });
-  const visitors = allAgents.filter(a => !deskPositions[a.name]);
-
-  const sorted = deskAgents.map(a => {
+    if (hasDeskPos) _deskAgentsBuf.push(a); else _visitorsBuf.push(a);
+  }
+  for (let i = 0; i < _deskAgentsBuf.length; i++) {
+    const a = _deskAgentsBuf[i];
     const pos = deskPositions[a.name] || {gx:7,gy:5};
-    return {...a, gx:pos.gx, gy:pos.gy};
-  }).sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
+    _sortedBuf.push({...a, gx:pos.gx, gy:pos.gy});
+  }
+  _sortedBuf.sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
+  const sorted = _sortedBuf;
+  const visitors = _visitorsBuf;
 
   sorted.forEach(a => drawAgent(a, a.gx, a.gy, time));
 
@@ -2759,7 +2779,9 @@ function drawOffice() {
 
   // Collaboration lines between working agents
   {
-    const working = sorted.filter(a => a.status === 'working');
+    _workingBuf.length = 0;
+    for (let i = 0; i < sorted.length; i++) { if (sorted[i].status === 'working') _workingBuf.push(sorted[i]); }
+    const working = _workingBuf;
     if (working.length >= 2) {
       oCtx.save();
       for (let i = 0; i < working.length; i++) {
@@ -2911,7 +2933,7 @@ function drawOffice() {
   // Day/night ambient cycle — cached, recalculated every 30s
   {
     if (!_nightCache || time - _nightCache.t > 30000) {
-      const hr = new Date().getHours() + new Date().getMinutes()/60;
+      _clockDate.setTime(_frameTime);const hr = _clockDate.getHours() + _clockDate.getMinutes()/60;
       let nightAmt = 0;
       if (hr >= 21 || hr < 5) nightAmt = 1;
       else if (hr >= 5 && hr < 7) nightAmt = 1 - (hr - 5) / 2;
@@ -3016,8 +3038,8 @@ function buildStaticLayer() {
 
   // Team labels
   oCtx.save();
-  oCtx.globalAlpha = 0.18;
-  oCtx.font = 'bold 9px system-ui'; oCtx.textAlign = 'center';
+  oCtx.globalAlpha = 0.45;
+  oCtx.font = 'bold 11px system-ui'; oCtx.textAlign = 'center';
   const ctP = isoToScreen(3, 5); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('CONTENT TEAM', ctP.x, ctP.y + ISO.tileH + 6);
   const enP = isoToScreen(13, 5); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('ENGINEERING', enP.x, enP.y + ISO.tileH + 6);
   const ceoP = isoToScreen(8, 2); oCtx.fillStyle = '#FFD700'; oCtx.fillText('CEO', ceoP.x, ceoP.y + ISO.tileH + 42);
