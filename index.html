@@ -2676,7 +2676,7 @@ function drawOffice(rafNow) {
   // Canvas health check: detect corrupted context (blank canvas despite active loop).
   // Every ~120 frames (~15s at 8fps), write a test pixel and read it back.
   // If the write is silently swallowed, reset the canvas to recover.
-  if (++_canvasHealthCounter >= 16) { // check every ~2s at 8fps
+  if (++_canvasHealthCounter >= 4) { // check every ~500ms at 8fps
     _canvasHealthCounter = 0;
     oCtx.save();
     oCtx.setTransform(1, 0, 0, 1, 0, 0); // identity
