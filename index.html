@@ -1885,7 +1885,7 @@ function drawAgent(agent, gx, gy, time) {
     // Time ago
     if(agent.ageMin !== undefined) {
       oCtx.font='7px system-ui'; oCtx.fillStyle='#475569'; oCtx.textAlign='center';
-      const txt = agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
+      const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
       oCtx.fillText(txt, baseP.x, baseP.y+66);
     }
     return;
@@ -2434,7 +2434,7 @@ function drawAgent(agent, gx, gy, time) {
   // Time ago
   if(agent.ageMin !== undefined) {
     oCtx.font='7px system-ui'; oCtx.fillStyle='#475569'; oCtx.textAlign='center';
-    const txt = agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
+    const txt = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? `${agent.ageMin}m ago` : `${Math.round(agent.ageMin/60)}h ago`;
     oCtx.fillText(txt, baseP.x, baseP.y+66);
   }
   // Restore alpha if dimmed by search filter
@@ -3200,7 +3200,7 @@ function renderAgentCards() {
     html += agents.map(a => {
     const moodEmoji = a.mood === 'happy' ? '😊' : a.mood === 'stressed' ? '😰' : a.mood === 'tired' ? '😴' : '';
     const icon = a.status === 'working' ? '🟢' : a.status === 'idle' ? '🟡' : '💤';
-    const age = a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin / 60) + 'h ago';
+    const age = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin / 60) + 'h ago';
     // Elapsed status timer data
     const sinceTs = a.lastActivity || (Date.now() - (a.ageMin||0)*60000);
     const statusVerb = a.status === 'working' ? 'Working' : a.status === 'idle' ? 'Idle' : 'Sleeping';
@@ -3354,7 +3354,7 @@ function buildLegend() {
   const agents = agentData.length ? agentData : [{name:'Loading...',color:'#475569',status:'sleeping',ageMin:0}];
   document.getElementById('office-legend').innerHTML = agents.map(a => {
     const icon = a.status === 'working' ? '🟢' : a.status === 'idle' ? '🟡' : '💤';
-    const age = a.ageMin !== undefined ? (a.ageMin < 1 ? 'now' : a.ageMin < 60 ? a.ageMin + 'm' : Math.round(a.ageMin / 60) + 'h') : '';
+    const age = a.ageMin !== undefined ? (!a.ageMin ? '' : a.ageMin < 1 ? 'now' : a.ageMin < 60 ? a.ageMin + 'm' : Math.round(a.ageMin / 60) + 'h') : '';
     return `<div class="legend-item" onclick="document.querySelector('[data-tab=activity]').click()"><div class="legend-dot" style="background:${a.color}"></div>${icon} ${a.name}${age ? `<span class="legend-age">${age}</span>` : ''}</div>`;
   }).join('');
 }
@@ -4943,7 +4943,7 @@ oCanvas.addEventListener('mousemove', e => {
   const agent = getAgentAtCanvasPos(e.clientX, e.clientY);
   if (agent) {
     const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
-    const age = agent.ageMin !== undefined ? (agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
+    const age = agent.ageMin !== undefined ? (!agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
     canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${agent.name}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${agent.role}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${agent.lastMessage.slice(0, 80)}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px;opacity:0.7">Click to view details →</div>`;
     canvasTooltip.style.display = 'block';
     canvasTooltip.style.left = Math.min(e.clientX + 12, window.innerWidth - 240) + 'px';
@@ -4972,7 +4972,7 @@ oCanvas.addEventListener('touchstart', e => {
   if (agent) {
     e.preventDefault();
     const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
-    const age = agent.ageMin !== undefined ? (agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
+    const age = agent.ageMin !== undefined ? (!agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
     canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${agent.name}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${agent.role}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${agent.lastMessage.slice(0, 80)}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px">Tap again to view activity →</div>`;
     canvasTooltip.style.display = 'block';
     canvasTooltip.style.left = Math.min(touch.clientX + 12, window.innerWidth - 240) + 'px';
@@ -5951,7 +5951,7 @@ async function openAgentDetail(agentName) {
   const overlay = document.getElementById('agent-detail-overlay');
   const panel = document.getElementById('agent-detail-panel');
   const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
-  const age = agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin/60) + 'h ago';
+  const age = !agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin/60) + 'h ago';
 
   // Show skeleton immediately
   panel.innerHTML = `

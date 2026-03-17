@@ -601,28 +601,26 @@ function getAgents() {
       }
     }
 
-    const ageSec = (now - lastActivity) / 1000;
-    const ageMin = Math.round(ageSec / 60);
+    const ageSec = lastActivity ? (now - lastActivity) / 1000 : 0;
+    const ageMin = lastActivity ? Math.round(ageSec / 60) : null;
 
     let status = 'sleeping';
     // For cron-based agents, also check if next run is soon (within 2x cron interval)
     const nextRunSoon = extraInfo.nextRunAtMs && (extraInfo.nextRunAtMs - now) < 20 * 60 * 1000;
     if (a.cronJobId && extraInfo.isRunning) {
       status = 'working';
-    } else if (ageSec < ACTIVE_THRESHOLD / 1000) {
+    } else if (lastActivity && ageSec < ACTIVE_THRESHOLD / 1000) {
       status = 'working';
-    } else if (ageSec < 20 * 60) {
-      // Within 20 min of last activity = idle (not sleeping)
+    } else if (lastActivity && ageSec < 20 * 60) {
       status = 'idle';
     } else if (a.cronJobId && nextRunSoon) {
-      // Cron agent with upcoming run — idle, not sleeping
       status = 'idle';
     }
 
     // Compute mood from recent performance data
     let mood = 'neutral'; // neutral | happy | stressed | tired
     // Sleeping agents are "tired"
-    if (status === 'sleeping' && ageMin > 60) mood = 'tired';
+    if (status === 'sleeping' && (!ageMin || ageMin > 60)) mood = 'tired';
     else if (status === 'working') mood = 'happy';
 
     // Remove cron 'status' field before spreading to avoid overwriting computed status
