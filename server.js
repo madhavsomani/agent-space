@@ -117,14 +117,14 @@ if (DEMO_MODE) console.log('🎮 Running in DEMO mode — serving mock data');
 
 // ===== DEMO MODE DATA =====
 const DEMO_AGENTS = [
-  { name: 'Atlas', role: 'CEO', color: '#FFD700', status: 'working', sessionDir: 'atlas', lastActivity: 'Reviewing quarterly goals', activityAge: 120000 },
-  { name: 'Nova', role: 'Content Director', color: '#FF6B6B', status: 'working', sessionDir: 'nova', lastActivity: 'Planning blog series on AI agents', activityAge: 300000 },
-  { name: 'Sage', role: 'Writer', color: '#4ECDC4', status: 'idle', sessionDir: 'sage', lastActivity: 'Finished draft: "Building Your First Agent"', activityAge: 900000 },
-  { name: 'Pixel', role: 'Designer', color: '#A78BFA', status: 'idle', sessionDir: 'pixel', lastActivity: 'Created hero image for landing page', activityAge: 600000 },
-  { name: 'Forge', role: 'Backend Engineer', color: '#00D4FF', status: 'working', sessionDir: 'forge', lastActivity: 'Implementing WebSocket reconnection logic', activityAge: 45000 },
-  { name: 'Circuit', role: 'Frontend Engineer', color: '#00BFFF', status: 'working', sessionDir: 'circuit', lastActivity: 'Refactoring dashboard components', activityAge: 180000 },
-  { name: 'Herald', role: 'Email Ops', color: '#FF69B4', status: 'sleeping', sessionDir: 'herald', lastActivity: 'Processed 12 inbox items', activityAge: 3600000 },
-  { name: 'Sentinel', role: 'QA Agent', color: '#EF4444', status: 'idle', sessionDir: 'sentinel', lastActivity: 'All tests passing ✅', activityAge: 1200000 },
+  { name: 'Atlas', role: 'CEO', color: '#FFD700', status: 'working', sessionDir: 'atlas', lastActivity: 'Reviewing quarterly goals', lastMessage: 'Let\'s ship the v2 roadmap this week', activityAge: 120000 },
+  { name: 'Nova', role: 'Content Director', color: '#FF6B6B', status: 'working', sessionDir: 'nova', lastActivity: 'Planning blog series on AI agents', lastMessage: 'Drafting the editorial calendar for April', activityAge: 300000 },
+  { name: 'Sage', role: 'Writer', color: '#4ECDC4', status: 'idle', sessionDir: 'sage', lastActivity: 'Finished draft: "Building Your First Agent"', lastMessage: 'Draft done — ready for review', activityAge: 900000 },
+  { name: 'Pixel', role: 'Designer', color: '#A78BFA', status: 'idle', sessionDir: 'pixel', lastActivity: 'Created hero image for landing page', lastMessage: 'Hero image exported at 2x', activityAge: 600000 },
+  { name: 'Forge', role: 'Backend Engineer', color: '#00D4FF', status: 'working', sessionDir: 'forge', lastActivity: 'Implementing WebSocket reconnection logic', lastMessage: 'Fixed the reconnect backoff — testing now', activityAge: 45000 },
+  { name: 'Circuit', role: 'Frontend Engineer', color: '#00BFFF', status: 'working', sessionDir: 'circuit', lastActivity: 'Refactoring dashboard components', lastMessage: 'Splitting the monolith into modules', activityAge: 180000 },
+  { name: 'Herald', role: 'Email Ops', color: '#FF69B4', status: 'sleeping', sessionDir: 'herald', lastActivity: 'Processed 12 inbox items', lastMessage: 'Inbox zero ✨', activityAge: 3600000 },
+  { name: 'Sentinel', role: 'QA Agent', color: '#EF4444', status: 'idle', sessionDir: 'sentinel', lastActivity: 'All tests passing ✅', lastMessage: 'Full regression passed — 247 tests green', activityAge: 1200000 },
 ];
 
 function demoAgents() {
