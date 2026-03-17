@@ -1822,9 +1822,15 @@ function drawVisitor(agent, screenX, screenY, time) {
 }
 
 function drawAgent(agent, gx, gy, time) {
-  oCtx.save();
+  // Save the current transform matrix so we can restore it regardless of
+  // save/restore stack imbalances inside _drawAgentInner.
+  const _savedTransform = oCtx.getTransform();
+  const _savedAlpha = oCtx.globalAlpha;
   try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
-  oCtx.restore();
+  // Hard-reset to the exact state before this agent was drawn.
+  // This is immune to save/restore stack mismatches.
+  oCtx.setTransform(_savedTransform);
+  oCtx.globalAlpha = _savedAlpha;
 }
 function _drawAgentInner(agent, gx, gy, time) {
   // Role category mapper for dynamic lookups (no hardcoded agent names)
