@@ -2729,14 +2729,24 @@ function drawOffice(rafNow) {
 
   const dpr = window.devicePixelRatio || 1;
 
-  // Safety net: every ~8s at 8fps, do a full canvas state reset to drain any
-  // leaked save/restore stack and recover from corrupted transform state.
-  if (++_canvasHealthCounter >= 32) {
+  // Safety net: detect silent canvas context corruption every frame.
+  // Write a single pixel and read it back — if the write silently fails,
+  // hard-reset the canvas immediately. This catches GPU memory pressure,
+  // tab backgrounding, and other Chromium-level canvas invalidation.
+  if (++_canvasHealthCounter >= 8) { // check every ~1s at 8fps
     _canvasHealthCounter = 0;
-    const w = oCanvas.width, h = oCanvas.height;
-    oCanvas.width = w; // hard reset — clears state stack, clears pixels
-    oCtx = oCanvas.getContext('2d');
-    invalidateStaticCache();
+    oCtx.save();
+    oCtx.setTransform(1, 0, 0, 1, 0, 0); // identity — write to raw pixel coords
+    oCtx.fillStyle = '#010101';
+    oCtx.fillRect(0, 0, 1, 1);
+    const probe = oCtx.getImageData(0, 0, 1, 1).data;
+    oCtx.restore();
+    if (probe[3] === 0) { // write was silently swallowed — context is dead
+      const w = oCanvas.width, h = oCanvas.height;
+      oCanvas.width = w; // hard reset — clears state stack + backing store
+      oCtx = oCanvas.getContext('2d');
+      invalidateStaticCache();
+    }
   }
 
   // Always set transform fresh — prevents DPR drift from leaked save/restore
