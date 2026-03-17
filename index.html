@@ -2764,6 +2764,8 @@ function drawOffice(rafNow) {
   // We're currently in the zoom/pan transformed space, so drawing at (0,0)-(internalW,internalH)
   // will correctly zoom and pan the static content.
   buildStaticLayer();
+  // Safety: ensure oCtx always points at the visible canvas after buildStaticLayer
+  if (oCtx !== oCanvas.getContext('2d')) { oCtx = oCanvas.getContext('2d'); oCtx.setTransform(dpr, 0, 0, dpr, 0, 0); }
   if (_staticCanvas) {
     const dpr = window.devicePixelRatio || 1;
     const iW = oCanvas.width / dpr, iH = oCanvas.height / dpr;
@@ -3211,9 +3213,13 @@ function buildStaticLayer() {
   _staticCtx = _staticCanvas.getContext('2d');
   _staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Temporarily swap oCtx so draw functions render to the offscreen canvas
+  // Temporarily swap oCtx so draw functions render to the offscreen canvas.
+  // CRITICAL: use try/finally to guarantee oCtx is always restored — if any draw
+  // function throws, oCtx would stay pointing at the offscreen buffer, causing
+  // all subsequent frames to render invisibly (the "dark void" bug).
   const origCtx = oCtx;
   oCtx = _staticCtx;
+  try {
 
   // Floor
   for (let r = 0; r < GRID.rows; r++) for (let c = 0; c < GRID.cols; c++)
@@ -3250,8 +3256,10 @@ function buildStaticLayer() {
     else if (f.type === 'coffee') drawCoffee(f.gx, f.gy);
   });
 
-  // Restore original context
+  } finally {
+  // ALWAYS restore original context — even if drawing threw an error
   oCtx = origCtx;
+  }
   _staticW = w; _staticH = h; _staticThemeKey = themeKey;
   _staticOriginX = _isoOriginX; _staticOriginY = _isoOriginY;
   _staticValid = true;
