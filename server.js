@@ -2580,6 +2580,8 @@ function warmHeavyCaches() {
 
 server.listen(18790, '0.0.0.0', () => {
   console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
+  // Warm agents cache IMMEDIATELY (synchronous) so first request is fast
+  try { getAgents(); } catch {}
   setTimeout(() => { warmLightCaches(); }, 2500);
   setTimeout(() => { warmHeavyCaches(); }, 12000);
   // Background cron cache: first run at 5s, then every 10 min

@@ -2746,6 +2746,47 @@ function drawOffice(rafNow) {
 
   sorted.forEach(a => drawAgent(a, a._gx, a._gy, time));
 
+  // Activity speech bubbles for working agents — show what they're doing
+  sorted.forEach(a => {
+    if (a.status !== 'working' || !a.lastActivity) return;
+    const pos = deskPositions[a.name];
+    if (!pos) return;
+    const p = isoToScreen(pos.gx, pos.gy);
+    const msg = (a.lastActivity || '').slice(0, 40);
+    if (!msg || msg.length < 5) return;
+    // Stagger which agents show bubbles — rotate every 5s
+    const slot = Math.floor(time / 5000) % sorted.filter(x => x.status === 'working').length;
+    const myIdx = sorted.filter(x => x.status === 'working').indexOf(a);
+    if (myIdx !== slot) return;
+    const bobY = Math.sin(time / 800) * 2;
+    const bx = p.x, by = p.y - 52 + bobY;
+    oCtx.save();
+    oCtx.globalAlpha = 0.92;
+    oCtx.font = '9px system-ui';
+    const tw = oCtx.measureText(msg).width;
+    const bw = tw + 16, bh = 18;
+    // Bubble background
+    oCtx.fillStyle = 'rgba(15,23,42,0.9)';
+    roundRect(oCtx, bx - bw/2, by - bh/2, bw, bh, 6);
+    oCtx.fill();
+    oCtx.strokeStyle = a.color || '#4ade80';
+    oCtx.lineWidth = 1;
+    roundRect(oCtx, bx - bw/2, by - bh/2, bw, bh, 6);
+    oCtx.stroke();
+    // Tail triangle
+    oCtx.fillStyle = 'rgba(15,23,42,0.9)';
+    oCtx.beginPath();
+    oCtx.moveTo(bx - 4, by + bh/2);
+    oCtx.lineTo(bx + 4, by + bh/2);
+    oCtx.lineTo(bx, by + bh/2 + 6);
+    oCtx.closePath(); oCtx.fill();
+    // Text
+    oCtx.fillStyle = '#e2e8f0';
+    oCtx.textAlign = 'center'; oCtx.textBaseline = 'middle';
+    oCtx.fillText(msg, bx, by);
+    oCtx.restore();
+  });
+
   // Draw desk items left behind from POI visits (iterate without allocating Object.entries array)
   for (const agentName in deskItems) {
     const items = deskItems[agentName];
