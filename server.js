@@ -2193,10 +2193,93 @@ function getLiveLogs() {
   return { ..._liveLogsCache, timestamp: now };
 }
 
+// ===== AUTH & RATE LIMITING =====
+const CONFIG_PATH = path.join(__dirname, 'config.json');
+let _config = {};
+try { _config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch {}
+
+// Auth: token-based. Set "auth" in config.json: { "auth": { "enabled": true, "tokens": { "admin-key": "admin", "viewer-key": "viewer" } } }
+// Roles: admin = full access, viewer = read-only (no POST/DELETE/PUT)
+const AUTH = _config.auth || {};
+const AUTH_ENABLED = AUTH.enabled === true;
+const AUTH_TOKENS = AUTH.tokens || {}; // { token: role }
+
+function authenticate(req) {
+  if (!AUTH_ENABLED) return { authenticated: true, role: 'admin' };
+  // Check Authorization header: Bearer <token> or X-API-Key header or ?token= query param
+  let token = null;
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) token = authHeader.slice(7).trim();
+  if (!token) token = req.headers['x-api-key'];
+  if (!token) {
+    const qIdx = req.url.indexOf('?token=');
+    if (qIdx !== -1) token = req.url.slice(qIdx + 7).split('&')[0];
+  }
+  if (!token || !AUTH_TOKENS[token]) return { authenticated: false, role: null };
+  return { authenticated: true, role: AUTH_TOKENS[token] || 'viewer' };
+}
+
+// Rate limiting: sliding window per IP
+const RATE_LIMIT = _config.rateLimit || {};
+const RATE_ENABLED = RATE_LIMIT.enabled !== false; // on by default
+const RATE_WINDOW_MS = (RATE_LIMIT.windowSeconds || 60) * 1000;
+const RATE_MAX = RATE_LIMIT.maxRequests || 120; // 120 req/min default
+const _rateBuckets = new Map(); // ip -> { count, resetTime }
+
+function checkRateLimit(ip) {
+  if (!RATE_ENABLED) return true;
+  const now = Date.now();
+  let bucket = _rateBuckets.get(ip);
+  if (!bucket || now > bucket.resetTime) {
+    bucket = { count: 0, resetTime: now + RATE_WINDOW_MS };
+    _rateBuckets.set(ip, bucket);
+  }
+  bucket.count++;
+  return bucket.count <= RATE_MAX;
+}
+
+// Cleanup stale rate limit buckets every 5 min
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, bucket] of _rateBuckets) {
+    if (now > bucket.resetTime) _rateBuckets.delete(ip);
+  }
+}, 300000);
+
 const STATIC_DIR = __dirname;
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { json(res, {}); return; }
+
+  // API versioning: support /api/v1/ prefix (maps to /api/)
+  if (req.url.startsWith('/api/v1/')) {
+    req.url = req.url.replace('/api/v1/', '/api/');
+  }
+
   const url = req.url.split('?')[0];
+
+  // Rate limiting on API routes
+  if (url.startsWith('/api/')) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    if (!checkRateLimit(ip)) {
+      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil(RATE_WINDOW_MS / 1000)) });
+      res.end(JSON.stringify({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfter: Math.ceil(RATE_WINDOW_MS / 1000) }));
+      return;
+    }
+
+    // Authentication
+    const auth = authenticate(req);
+    if (!auth.authenticated) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized', code: 'AUTH_REQUIRED', message: 'Provide token via Authorization: Bearer <token>, X-API-Key header, or ?token= query param' }));
+      return;
+    }
+    // RBAC: viewers can only GET
+    if (auth.role === 'viewer' && req.method !== 'GET') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE', message: 'Viewer role is read-only' }));
+      return;
+    }
+  }
 
   // SSE endpoint
   if (url === '/api/events') {

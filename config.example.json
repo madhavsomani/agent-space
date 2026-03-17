@@ -39,12 +39,42 @@
   },
   "office": {
     "deskPositions": {
-      "MC": { "gx": 7, "gy": 2 },
-      "Director": { "gx": 3, "gy": 4 },
-      "Writer": { "gx": 3, "gy": 6 },
-      "Designer": { "gx": 5, "gy": 4 },
-      "Producer": { "gx": 5, "gy": 6 },
-      "Publisher": { "gx": 7, "gy": 5 }
+      "MC": {
+        "gx": 7,
+        "gy": 2
+      },
+      "Director": {
+        "gx": 3,
+        "gy": 4
+      },
+      "Writer": {
+        "gx": 3,
+        "gy": 6
+      },
+      "Designer": {
+        "gx": 5,
+        "gy": 4
+      },
+      "Producer": {
+        "gx": 5,
+        "gy": 6
+      },
+      "Publisher": {
+        "gx": 7,
+        "gy": 5
+      }
     }
+  },
+  "auth": {
+    "enabled": false,
+    "tokens": {
+      "your-admin-key-here": "admin",
+      "your-viewer-key-here": "viewer"
+    }
+  },
+  "rateLimit": {
+    "enabled": true,
+    "windowSeconds": 60,
+    "maxRequests": 120
   }
 }

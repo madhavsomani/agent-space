@@ -720,9 +720,16 @@ applyTheme(getTheme());
 
 const API = '/api';
 // Fetch with timeout — prevents widgets hanging forever on slow/stalled requests
+// Auth: reads token from localStorage or ?token= URL param
+const _authToken = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('agent-space-token') || '';
+if (_authToken && !localStorage.getItem('agent-space-token')) localStorage.setItem('agent-space-token', _authToken);
+
 function fetchWithTimeout(url, opts = {}, timeoutMs = 10000) {
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), timeoutMs);
+  if (_authToken) {
+    opts.headers = { ...(opts.headers || {}), 'X-API-Key': _authToken };
+  }
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(tid));
 }
 let agentData = [];
@@ -3479,8 +3486,10 @@ async function submitWr() {
   const btn = document.getElementById('wr-submit-btn');
   btn.disabled = true; btn.textContent = 'Creating...';
   try {
+    const _postHeaders = { 'Content-Type': 'application/json' };
+    if (_authToken) _postHeaders['X-API-Key'] = _authToken;
     const r = await fetch(API + '/queue', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: _postHeaders,
       body: JSON.stringify({
         title,
         type: document.getElementById('wr-type').value,
@@ -5191,7 +5200,7 @@ let _sseReconnectTimer = null;
 function connectSSE() {
   if (_sseInstance) { try { _sseInstance.close(); } catch {} }
   if (_sseReconnectTimer) { clearTimeout(_sseReconnectTimer); _sseReconnectTimer = null; }
-  const es = new EventSource('/api/events');
+  const es = new EventSource(_authToken ? `/api/events?token=${encodeURIComponent(_authToken)}` : '/api/events');
   _sseInstance = es;
   es.addEventListener('connected', () => {
     _sseConnected = true;
@@ -5327,7 +5336,9 @@ function dismissAlert(id) {
 // Wake a sleeping cron agent from the alert banner
 async function wakeAgentFromAlert(cronJobId, agentName) {
   try {
-    const r = await fetch(API + '/wake-agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cronJobId }) });
+    const _wakeHeaders = { 'Content-Type': 'application/json' };
+    if (_authToken) _wakeHeaders['X-API-Key'] = _authToken;
+    const r = await fetch(API + '/wake-agent', { method: 'POST', headers: _wakeHeaders, body: JSON.stringify({ cronJobId }) });
     const d = await r.json();
     if (d.ok) {
       showToast('⚡', `Woke ${agentName}`, 'var(--green)');
