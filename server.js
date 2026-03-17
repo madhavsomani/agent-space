@@ -2271,7 +2271,7 @@ function authenticate(req) {
 const RATE_LIMIT = _config.rateLimit || {};
 const RATE_ENABLED = RATE_LIMIT.enabled !== false; // on by default
 const RATE_WINDOW_MS = (RATE_LIMIT.windowSeconds || 60) * 1000;
-const RATE_MAX = RATE_LIMIT.maxRequests || 120; // 120 req/min default
+const RATE_MAX = RATE_LIMIT.maxRequests || 300; // 300 req/min default (dashboard polls many endpoints)
 const _rateBuckets = new Map(); // ip -> { count, resetTime }
 
 function checkRateLimit(ip) {
@@ -2305,8 +2305,9 @@ const server = http.createServer((req, res) => {
 
   const url = req.url.split('?')[0];
 
-  // Rate limiting on API routes
-  if (url.startsWith('/api/')) {
+  // Rate limiting on API routes (exempt core endpoints needed for canvas/SSE)
+  const RATE_EXEMPT = new Set(['/api/health', '/api/agents', '/api/events', '/api/health-score']);
+  if (url.startsWith('/api/') && !RATE_EXEMPT.has(url)) {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
     if (!checkRateLimit(ip)) {
       res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil(RATE_WINDOW_MS / 1000)) });
