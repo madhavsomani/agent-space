@@ -1367,23 +1367,26 @@ oCanvas.addEventListener('contextrestored', () => {
 // Also recover on tab re-focus (common trigger for context loss)
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
-    setTimeout(() => {
+    // Immediate context health check — don't wait for RAF
+    try {
       const dpr = window.devicePixelRatio || 1;
-      oCtx.save();
       oCtx.setTransform(1, 0, 0, 1, 0, 0);
-      oCtx.fillStyle = '#010101';
+      oCtx.fillStyle = 'rgba(1,2,3,1)';
       oCtx.fillRect(0, 0, 1, 1);
       const px = oCtx.getImageData(0, 0, 1, 1).data;
-      oCtx.restore();
-      if (px[3] === 0) {
-        console.warn('[Agent Space] Canvas dead after tab focus — resetting');
+      oCtx.clearRect(0, 0, 1, 1);
+      oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (px[0] !== 1 || px[1] !== 2 || px[2] !== 3 || px[3] === 0) {
+        console.warn('[Agent Space] Canvas dead after tab focus — hard reset');
         const w = oCanvas.width, h = oCanvas.height;
-        oCanvas.width = w;
+        oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h;
         oCtx = oCanvas.getContext('2d');
         oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         invalidateStaticCache();
+        resizeCanvas();
       }
-    }, 100);
+    } catch(e) {}
+    invalidateStaticCache();
   }
 });
 
@@ -3257,7 +3260,7 @@ function buildStaticLayer() {
 // Frame-limited render loop (8 FPS target, pauses when tab hidden or canvas off-screen)
 const FRAME_INTERVAL = 1000 / 8;
 let _lastFrameTime = 0;
-let _framesSinceCheck = 0, _blackFrames = 0;
+let _framesSinceCheck = 0, _blackFrames = 0, _wasHidden = false;
 let _canvasVisible = true;
 // Observe canvas visibility to avoid rendering when scrolled out of view
 if (typeof IntersectionObserver !== 'undefined') {
@@ -3267,13 +3270,38 @@ if (typeof IntersectionObserver !== 'undefined') {
 }
 function officeLoop(now) {
   requestAnimationFrame(officeLoop);
-  if (document.hidden) return;
+  if (document.hidden) { _wasHidden = true; return; }
   if (_currentTab !== 'office') return;
   if (!_canvasVisible) return;
   if (now - _lastFrameTime < FRAME_INTERVAL) return;
   _lastFrameTime = now;
   // Guard: if canvas has zero dimensions, re-trigger resize instead of drawing nothing
   if (!oCanvas.width || !oCanvas.height || oCanvas.width < 10) { resizeCanvas(); return; }
+  // If tab was recently hidden, force a context health check BEFORE drawing
+  if (_wasHidden) {
+    _wasHidden = false;
+    _framesSinceCheck = 999; // force immediate check after draw
+    // Proactive context recovery — try a test write before wasting a frame
+    try {
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0);
+      oCtx.fillStyle = 'rgba(1,2,3,1)';
+      oCtx.fillRect(0, 0, 1, 1);
+      const probe = oCtx.getImageData(0, 0, 1, 1).data;
+      oCtx.clearRect(0, 0, 1, 1);
+      oCtx.restore();
+      if (probe[0] !== 1 || probe[1] !== 2 || probe[2] !== 3) {
+        console.warn('[canvas] Context lost after tab hide — resetting');
+        const w = oCanvas.width, h = oCanvas.height;
+        oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h;
+        oCtx = oCanvas.getContext('2d');
+        invalidateStaticCache();
+        resizeCanvas();
+        return; // skip this frame, draw fresh next time
+      }
+    } catch(e) {}
+    invalidateStaticCache(); // theme/night may have changed while hidden
+  }
   drawOffice(now);
   // Canvas health check: write-then-read a test pixel to detect silent context corruption.
   // A corrupted context silently drops all draw operations, causing the "dark void" bug.
