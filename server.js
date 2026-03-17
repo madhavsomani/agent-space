@@ -2518,8 +2518,9 @@ function warmHeavyCaches() {
   setTimeout(() => { setImmediate(() => { try { getHeatmapCalendar(); } catch {} }); }, 2000);
 }
 
-server.listen(18790, '0.0.0.0', () => {
-  console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
+const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
+server.listen(18790, BIND_HOST, () => {
+  console.log(`Agent Space running on ${BIND_HOST}:18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
   // Warm agents cache IMMEDIATELY (synchronous) so first request is fast
   try { getAgents(); } catch {}
   // Background system stats refresh (ZERO execSync in request path)
