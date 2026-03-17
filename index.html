@@ -1339,6 +1339,7 @@ async function refreshAgents() {
     const d = await r.json();
     checkStatusChanges(d.agents);
     agentData = d.agents || [];
+    if (typeof Office3D !== 'undefined' && Office3D.isActive()) Office3D.updateAgents(agentData);
     apiOnline = true;
     const el = document.getElementById('live-status');
     el.className = 'live online'; el.innerHTML = '<span class="pulse"></span>LIVE';
@@ -5496,6 +5497,8 @@ function connectSSE() {
       agentData = newAgents;
       updateStatusStrip();
       buildLegend(); scheduleRenderAgentCards(); markUpdated();
+      // Feed 3D office with updated agent data
+      if (typeof Office3D !== 'undefined' && Office3D.isActive()) Office3D.updateAgents(agentData);
     } catch {}
   });
   es.addEventListener('activity', (e) => {
