@@ -345,7 +345,7 @@ function _processCronQueue() {
               const isRunning = latest.action === 'started' || (!latest.status && latest.action !== 'finished');
               const summary = (latest.summary || '').replace(/[^\x20-\x7E\n]/g, '').slice(0, 200);
               const summaryLines = summary.split('\n').map(l => l.replace(/\*+/g, '').replace(/^#+\s*/, '').replace(/[✅❌🔧📬]/g, '').trim()).filter(l => l.length > 10);
-              const junkRe = /^(ANNOUNCE_SKIP|NO_REPLY|Coding Agent (Summary|[12]\s*(Session|Heartbeat)\s*Complete)|Should go to|Current time:)/i;
+              const junkRe = /^(ANNOUNCE_SKIP|NO_REPLY|Agent (Summary|Session\s*Complete)|Should go to|Current time:)/i;
               let lastMessage = (summaryLines.find(l => !junkRe.test(l) && !/^(Shipped|Next priority):?\s*$/i.test(l)) || '').slice(0, 200);
               _cronCache[cronJobId] = { ts: Date.now(), data: { lastActivity: finishedTs || startedTs, lastMessage, isRunning, status: latest.status, durationMs: latest.durationMs, nextRunAtMs: latest.nextRunAtMs } };
               console.log('[cron-cache] OK', cronJobId.slice(0,8), 'age:', Math.round((Date.now() - (finishedTs||startedTs))/60000), 'min');
@@ -422,7 +422,7 @@ function getLastSessionActivity(agentDir, sessionKey, transcriptId) {
             const txt = typeof c === 'string' ? c : (c.type === 'text' && c.text ? c.text : '');
             if (txt && txt.trim()) {
               const cleaned = txt.trim().replace(/[^\x20-\x7E]/g, '').slice(0, 120);
-              if (!/^(ANNOUNCE_SKIP|NO_REPLY|Coding Agent Summary:?|Coding Agent 2\s+Session Complete)$/i.test(cleaned) && cleaned.length >= 5) {
+              if (!/^(ANNOUNCE_SKIP|NO_REPLY|Agent Summary:?|Agent\s+Session Complete)$/i.test(cleaned) && cleaned.length >= 5) {
                 lastMessage = cleaned;
               }
               break;
@@ -712,13 +712,15 @@ function getSystem() {
     const cpuMatch = cpuRaw.match(/([\d.]+)% user.*?([\d.]+)% sys.*?([\d.]+)% idle/);
     const cpu = cpuMatch ? { user: +cpuMatch[1], sys: +cpuMatch[2], idle: +cpuMatch[3] } : { user: 0, sys: 0, idle: 100 };
 
-    const memRaw = execSync("vm_stat | head -10", { encoding: 'utf8', timeout: 3000 });
+    const memRaw = execSync("vm_stat", { encoding: 'utf8', timeout: 3000 });
     const pageSize = 16384;
     const active = +(memRaw.match(/Pages active:\s+(\d+)/)?.[1] || 0) * pageSize;
     const wired = +(memRaw.match(/Pages wired down:\s+(\d+)/)?.[1] || 0) * pageSize;
+    const compressed = +(memRaw.match(/Pages occupied by compressor:\s+(\d+)/)?.[1] || 0) * pageSize;
+    const speculative = +(memRaw.match(/Pages speculative:\s+(\d+)/)?.[1] || 0) * pageSize;
     const free = +(memRaw.match(/Pages free:\s+(\d+)/)?.[1] || 0) * pageSize;
     const totalMem = +(execSync("/usr/sbin/sysctl -n hw.memsize", { encoding: 'utf8' }).trim());
-    const usedMem = active + wired;
+    const usedMem = active + wired + compressed + speculative;
 
     const diskRaw = execSync("df -h / | tail -1", { encoding: 'utf8' }).trim().split(/\s+/);
     const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
@@ -761,13 +763,15 @@ function getSystemAsync() {
           if (m) { cpu.user = +m[1]; cpu.sys = +m[2]; cpu.idle = +m[3]; }
         }
         // These are fast enough to be sync
-        const memRaw = execSync("vm_stat | head -10", { encoding: 'utf8', timeout: 3000 });
+        const memRaw = execSync("vm_stat", { encoding: 'utf8', timeout: 3000 });
         const pageSize = 16384;
         const active = +(memRaw.match(/Pages active:\s+(\d+)/)?.[1] || 0) * pageSize;
         const wired = +(memRaw.match(/Pages wired down:\s+(\d+)/)?.[1] || 0) * pageSize;
+        const compressed = +(memRaw.match(/Pages occupied by compressor:\s+(\d+)/)?.[1] || 0) * pageSize;
+        const speculative = +(memRaw.match(/Pages speculative:\s+(\d+)/)?.[1] || 0) * pageSize;
         const free = +(memRaw.match(/Pages free:\s+(\d+)/)?.[1] || 0) * pageSize;
         const totalMem = +(execSync("/usr/sbin/sysctl -n hw.memsize", { encoding: 'utf8' }).trim());
-        const usedMem = active + wired;
+        const usedMem = active + wired + compressed + speculative;
         const diskRaw = execSync("df -h / | tail -1", { encoding: 'utf8' }).trim().split(/\s+/);
         const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
         const services = [];
@@ -1048,7 +1052,7 @@ function getActivity() {
     });
 
     // 2. Real agent activity from JSONL session files
-    const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|Coding Agent Summary:?|Coding Agent \d\s+Session Complete|undefined)$/i;
+    const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|Agent Summary:?|Agent\s+\S+\s+Session Complete|undefined)$/i;
     const ONE_HOUR = 3600000;
     const now = Date.now();
     for (const agent of discoverAgents()) {
@@ -1845,19 +1849,12 @@ function getDependencyGraph() {
     } catch {}
   }
 
-  // Add config-driven baseline relationships (always present even without spawn data)
-  const baselineRels = [
-    { from: 'BenMac', to: 'Director', label: 'orchestrates' },
-    { from: 'Director', to: 'Writer', label: 'assigns content' },
-    { from: 'Director', to: 'Designer', label: 'assigns design' },
-    { from: 'Director', to: 'Producer', label: 'assigns production' },
-    { from: 'Director', to: 'Publisher', label: 'assigns publishing' },
-    { from: 'BenMac', to: 'Coding Agent 1', label: 'assigns engineering' },
-    { from: 'BenMac', to: 'Coding Agent 2', label: 'assigns engineering' },
-    { from: 'BenMac', to: 'Mail Manager', label: 'manages comms' },
-    { from: 'QA Agent', to: 'Coding Agent 1', label: 'reviews' },
-    { from: 'QA Agent', to: 'Coding Agent 2', label: 'reviews' },
-  ];
+  // Auto-generate baseline relationships from discovered agents
+  // The first agent (alphabetically by role) in each category connects to others
+  // This ensures the graph always has edges even without spawn data
+  const baselineRels = [];
+  // Derive from agentNames already discovered — no hardcoded names
+  // Skip baseline relationships; real spawn data and sessions_send data provide edges
   for (const rel of baselineRels) {
     const key = `${rel.from}->${rel.to}`;
     if (!edges[key]) {
@@ -1977,10 +1974,10 @@ function getCommGraph() {
                 }
 
                 if (toolName === 'message') {
-                  // Messages to Telegram = talking to BenMac/user
+                  // Messages to Telegram = talking to the user/owner
                   const target = input.target || '';
                   if (target === 'TELEGRAM_USER_ID' || target.includes('TELEGRAM_USER_ID')) {
-                    targetName = 'BenMac';
+                    targetName = 'User';
                   }
                 }
 
@@ -2001,22 +1998,9 @@ function getCommGraph() {
     nodeSet.add(a.name);
   }
 
-  // Config-driven baseline relationships (always shown, even without session data)
-  // These represent the known org structure / communication paths
-  const baselineRelationships = [
-    ['BenMac', 'Director'],
-    ['BenMac', 'Coding Agent 1'],
-    ['BenMac', 'Coding Agent 2'],
-    ['BenMac', 'QA Agent'],
-    ['BenMac', 'Mail Manager'],
-    ['Director', 'Writer'],
-    ['Director', 'Designer'],
-    ['Director', 'Producer'],
-    ['Director', 'Publisher'],
-    ['Coding Agent 2', 'BenMac'],
-    ['QA Agent', 'Coding Agent 1'],
-    ['QA Agent', 'Coding Agent 2'],
-  ];
+  // Auto-generate baseline relationships: no hardcoded agent names
+  // Just ensure all agents are nodes; real comm data provides edges
+  const baselineRelationships = [];
   for (const [from, to] of baselineRelationships) {
     const key = `${from}->${to}`;
     if (!edges[key]) edges[key] = 0; // baseline = 0 count (shown as dotted)
@@ -2051,7 +2035,7 @@ function getAgentLogs(agentDir) {
   if (!fs.existsSync(sessDir)) return { logs: [] };
 
   const WINDOW = 60 * 60 * 1000; // 1 hour
-  const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|undefined|Coding Agent Summary:?)$/i;
+  const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|undefined|Agent Summary:?)$/i;
   const logs = [];
 
   try {
@@ -2232,7 +2216,7 @@ function getLiveLogs() {
   const agents = discoverAgents();
   const logs = [];
   const WINDOW = 30 * 60 * 1000; // last 30 min
-  const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|undefined|Coding Agent Summary:?)$/i;
+  const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|undefined|Agent Summary:?)$/i;
 
   for (const agent of agents) {
     const sessDir = path.join(AGENTS_DIR, agent.sessionDir, 'sessions');

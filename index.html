@@ -66,7 +66,7 @@ nav button.active { background:linear-gradient(135deg,#3b82f6,#8b5cf6); color:#f
 nav button .badge { display:inline-block; background:var(--red); color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:4px; min-width:14px; text-align:center; }
 
 /* Tabs */
-.tab { display:none; padding:16px 20px; position:relative; z-index:1; }
+.tab { display:none; padding:16px 20px; position:relative; z-index:1; max-width:1400px; margin-left:auto; margin-right:auto; }
 .tab.active { display:block; animation:fadeIn .25s cubic-bezier(.4,0,.2,1); }
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px) scale(0.995)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes slideInRight { from{opacity:0;transform:translateX(60px) scale(0.98)} to{opacity:1;transform:translateX(0) scale(1)} }
@@ -1319,40 +1319,20 @@ async function refreshAgents() {
 
 // ===== ISOMETRIC 3D OFFICE =====
 const ISO = { tileW: 80, tileH: 40 };
-const GRID = { cols: 18, rows: 12 };
+const GRID = { cols: 24, rows: 16 };
 const oCanvas = document.getElementById('office-canvas');
 let oCtx = oCanvas.getContext('2d');
 
-// OFFICE LAYOUT — wide open-plan tech office
-// Agents spread across the full grid with breathing room between teams
-const deskPositions = {
-  // CEO — corner office, top-center
-  'BenMac': {gx:9, gy:1},
-  'Main': {gx:9, gy:1},
-  // Content Team — left wing, spread wide
-  'Director': {gx:2, gy:2},
-  'Writer': {gx:3, gy:6},
-  'Designer': {gx:5, gy:4},
-  'Producer': {gx:2, gy:9},
-  'Publisher': {gx:5, gy:8},
-  // Engineering Team — right wing, spread vertically
-  'Coding Agent 1': {gx:16, gy:2},
-  'Coding Agent 2': {gx:15, gy:7},
-  'Coding Agent': {gx:16, gy:2},
-  // Support — spread across center-right
-  'Mail Manager': {gx:10, gy:6},
-  'QA Agent': {gx:13, gy:10},
-  'Qa': {gx:13, gy:10},
-  'QA': {gx:13, gy:10},
-  // Retired/deprecated — still give them a desk if they show up
-  'Scout': {gx:12, gy:3},
-};
+// OFFICE LAYOUT — auto-assigned from agent list
+// Empty by default — auto-desk assignment handles placement dynamically
+const deskPositions = {};
 
 // Overflow desk positions for dynamically discovered agents (auto-assigned)
 const overflowDesks = [
-  {gx:12, gy:3}, {gx:8, gy:5}, {gx:8, gy:10}, {gx:3, gy:4},
-  {gx:11, gy:7}, {gx:7, gy:7}, {gx:14, gy:5}, {gx:17, gy:10},
-  {gx:6, gy:11}, {gx:16, gy:11},
+  {gx:12, gy:8}, {gx:6, gy:4}, {gx:4, gy:7}, {gx:4, gy:10},
+  {gx:8, gy:4}, {gx:8, gy:10}, {gx:18, gy:5}, {gx:18, gy:8},
+  {gx:18, gy:11}, {gx:14, gy:12}, {gx:10, gy:14}, {gx:20, gy:10},
+  {gx:22, gy:6}, {gx:2, gy:13}, {gx:16, gy:14}, {gx:21, gy:13},
 ];
 const _assignedOverflow = {};
 let _overflowIdx = 0;
@@ -1380,30 +1360,35 @@ const agentInteractions = {}; // {agentName: {type, target, startTime, duration,
 const deskItems = {};
 const DESK_ITEM_LIFETIME = 45000; // items stay on desk for 45 seconds then fade
 const POI = { // Points of Interest
-  whiteboard: {gx:7, gy:3},
-  coffee: {gx:9, gy:11},
-  server: {gx:17, gy:8},
-  door: {gx:17, gy:5},
+  whiteboard: {gx:10, gy:3},
+  coffee: {gx:12, gy:14},
+  server: {gx:22, gy:10},
+  door: {gx:23, gy:6},
   plant: {gx:1, gy:1},
 };
 const INTERACTION_TYPES = ['coffee','whiteboard','chat','stretch','server-check','water-plant','phone-call'];
 
-// Agent-specific interaction preferences (weighted)
-const AGENT_INTERACTION_PREFS = {
-  'BenMac':         {coffee:3, whiteboard:2, chat:4, stretch:1, 'phone-call':3},
-  'Director':       {coffee:2, whiteboard:4, chat:3, stretch:1, 'phone-call':1},
-  'Writer':         {coffee:3, whiteboard:1, chat:1, stretch:2, 'water-plant':2},
-  'Designer':       {coffee:2, whiteboard:3, chat:2, stretch:2, 'water-plant':4},
-  'Producer':       {coffee:3, whiteboard:2, chat:2, stretch:1, 'server-check':2, 'phone-call':1},
-  'Publisher':      {coffee:2, whiteboard:1, chat:3, stretch:1, 'phone-call':3},
-  'Coding Agent 1': {coffee:3, whiteboard:1, chat:1, stretch:2, 'server-check':5},
-  'Coding Agent 2': {coffee:3, whiteboard:2, chat:1, stretch:2, 'server-check':5},
-  'Mail Manager':   {coffee:2, whiteboard:1, chat:2, stretch:2, 'phone-call':5},
-  'QA Agent':       {coffee:2, whiteboard:3, chat:2, stretch:1, 'server-check':4},
-};
+// Agent interaction preferences — derived from role, not hardcoded names
+const AGENT_INTERACTION_PREFS = {};
+
+// Role-based default interaction preferences (applied dynamically)
+function getRolePrefs(role) {
+  const r = (role || '').toLowerCase();
+  if (r.includes('code') || r.includes('engineer') || r.includes('dev')) return {coffee:3, whiteboard:1, chat:1, stretch:2, 'server-check':5};
+  if (r.includes('qa') || r.includes('test') || r.includes('quality')) return {coffee:2, whiteboard:3, chat:2, stretch:1, 'server-check':4};
+  if (r.includes('write') || r.includes('content') || r.includes('research')) return {coffee:3, whiteboard:1, chat:1, stretch:2, 'water-plant':2};
+  if (r.includes('design') || r.includes('art') || r.includes('visual')) return {coffee:2, whiteboard:3, chat:2, stretch:2, 'water-plant':4};
+  if (r.includes('mail') || r.includes('email') || r.includes('comms')) return {coffee:2, whiteboard:1, chat:2, stretch:2, 'phone-call':5};
+  if (r.includes('director') || r.includes('lead') || r.includes('manager')) return {coffee:2, whiteboard:4, chat:3, stretch:1, 'phone-call':1};
+  if (r.includes('ceo') || r.includes('mc') || r.includes('owner')) return {coffee:3, whiteboard:2, chat:4, stretch:1, 'phone-call':3};
+  if (r.includes('publish') || r.includes('deploy') || r.includes('release')) return {coffee:2, whiteboard:1, chat:3, stretch:1, 'phone-call':3};
+  if (r.includes('produce') || r.includes('video') || r.includes('media')) return {coffee:3, whiteboard:2, chat:2, stretch:1, 'server-check':2, 'phone-call':1};
+  return {coffee:2, whiteboard:2, chat:2, stretch:2};
+}
 
 function pickWeightedInteraction(agentName, availableTypes, time) {
-  const prefs = AGENT_INTERACTION_PREFS[agentName] || {};
+  const agent = agentData.find(a => a.name === agentName);
+  const prefs = AGENT_INTERACTION_PREFS[agentName] || getRolePrefs(agent?.role) || {};
   const weights = availableTypes.map(t => prefs[t] || 1);
   const total = weights.reduce((a,b)=>a+b, 0);
   // Use time-based pseudo-random for determinism within a frame
@@ -1501,7 +1486,8 @@ function tickInteractions(agents, time) {
 
       // Build available interaction types
       const types = ['coffee','whiteboard','stretch','water-plant','phone-call'];
-      if (a.name.includes('Coding') || a.name.includes('QA') || a.name.includes('Producer')) types.push('server-check');
+      const role = (a.role || '').toLowerCase();
+      if (role.includes('code') || role.includes('engineer') || role.includes('dev') || role.includes('qa') || role.includes('test') || role.includes('produce') || role.includes('ops')) types.push('server-check');
       // Chat: find a nearby idle agent
       const nearbyIdle = agents.filter(b => b.name !== a.name && b.status === 'idle' && deskPositions[b.name] && !agentInteractions[b.name]);
       if (nearbyIdle.length > 0) types.push('chat');
@@ -1581,23 +1567,16 @@ function getInteractionOffset(agentName, time) {
 }
 
 const furniture = [
-  // CEO desk — top center
-  { type:'desk-large', gx:9, gy:2 },
-  // Content team desks — left wing
-  { type:'desk', gx:2, gy:3 }, { type:'desk', gx:3, gy:7 },
-  { type:'desk', gx:5, gy:5 }, { type:'desk', gx:5, gy:9 },
-  { type:'desk', gx:2, gy:10 },
-  // Engineering desks — right wing
-  { type:'desk', gx:16, gy:3 }, { type:'desk', gx:15, gy:8 },
-  // Support desks — center-right
-  { type:'desk', gx:10, gy:7 }, { type:'desk', gx:13, gy:11 },
-  // Decor — plants at corners, whiteboard, server, coffee
-  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:17, gy:1 }, { type:'plant', gx:1, gy:11 }, { type:'plant', gx:17, gy:11 },
-  { type:'whiteboard', gx:7, gy:3 },
-  { type:'server', gx:17, gy:8 },
-  { type:'coffee', gx:9, gy:11 },
-  { type:'clock', gx:9, gy:0 },
-  { type:'door', gx:17, gy:5 },
+  // Decor spread across large 24×16 office
+  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:23, gy:1 }, { type:'plant', gx:1, gy:15 }, { type:'plant', gx:23, gy:15 },
+  { type:'plant', gx:12, gy:1 }, { type:'plant', gx:12, gy:15 },
+  { type:'whiteboard', gx:10, gy:3 },
+  { type:'server', gx:22, gy:10 },
+  { type:'coffee', gx:12, gy:14 },
+  { type:'clock', gx:12, gy:0 },
+  { type:'door', gx:23, gy:6 },
+  { type:'lamp', gx:8, gy:2 }, { type:'lamp', gx:16, gy:2 },
+  { type:'lamp', gx:6, gy:12 }, { type:'lamp', gx:18, gy:12 },
 ];
 const _sortedFurniture = [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
 
@@ -1640,7 +1619,7 @@ function drawWhiteboard(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen
 function drawServer(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,30,t.srvTop,t.srvL,t.srvR);const p=isoToScreen(gx,gy);const tm=_frameTime;for(let i=0;i<3;i++){oCtx.beginPath();oCtx.arc(p.x-4,p.y-10-i*8,2,0,Math.PI*2);oCtx.fillStyle=(Math.sin(tm/300+i)>0)?t.srvLed:t.srvLedOff;oCtx.fill();}oCtx.font='8px system-ui';oCtx.fillStyle=t.srvLabel;oCtx.textAlign='center';oCtx.fillText('SERVER',p.x,p.y+ISO.tileH+10);}
 function drawBookshelf(gx,gy){const t=_th||getCanvasTheme();drawIsoCube(gx,gy,36,t.bsTop,t.bsL,t.bsR);const p=isoToScreen(gx,gy);const colors=['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6','#e67e22'];for(let row=0;row<3;row++){for(let i=0;i<3;i++){oCtx.fillStyle=colors[(row*3+i)%colors.length];oCtx.fillRect(p.x-9+i*7,p.y-32+row*10,5,8);}}oCtx.font='7px system-ui';oCtx.fillStyle=t.bsLabel;oCtx.textAlign='center';oCtx.fillText('📚',p.x,p.y+ISO.tileH+8);}
 function drawLamp(gx,gy){const t=_th||getCanvasTheme();const p=isoToScreen(gx,gy);const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-45,8,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+(flicker+0.1)+')';oCtx.fill();oCtx.strokeStyle=t.lampPole;oCtx.lineWidth=1.5;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-38);oCtx.stroke();oCtx.fillStyle=t.lampShade;oCtx.beginPath();oCtx.moveTo(p.x-8,p.y-44);oCtx.lineTo(p.x+8,p.y-44);oCtx.lineTo(p.x+5,p.y-38);oCtx.lineTo(p.x-5,p.y-38);oCtx.closePath();oCtx.fill();}
-function drawRug(){const cx=isoToScreen(9,6);oCtx.save();oCtx.globalAlpha=0.25;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,120,50,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,120);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
+function drawRug(){const cx=isoToScreen(12,8);oCtx.save();oCtx.globalAlpha=0.2;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,180,80,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,120);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
 // Cached window sky colors — recomputed every 10s instead of every frame
 let _winCache = null;
 function _getWindowColors() {
@@ -1779,6 +1758,20 @@ function drawVisitor(agent, screenX, screenY, time) {
 }
 
 function drawAgent(agent, gx, gy, time) {
+  // Role category mapper for dynamic lookups (no hardcoded agent names)
+  function _getRoleCategory(role) {
+    const r = (role || '').toLowerCase();
+    if (r.includes('ceo') || r.includes('mc') || r.includes('owner') || r.includes('chief')) return 'ceo';
+    if (r.includes('director') || r.includes('lead') || r.includes('manager') && !r.includes('mail')) return 'director';
+    if (r.includes('write') || r.includes('content') || r.includes('research') || r.includes('author')) return 'writer';
+    if (r.includes('design') || r.includes('art') || r.includes('visual') || r.includes('ui')) return 'designer';
+    if (r.includes('produce') || r.includes('video') || r.includes('media') || r.includes('render')) return 'producer';
+    if (r.includes('publish') || r.includes('deploy') || r.includes('release') || r.includes('social')) return 'publisher';
+    if (r.includes('code') || r.includes('dev') || r.includes('engineer') || r.includes('program')) return 'dev';
+    if (r.includes('mail') || r.includes('email') || r.includes('comms') || r.includes('inbox')) return 'mail';
+    if (r.includes('qa') || r.includes('test') || r.includes('quality') || r.includes('bug')) return 'qa';
+    return 'default';
+  }
   const isWorking = agent.status === 'working';
   const isSleeping = agent.status === 'sleeping';
   const isIdle = !isWorking && !isSleeping;
@@ -2263,42 +2256,39 @@ function drawAgent(agent, gx, gy, time) {
       // Pick thought based on mood + agent personality
       const moodThoughts = {
         happy: {
-          'BenMac':['📈 Numbers up!','🚀 Team\'s on fire','⭐ Great progress'],
-          'Director':['🎯 Pipeline flowing','📋 On schedule!','✨ Content\'s great'],
-          'Writer':['✍️ Words flowing','📖 Good chapter','💡 Plot twist idea'],
-          'Designer':['🎨 Colors perfect','✨ Clean layout','🖼️ Portfolio piece'],
-          'Producer':['🎬 Render looks good','🎵 Audio\'s crisp','📹 Clean cut'],
-          'Publisher':['📊 Engagement up!','🎉 Post went viral','📱 Good reach'],
-          'Coding Agent 1':['✅ Tests passing','🔧 Clean merge','📱 Build looks good'],
-          'Coding Agent 2':['💻 Code flows nice','📊 Charts look great','🎨 UI\'s smooth'],
-          'Mail Manager':['📬 Inbox zero!','✉️ All caught up','📋 Sorted!'],
-          'QA Agent':['✅ All green!','🧪 Tests passing','🛡️ No bugs found'],
+          _role_ceo:['📈 Numbers up!','🚀 Team\'s on fire','⭐ Great progress'],
+          _role_director:['🎯 Pipeline flowing','📋 On schedule!','✨ Content\'s great'],
+          _role_writer:['✍️ Words flowing','📖 Good chapter','💡 Plot twist idea'],
+          _role_designer:['🎨 Colors perfect','✨ Clean layout','🖼️ Portfolio piece'],
+          _role_producer:['🎬 Render looks good','🎵 Audio\'s crisp','📹 Clean cut'],
+          _role_publisher:['📊 Engagement up!','🎉 Post went viral','📱 Good reach'],
+          _role_dev:['✅ Tests passing','🔧 Clean merge','💻 Code flows nice'],
+          _role_mail:['📬 Inbox zero!','✉️ All caught up','📋 Sorted!'],
+          _role_qa:['✅ All green!','🧪 Tests passing','🛡️ No bugs found'],
           _default:['😊 Going well!','✨ Nice progress','👍 Looking good']
         },
         stressed: {
-          'BenMac':['😰 Deadlines...','📉 Need to check','🤔 Resource issue?'],
-          'Director':['⏰ Behind schedule','🔥 Too many tasks','📋 Reprioritize...'],
-          'Writer':['😤 Writer\'s block','📝 Rewrite needed','🤔 Wrong angle...'],
-          'Designer':['🎨 Not quite right','😣 Alignment off','🔄 Another revision'],
-          'Producer':['🎬 Render failed?','⏳ Takes forever','🔧 Codec issues'],
-          'Publisher':['📉 Low engagement','🕐 Missed window','😬 Typo posted?'],
-          'Coding Agent 1':['🐛 Weird bug...','❌ Tests failing','🤔 Race condition?'],
-          'Coding Agent 2':['💥 Layout broken','🐛 Edge case...','😤 CSS why...'],
-          'Mail Manager':['📨 Flood of mail','🔴 Urgent thread','😰 Spam wave'],
-          'QA Agent':['🐛 Found 3 bugs','❌ Regression!','⚠️ Flaky test'],
+          _role_ceo:['😰 Deadlines...','📉 Need to check','🤔 Resource issue?'],
+          _role_director:['⏰ Behind schedule','🔥 Too many tasks','📋 Reprioritize...'],
+          _role_writer:['😤 Writer\'s block','📝 Rewrite needed','🤔 Wrong angle...'],
+          _role_designer:['🎨 Not quite right','😣 Alignment off','🔄 Another revision'],
+          _role_producer:['🎬 Render failed?','⏳ Takes forever','🔧 Codec issues'],
+          _role_publisher:['📉 Low engagement','🕐 Missed window','😬 Typo posted?'],
+          _role_dev:['🐛 Weird bug...','❌ Tests failing','🤔 Race condition?'],
+          _role_mail:['📨 Flood of mail','🔴 Urgent thread','😰 Spam wave'],
+          _role_qa:['🐛 Found 3 bugs','❌ Regression!','⚠️ Flaky test'],
           _default:['😰 So much to do','🤔 Hmm...','⏳ Running behind']
         },
         neutral: {
-          'BenMac':['🤔 Strategy time','📊 Checking metrics','☕ Need coffee'],
-          'Director':['📋 Planning ahead','🤔 Next sprint...','📝 Review queue'],
-          'Writer':['📖 Research mode','✍️ Outlining...','🤔 Word choice...'],
-          'Designer':['🎨 Sketching ideas','🤔 Which font...','📐 Grid snapping'],
-          'Producer':['🎬 Timeline check','🎵 Audio levels','📹 B-roll ideas'],
-          'Publisher':['📊 Analytics time','📱 Schedule posts','🤔 Best timing?'],
-          'Coding Agent 1':['💻 Code review','🔍 Refactoring','📝 TODO list'],
-          'Coding Agent 2':['📊 New chart idea','🤔 UX thought','💻 Refactoring'],
-          'Mail Manager':['📬 Checking inbox','📋 Filing away','✉️ Draft reply'],
-          'QA Agent':['🧪 Test planning','🔍 Edge cases','📋 Checklist'],
+          _role_ceo:['🤔 Strategy time','📊 Checking metrics','☕ Need coffee'],
+          _role_director:['📋 Planning ahead','🤔 Next sprint...','📝 Review queue'],
+          _role_writer:['📖 Research mode','✍️ Outlining...','🤔 Word choice...'],
+          _role_designer:['🎨 Sketching ideas','🤔 Which font...','📐 Grid snapping'],
+          _role_producer:['🎬 Timeline check','🎵 Audio levels','📹 B-roll ideas'],
+          _role_publisher:['📊 Analytics time','📱 Schedule posts','🤔 Best timing?'],
+          _role_dev:['💻 Code review','🔍 Refactoring','📝 TODO list'],
+          _role_mail:['📬 Checking inbox','📋 Filing away','✉️ Draft reply'],
+          _role_qa:['🧪 Test planning','🔍 Edge cases','📋 Checklist'],
           _default:['🤔 Thinking...','💭 Hmm...','📋 Planning']
         },
         tired: {
@@ -2306,7 +2296,8 @@ function drawAgent(agent, gx, gy, time) {
         }
       };
       const moodSet = moodThoughts[mood] || moodThoughts.neutral;
-      const agentThoughts = moodSet[agent.name] || moodSet._default;
+      const roleKey = '_role_' + _getRoleCategory(agent.role);
+      const agentThoughts = moodSet[roleKey] || moodSet._default;
       // Deterministic thought selection based on time bucket
       const bucket = Math.floor(time / thoughtPeriod + (agentWalking[agent.name]?.phase||0));
       const thought = agentThoughts[bucket % agentThoughts.length];
@@ -2355,7 +2346,9 @@ function drawAgent(agent, gx, gy, time) {
 
   // Speech bubble for working AND idle agents (idle = faded, skip if interacting)
   const hasRealMsg = agent.lastMessage && agent.lastMessage !== 'ANNOUNCE_SKIP' && agent.lastMessage !== 'NO_REPLY' && agent.lastMessage.length >= 5;
-  const fallbacks = {BenMac:'Handling requests...',Director:'Reviewing content pipeline...',Writer:'Drafting content...',Designer:'Creating visuals...',Producer:'Rendering video...', Publisher:'Publishing drafts...','Coding Agent 1':'Writing code...','Coding Agent 2':'Improving dashboard...','Mail Manager':'Processing emails...','QA Agent':'Running QA checks...'};
+  const _roleFallbacks = {ceo:'Handling requests...',director:'Reviewing pipeline...',writer:'Drafting content...',designer:'Creating visuals...',producer:'Rendering video...',publisher:'Publishing drafts...',dev:'Writing code...',mail:'Processing emails...',qa:'Running QA checks...',default:'Working...'};
+  const _myRoleCat = _getRoleCategory(agent.role);
+  const fallbackMsg = _roleFallbacks[_myRoleCat] || _roleFallbacks.default;
   const interactionLabels = {coffee:'☕ Getting coffee...',whiteboard:'📝 At the whiteboard','collab-whiteboard':null,stretch:'🚶 Stretching legs','server-check':'🖥️ Checking servers','read-bookshelf':'📚 Reading up...','water-plant':'🌱 Watering plants','phone-call':'📞 On a call',chat:null};
   // Show interaction label at POI, otherwise normal bubble
   let bubbleText;
@@ -2370,8 +2363,8 @@ function drawAgent(agent, gx, gy, time) {
     }
   } else if (!interactionInfo || !interactionInfo.walking) {
     bubbleText = hasRealMsg ? agent.lastMessage :
-      (agent.status === 'working' ? (fallbacks[agent.name]||'Working...') :
-       agent.status === 'idle' ? (fallbacks[agent.name]||'Standing by...').replace('...','') + ' (idle)' : '');
+      (agent.status === 'working' ? fallbackMsg :
+       agent.status === 'idle' ? fallbackMsg.replace('...','') + ' (idle)' : '');
   } else {
     bubbleText = '';
   }
@@ -2456,19 +2449,35 @@ function drawParticles(time){
 
 // Floating emote bubbles for working agents
 const agentEmotes = {}; // {agentName: [{emoji, x, y, startTime, duration}]}
-const emotePool = {
-  BenMac: ['⚡','🎯','📋','🚀'],
-  Director: ['👁️','🎬','✅','🔄'],
-  Writer: ['✍️','📝','💡','🔍'],
-  Designer: ['🎨','✨','🖌️','💜'],
-  Producer: ['🎬','🎥','🔥','📹'],
-  Publisher: ['📤','📱','🌐','📊'],
-  'Coding Agent 1': ['💻','🐛','⚙️','🧪'],
-  'Coding Agent 2': ['💻','🔧','🚀','📈'],
-  'Mail Manager': ['📧','💌','📬','✉️'],
-  'QA Agent': ['🔍','✅','🧪','🎯'],
-  _default: ['💡','🔥','✨','⚡']
+const _roleEmotes = {
+  ceo: ['⚡','🎯','📋','🚀'], director: ['👁️','🎬','✅','🔄'],
+  writer: ['✍️','📝','💡','🔍'], designer: ['🎨','✨','🖌️','💜'],
+  producer: ['🎬','🎥','🔥','📹'], publisher: ['📤','📱','🌐','📊'],
+  dev: ['💻','🐛','⚙️','🧪'], mail: ['📧','💌','📬','✉️'],
+  qa: ['🔍','✅','🧪','🎯'], default: ['💡','🔥','✨','⚡']
 };
+function _emoteRoleCat(role) {
+  const r = (role || '').toLowerCase();
+  if (r.includes('ceo') || r.includes('mc') || r.includes('owner')) return 'ceo';
+  if (r.includes('director') || r.includes('lead')) return 'director';
+  if (r.includes('write') || r.includes('content') || r.includes('research')) return 'writer';
+  if (r.includes('design') || r.includes('art')) return 'designer';
+  if (r.includes('produce') || r.includes('video') || r.includes('media')) return 'producer';
+  if (r.includes('publish') || r.includes('deploy') || r.includes('social')) return 'publisher';
+  if (r.includes('code') || r.includes('dev') || r.includes('engineer')) return 'dev';
+  if (r.includes('mail') || r.includes('email')) return 'mail';
+  if (r.includes('qa') || r.includes('test') || r.includes('quality')) return 'qa';
+  return 'default';
+}
+// Legacy compat: emotePool lookups by name fall through to role-based
+const emotePool = new Proxy({_default:['💡','🔥','✨','⚡']}, {
+  get(target, prop) {
+    if (prop === '_default') return target._default;
+    // Find agent by name in agentData and resolve role
+    const a = agentData.find(ag => ag.name === prop);
+    return _roleEmotes[_emoteRoleCat(a?.role)] || target._default;
+  }
+});
 
 function tickEmotes(agents, time) {
   agents.forEach(a => {
@@ -2674,15 +2683,15 @@ function drawOffice(rafNow) {
 
   // Agents — separate desk agents from visitors (discovered/sub-agents)
   const allAgents = agentData.length ? agentData : [
-    {name:'BenMac',role:'MC',color:'#FFD700',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Director',role:'Director',color:'#FF6B6B',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Writer',role:'Writer',color:'#4ECDC4',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Designer',role:'Designer',color:'#A78BFA',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Producer',role:'Producer',color:'#F97316',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Publisher',role:'Publisher',color:'#34D399',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Coding Agent',role:'Dev',color:'#00D4FF',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'Mail Manager',role:'Email',color:'#FF69B4',status:'sleeping',lastMessage:'',ageMin:0},
-    {name:'QA Agent',role:'QA',color:'#EF4444',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 1',role:'MC',color:'#FFD700',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 2',role:'Director',color:'#FF6B6B',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 3',role:'Writer',color:'#4ECDC4',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 4',role:'Designer',color:'#A78BFA',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 5',role:'Producer',color:'#F97316',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 6',role:'Publisher',color:'#34D399',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 7',role:'Dev',color:'#00D4FF',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 8',role:'Email',color:'#FF69B4',status:'sleeping',lastMessage:'',ageMin:0},
+    {name:'Agent 9',role:'QA',color:'#EF4444',status:'sleeping',lastMessage:'',ageMin:0},
   ];
 
   // Desk agents = have a desk position (static or auto-assigned) AND are not "discovered" without a desk
@@ -3058,10 +3067,10 @@ function buildStaticLayer() {
   oCtx.save();
   oCtx.globalAlpha = 0.45;
   oCtx.font = 'bold 11px system-ui'; oCtx.textAlign = 'center';
-  const ctP = isoToScreen(3, 5); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('CONTENT TEAM', ctP.x, ctP.y + ISO.tileH + 6);
-  const enP = isoToScreen(13, 4); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('ENGINEERING', enP.x, enP.y + ISO.tileH + 6);
-  const ceoP = isoToScreen(8, 2); oCtx.fillStyle = '#FFD700'; oCtx.fillText('CEO', ceoP.x, ceoP.y + ISO.tileH + 42);
-  const supP = isoToScreen(10, 7); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('SUPPORT', supP.x, supP.y + ISO.tileH + 6);
+  const ctP = isoToScreen(5, 8); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('CONTENT TEAM', ctP.x, ctP.y + ISO.tileH + 6);
+  const enP = isoToScreen(18, 7); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('ENGINEERING', enP.x, enP.y + ISO.tileH + 6);
+  const ceoP = isoToScreen(12, 8); oCtx.fillStyle = '#FFD700'; oCtx.fillText('CEO', ceoP.x, ceoP.y + ISO.tileH + 42);
+  const supP = isoToScreen(12, 13); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('SUPPORT', supP.x, supP.y + ISO.tileH + 6);
   oCtx.restore();
 
   // Static furniture
@@ -3101,12 +3110,33 @@ function officeLoop(now) {
 }
 // officeLoop kicked off after resizeCanvas at end of file
 
-const TEAM_GROUPS = {
-  '🏢 Leadership': ['BenMac'],
-  '🎨 Content Team': ['Director','Writer','Designer','Producer','Publisher'],
-  '💻 Engineering': ['Coding Agent 1','Coding Agent 2'],
-  '📬 Support': ['Mail Manager','QA Agent'],
-};
+// Dynamic team grouping based on agent role — no hardcoded names
+function getTeamGroups() {
+  const groups = {};
+  const teamMap = {
+    ceo: '🏢 Leadership', director: '🏢 Leadership',
+    writer: '🎨 Content Team', designer: '🎨 Content Team', producer: '🎨 Content Team', publisher: '🎨 Content Team',
+    dev: '💻 Engineering',
+    mail: '📬 Support', qa: '📬 Support',
+  };
+  for (const a of agentData) {
+    const r = (a.role || '').toLowerCase();
+    let cat = 'default';
+    if (r.includes('ceo') || r.includes('mc') || r.includes('owner')) cat = 'ceo';
+    else if (r.includes('director') || r.includes('lead')) cat = 'director';
+    else if (r.includes('write') || r.includes('content') || r.includes('research')) cat = 'writer';
+    else if (r.includes('design') || r.includes('art')) cat = 'designer';
+    else if (r.includes('produce') || r.includes('video') || r.includes('media')) cat = 'producer';
+    else if (r.includes('publish') || r.includes('deploy') || r.includes('social')) cat = 'publisher';
+    else if (r.includes('code') || r.includes('dev') || r.includes('engineer')) cat = 'dev';
+    else if (r.includes('mail') || r.includes('email')) cat = 'mail';
+    else if (r.includes('qa') || r.includes('test') || r.includes('quality')) cat = 'qa';
+    const team = teamMap[cat] || '🔮 Other Agents';
+    if (!groups[team]) groups[team] = [];
+    groups[team].push(a);
+  }
+  return groups;
+}
 
 let _renderCardsTimer = null;
 function scheduleRenderAgentCards() { if (_renderCardsTimer) return; _renderCardsTimer = setTimeout(() => { _renderCardsTimer = null; renderAgentCards(); }, 200); }
@@ -3114,16 +3144,8 @@ function renderAgentCards() {
   const container = document.getElementById('agent-status-cards');
   if (!container || !agentData.length) return;
 
-  // Group agents by team
-  const grouped = {};
-  const assigned = new Set();
-  for (const [team, members] of Object.entries(TEAM_GROUPS)) {
-    const teamAgents = agentData.filter(a => members.includes(a.name));
-    if (teamAgents.length) { grouped[team] = teamAgents; teamAgents.forEach(a => assigned.add(a.name)); }
-  }
-  // Any unassigned agents go to "Other"
-  const other = agentData.filter(a => !assigned.has(a.name));
-  if (other.length) grouped['🔮 Other Agents'] = other;
+  // Group agents by team — fully dynamic from role, no hardcoded names
+  const grouped = getTeamGroups();
 
   // Collapsed state persisted in localStorage
   const collapsed = JSON.parse(localStorage.getItem('hq-collapsed-teams') || '{}');
@@ -4985,7 +5007,7 @@ function resizeCanvas() {
   const availH = Math.max(300, window.innerHeight - usedH);
   // Fill available viewport — no artificial cap, let it breathe
   const canvasW = w;
-  const canvasH = Math.max(320, availH);
+  const canvasH = availH;
   const dpr = window.devicePixelRatio || 1;
   // Internal resolution scaled to width
   const internalW = Math.max(canvasW, 1000);
@@ -5005,7 +5027,7 @@ function resizeCanvas() {
   // Auto-fit zoom: scale iso grid to fill canvas
   const gridPixelW = (GRID.cols + GRID.rows) * ISO.tileW / 2;
   const gridPixelH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 80; // 80 for agent sprites
-  const fitZoom = Math.min(internalW / gridPixelW, internalH / gridPixelH) * 1.05;
+  const fitZoom = Math.min(internalW / gridPixelW, internalH / gridPixelH) * 0.95;
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
