@@ -6,6 +6,8 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ![Agent Space Dashboard](screenshot.jpg)
 
+![Agent Space Dashboard](screenshot.jpg)
+
 ## Features
 
 - **Live agent status** — see which agents are working, idle, or sleeping

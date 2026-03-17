@@ -4512,7 +4512,16 @@ async function refreshHeatmapCalendar() {
     const r = await fetchWithTimeout(API+'/heatmap-calendar', {}, 10000);
     _heatmapData = await r.json();
     renderHeatmapCalendar();
-  } catch {}
+  } catch {
+    // Retry once after 5s on failure (cold-start resilience)
+    setTimeout(async () => {
+      try {
+        const r = await fetchWithTimeout(API+'/heatmap-calendar', {}, 10000);
+        _heatmapData = await r.json();
+        renderHeatmapCalendar();
+      } catch {}
+    }, 5000);
+  }
 }
 
 function setHeatmapAgent(name) {

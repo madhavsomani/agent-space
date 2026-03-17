@@ -2581,6 +2581,7 @@ function warmLightCaches() {
   setTimeout(() => { setImmediate(() => { try { getActivity(); } catch {} }); }, 500);
   setTimeout(() => { setImmediate(() => { try { getTokens(); } catch {} }); }, 1000);
   setTimeout(() => { setImmediate(() => { try { getLiveLogs(); } catch {} }); }, 1500);
+  setTimeout(() => { setImmediate(() => { try { getHeatmapCalendar(); } catch {} }); }, 2000);
 }
 function warmHeavyCaches() {
   setImmediate(() => { try { getUptime(); } catch {} });
