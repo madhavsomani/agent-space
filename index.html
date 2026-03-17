@@ -717,6 +717,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 <script>
 // Theme
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function getTheme() { return localStorage.getItem('hq-theme') || 'dark'; }
 function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️'; invalidateStaticCache(); }
 function toggleTheme() { const t = getTheme() === 'dark' ? 'light' : 'dark'; localStorage.setItem('hq-theme', t); applyTheme(t); }
@@ -4868,13 +4869,13 @@ async function refreshSystem() {
       <div class="card"><h3>Memory ${sparklineSVG(memHistory,60,20,memPct>80?'#ef4444':'#3b82f6')}</h3><div class="metric ${barColor(memPct)}">${d.memory.usedGB} GB</div><div class="sub">${memPct}% of ${d.memory.totalGB} GB</div><div class="bar-bg"><div class="bar-fill ${barColor(memPct)}" style="width:${memPct}%"></div></div></div>
       <div class="card"><h3>Disk</h3><div class="metric ${barColor(diskPct)}">${d.disk.used}</div><div class="sub">${diskPct}% of ${d.disk.total}</div><div class="bar-bg"><div class="bar-fill ${barColor(diskPct)}" style="width:${diskPct}%"></div></div></div>`;
     _cachedSystem = d;
-    document.getElementById('sys-services').innerHTML=`<h3>🔌 Services</h3><ul class="service-list">${d.services.map(s=>`<li><span class="dot ${s.status}"></span>${s.name}<span style="margin-left:auto;color:${s.status==='running'?'var(--green)':'var(--red)'}">:${s.port} ${s.status}</span></li>`).join('')}</ul>`;
+    document.getElementById('sys-services').innerHTML=`<h3>🔌 Services</h3><ul class="service-list">${d.services.map(s=>`<li><span class="dot ${s.status}"></span>${esc(s.name)}<span style="margin-left:auto;color:${s.status==='running'?'var(--green)':'var(--red)'}">:${esc(String(s.port))} ${esc(s.status)}</span></li>`).join('')}</ul>`;
 
     // Processes
     try {
       const pr = await fetchWithTimeout(API+'/processes', {}, 10000); const pd = await pr.json();
       if (pd.processes?.length) {
-        document.getElementById('sys-processes').innerHTML = '<h3>⚙️ Top Processes</h3>' + pd.processes.map(p=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${(p.command||p.pid).slice(0,40)}</span><span style="white-space:nowrap;font-variant-numeric:tabular-nums">${p.cpu}% CPU · ${p.mem}% MEM</span></div>`).join('');
+        document.getElementById('sys-processes').innerHTML = '<h3>⚙️ Top Processes</h3>' + pd.processes.map(p=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${esc((p.command||String(p.pid)).slice(0,40))}</span><span style="white-space:nowrap;font-variant-numeric:tabular-nums">${esc(p.cpu)}% CPU · ${esc(p.mem)}% MEM</span></div>`).join('');
       }
     } catch{}
 
@@ -4997,7 +4998,7 @@ oCanvas.addEventListener('mousemove', e => {
   if (agent) {
     const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
     const age = agent.ageMin !== undefined ? (!agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
-    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${agent.name}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${agent.role}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${agent.lastMessage.slice(0, 80)}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px;opacity:0.7">Click to view details →</div>`;
+    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${esc(agent.name)}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${esc(agent.role)}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${esc(agent.lastMessage.slice(0, 80))}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px;opacity:0.7">Click to view details →</div>`;
     canvasTooltip.style.display = 'block';
     canvasTooltip.style.left = Math.min(e.clientX + 12, window.innerWidth - 240) + 'px';
     canvasTooltip.style.top = (e.clientY - 10) + 'px';
@@ -5026,7 +5027,7 @@ oCanvas.addEventListener('touchstart', e => {
     e.preventDefault();
     const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
     const age = agent.ageMin !== undefined ? (!agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
-    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${agent.name}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${agent.role}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${agent.lastMessage.slice(0, 80)}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px">Tap again to view activity →</div>`;
+    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${esc(agent.name)}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${esc(agent.role)}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${esc(agent.lastMessage.slice(0, 80))}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px">Tap again to view activity →</div>`;
     canvasTooltip.style.display = 'block';
     canvasTooltip.style.left = Math.min(touch.clientX + 12, window.innerWidth - 240) + 'px';
     canvasTooltip.style.top = (touch.clientY - 10) + 'px';
@@ -5127,7 +5128,6 @@ function resizeCanvas() {
   }
 }
 window.addEventListener('resize', () => { invalidateStaticCache(); resizeCanvas(); });
-// Defer initial resize to ensure DOM is fully laid out (fixes blank canvas on first load)
 // Defer initial resize to ensure DOM is fully laid out (fixes blank canvas on first load)
 if (document.readyState === 'complete') { resizeCanvas(); } else { window.addEventListener('load', () => { invalidateStaticCache(); resizeCanvas(); }); }
 // Fallback: retry resize after a short delay in case DOM wasn't ready
