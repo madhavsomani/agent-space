@@ -762,6 +762,8 @@ setInterval(updateClock, 1000); updateClock();
 const _tabOrder = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system'];
 let _currentTab = 'office';
 function switchTab(tabName) {
+  // Always scroll to top — even when re-clicking the same tab (fixes canvas appearing off-screen)
+  window.scrollTo({ top: 0, behavior: 'instant' });
   if(tabName === _currentTab) return;
   const oldIdx = _tabOrder.indexOf(_currentTab);
   const newIdx = _tabOrder.indexOf(tabName);
