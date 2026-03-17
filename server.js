@@ -730,20 +730,30 @@ function getMemoryHistory() {
 }
 
 function getMemory() {
+  // Return cached memory data — background refresh keeps it fresh
+  return _memoryCache || { status: 'offline', totalPoints: 0, count: 0, collections: [], memFiles: [], timestamp: Date.now() };
+}
+
+let _memoryCache = null;
+async function _refreshMemoryCache() {
   try {
-    const resp = execSync("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", { encoding: 'utf8' });
-    const data = JSON.parse(resp);
+    const collectionsRaw = await _execBg("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", 2000);
+    if (!collectionsRaw.trim()) { _memoryCache = { status: 'offline', totalPoints: 0, count: 0, collections: [], memFiles: [], timestamp: Date.now() }; return; }
+    const data = JSON.parse(collectionsRaw);
     const collections = data.result?.collections || [];
     let totalPoints = 0;
     const details = [];
-    for (const c of collections) {
+    const detailResults = await Promise.all(collections.map(c =>
+      _execBg(`curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections/${c.name}`, 2000)
+    ));
+    collections.forEach((c, i) => {
       try {
-        const info = JSON.parse(execSync(`curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections/${c.name}`, { encoding: 'utf8' }));
+        const info = JSON.parse(detailResults[i]);
         const pts = info.result?.points_count || 0;
         totalPoints += pts;
         details.push({ name: c.name, points: pts, vectors: info.result?.vectors_count || 0, status: info.result?.status || 'unknown' });
       } catch { details.push({ name: c.name, points: 0 }); }
-    }
+    });
     // Scan agent memory files
     const memFiles = [];
     try {
@@ -762,11 +772,10 @@ function getMemory() {
       }
     } catch {}
     memFiles.sort((a, b) => b.mtime - a.mtime);
-    const result = { collections: details, count: collections.length, totalPoints, status: 'online', memFiles: memFiles.slice(0, 20), memFileCount: memFiles.length, timestamp: Date.now() };
+    _memoryCache = { collections: details, count: collections.length, totalPoints, status: 'online', memFiles: memFiles.slice(0, 20), memFileCount: memFiles.length, timestamp: Date.now() };
     appendMemorySnapshot(totalPoints, memFiles.length, details);
-    return result;
   } catch {
-    return { collections: [], count: 0, totalPoints: 0, status: 'offline', timestamp: Date.now() };
+    _memoryCache = _memoryCache || { collections: [], count: 0, totalPoints: 0, status: 'offline', timestamp: Date.now() };
   }
 }
 
@@ -818,105 +827,96 @@ function getHealthScore() {
 }
 
 let _systemCache = null, _systemCacheTime = 0;
-const SYSTEM_CACHE_TTL = 60000; // 60s — system metrics (top/vm_stat/df) use execSync, minimize calls
+const SYSTEM_CACHE_TTL = 15000; // 15s — background refresh, never blocks request handlers
 function getSystem() {
-  const now = Date.now();
-  if (_systemCache && (now - _systemCacheTime) < SYSTEM_CACHE_TTL) return _systemCache;
-  const result = _getSystemUncached();
-  _systemCache = result;
-  _systemCacheTime = now;
-  return result;
+  // Always return cache — never block. Background refresh keeps it fresh.
+  return _systemCache || { cpu: { user: 0, sys: 0, idle: 100 }, memory: { total: 0, used: 0, free: 0, pctUsed: 0, totalGB: '0', usedGB: '0' }, disk: { total: '–', used: '–', available: '–', percent: '–' }, services: [{ name: 'Agent Space', status: 'running', port: 18790 }], uptime: '', network: null, timestamp: Date.now() };
 }
-function _getSystemUncached() {
-  try {
-    const cpuRaw = execSync("top -l 1 -n 0 | grep 'CPU usage'", { encoding: 'utf8', timeout: 2000 }).trim();
-    const cpuMatch = cpuRaw.match(/([\d.]+)% user.*?([\d.]+)% sys.*?([\d.]+)% idle/);
-    const cpu = cpuMatch ? { user: +cpuMatch[1], sys: +cpuMatch[2], idle: +cpuMatch[3] } : { user: 0, sys: 0, idle: 100 };
+// === BACKGROUND SYSTEM CACHE — ZERO execSync in request path ===
+// All shell commands run on a timer via exec (async), never in request handlers.
+function _execBg(cmd, timeout = 3000) {
+  return new Promise(resolve => {
+    execAsync(cmd, { timeout, encoding: 'utf8' }, (err, stdout) => resolve(err ? '' : (stdout || '')));
+  });
+}
+const _fmtBytes = b => b >= 1e9 ? (b/1e9).toFixed(1)+'GB' : b >= 1e6 ? (b/1e6).toFixed(1)+'MB' : b >= 1e3 ? (b/1e3).toFixed(0)+'KB' : b+'B';
 
-    const memRaw = execSync("vm_stat", { encoding: 'utf8', timeout: 3000 });
+async function _refreshSystemCache() {
+  try {
+    const [cpuRaw, memRaw, hwMem, diskRaw, qdrantCheck, gwCheck, uptimeRaw, netRaw] = await Promise.all([
+      _execBg("top -l 1 -n 0 2>/dev/null | grep 'CPU usage'", 4000),
+      _execBg("vm_stat", 3000),
+      _execBg("/usr/sbin/sysctl -n hw.memsize", 2000),
+      _execBg("df -h / | tail -1", 3000),
+      _execBg("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", 2000),
+      _execBg("/usr/bin/pgrep -f 'openclaw-gateway' 2>/dev/null", 2000),
+      _execBg("uptime", 2000),
+      _execBg("/usr/sbin/netstat -ib 2>/dev/null | grep '^en0' | head -1", 3000),
+    ]);
+
+    // CPU
+    const cpuMatch = cpuRaw.match(/([\d.]+)% user.*?([\d.]+)% sys.*?([\d.]+)% idle/);
+    const cpu = cpuMatch ? { user: +cpuMatch[1], sys: +cpuMatch[2], idle: +cpuMatch[3] } : (_systemCache?.cpu || { user: 0, sys: 0, idle: 100 });
+
+    // Memory
     const pageSize = 16384;
     const active = +(memRaw.match(/Pages active:\s+(\d+)/)?.[1] || 0) * pageSize;
     const wired = +(memRaw.match(/Pages wired down:\s+(\d+)/)?.[1] || 0) * pageSize;
     const compressed = +(memRaw.match(/Pages occupied by compressor:\s+(\d+)/)?.[1] || 0) * pageSize;
     const speculative = +(memRaw.match(/Pages speculative:\s+(\d+)/)?.[1] || 0) * pageSize;
     const free = +(memRaw.match(/Pages free:\s+(\d+)/)?.[1] || 0) * pageSize;
-    const totalMem = +(execSync("/usr/sbin/sysctl -n hw.memsize", { encoding: 'utf8' }).trim());
+    const totalMem = +(hwMem.trim()) || (_systemCache?.memory?.total || 0);
     const usedMem = active + wired + compressed + speculative;
 
-    const diskRaw = execSync("df -h / | tail -1", { encoding: 'utf8' }).trim().split(/\s+/);
-    const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
+    // Disk
+    const dParts = diskRaw.trim().split(/\s+/);
+    const disk = dParts.length >= 5 ? { total: dParts[1], used: dParts[2], available: dParts[3], percent: dParts[4] } : (_systemCache?.disk || { total: '\u2013', used: '\u2013', available: '\u2013', percent: '\u2013' });
 
+    // Services
     const services = [];
-    try { execSync("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* Qdrant not running — omit from list */ }
-    try { execSync("/usr/bin/pgrep -f 'openclaw-gateway' > /dev/null 2>&1"); services.push({ name: 'Gateway', status: 'running', port: 18789 }); } catch { services.push({ name: 'Gateway', status: 'stopped', port: 18789 }); }
+    if (qdrantCheck.trim()) services.push({ name: 'Qdrant', status: 'running', port: 6333 });
+    if (gwCheck.trim()) services.push({ name: 'Gateway', status: 'running', port: 18789 });
+    else services.push({ name: 'Gateway', status: 'stopped', port: 18789 });
     services.push({ name: 'Agent Space', status: 'running', port: 18790 });
 
-    // Uptime
-    let uptime = '';
-    try { uptime = execSync("uptime", { encoding: 'utf8', timeout: 2000 }).trim(); } catch {}
-
-    // Network I/O from netstat
+    // Network
     let network = null;
-    try {
-      const netRaw = execSync("/usr/sbin/netstat -ib 2>/dev/null | grep '^en0' | head -1", { encoding: 'utf8', timeout: 3000 }).trim();
-      const parts = netRaw.split(/\s+/);
-      if (parts.length >= 10) {
-        const ibytes = +parts[6] || 0;
-        const obytes = +parts[9] || 0;
-        const fmtBytes = b => b >= 1e9 ? (b/1e9).toFixed(1)+'GB' : b >= 1e6 ? (b/1e6).toFixed(1)+'MB' : b >= 1e3 ? (b/1e3).toFixed(0)+'KB' : b+'B';
-        network = { iface: 'en0', inBytes: ibytes, outBytes: obytes, inFmt: fmtBytes(ibytes), outFmt: fmtBytes(obytes), ipkts: +parts[4] || 0, opkts: +parts[7] || 0 };
-      }
-    } catch {}
+    const nParts = netRaw.trim().split(/\s+/);
+    if (nParts.length >= 10) {
+      const ibytes = +nParts[6] || 0, obytes = +nParts[9] || 0;
+      network = { iface: 'en0', inBytes: ibytes, outBytes: obytes, inFmt: _fmtBytes(ibytes), outFmt: _fmtBytes(obytes), ipkts: +nParts[4] || 0, opkts: +nParts[7] || 0 };
+    }
 
-    return { cpu, memory: { total: totalMem, used: usedMem, free, pctUsed: Math.round(usedMem / totalMem * 100), totalGB: (totalMem / 1e9).toFixed(1), usedGB: (usedMem / 1e9).toFixed(1) }, disk, network, services, uptime, timestamp: Date.now() };
-  } catch (e) { return { error: e.message }; }
+    _systemCache = { cpu, memory: { total: totalMem, used: usedMem, free, pctUsed: totalMem ? Math.round(usedMem / totalMem * 100) : 0, totalGB: (totalMem / 1e9).toFixed(1), usedGB: (usedMem / 1e9).toFixed(1) }, disk, network, services, uptime: uptimeRaw.trim(), timestamp: Date.now() };
+    _systemCacheTime = Date.now();
+  } catch (e) { /* keep stale cache on failure */ }
 }
 
-// Async version for SSE ticks (avoids blocking event loop with top/vm_stat)
-let _cachedSystem = null;
-function getSystemAsync() {
-  return new Promise((resolve) => {
-    execAsync("top -l 1 -n 0 2>/dev/null | grep 'CPU usage'", { timeout: 5000, encoding: 'utf8' }, (err, cpuRaw) => {
-      try {
-        const cpu = { user: 0, sys: 0, idle: 100 };
-        if (!err && cpuRaw) {
-          const m = cpuRaw.match(/([\d.]+)% user.*?([\d.]+)% sys.*?([\d.]+)% idle/);
-          if (m) { cpu.user = +m[1]; cpu.sys = +m[2]; cpu.idle = +m[3]; }
-        }
-        // These are fast enough to be sync
-        const memRaw = execSync("vm_stat", { encoding: 'utf8', timeout: 3000 });
-        const pageSize = 16384;
-        const active = +(memRaw.match(/Pages active:\s+(\d+)/)?.[1] || 0) * pageSize;
-        const wired = +(memRaw.match(/Pages wired down:\s+(\d+)/)?.[1] || 0) * pageSize;
-        const compressed = +(memRaw.match(/Pages occupied by compressor:\s+(\d+)/)?.[1] || 0) * pageSize;
-        const speculative = +(memRaw.match(/Pages speculative:\s+(\d+)/)?.[1] || 0) * pageSize;
-        const free = +(memRaw.match(/Pages free:\s+(\d+)/)?.[1] || 0) * pageSize;
-        const totalMem = +(execSync("/usr/sbin/sysctl -n hw.memsize", { encoding: 'utf8' }).trim());
-        const usedMem = active + wired + compressed + speculative;
-        const diskRaw = execSync("df -h / | tail -1", { encoding: 'utf8' }).trim().split(/\s+/);
-        const disk = { total: diskRaw[1], used: diskRaw[2], available: diskRaw[3], percent: diskRaw[4] };
-        const services = [];
-        try { execSync("curl -s --connect-timeout 0.3 --max-time 0.5 http://localhost:6333/collections", { encoding: 'utf8' }); services.push({ name: 'Qdrant', status: 'running', port: 6333 }); } catch { /* omit if not running */ }
-        try { execSync("/usr/bin/pgrep -f 'openclaw-gateway' > /dev/null 2>&1"); services.push({ name: 'Gateway', status: 'running', port: 18789 }); } catch { services.push({ name: 'Gateway', status: 'stopped', port: 18789 }); }
-        services.push({ name: 'Agent Space', status: 'running', port: 18790 });
-        let uptime = '';
-        try { uptime = execSync("uptime", { encoding: 'utf8', timeout: 2000 }).trim(); } catch {}
-        let network = null;
-        try {
-          const netRaw = execSync("/usr/sbin/netstat -ib 2>/dev/null | grep '^en0' | head -1", { encoding: 'utf8', timeout: 3000 }).trim();
-          const parts = netRaw.split(/\s+/);
-          if (parts.length >= 10) {
-            const ibytes = +parts[6] || 0;
-            const obytes = +parts[9] || 0;
-            const fmtBytes = b => b >= 1e9 ? (b/1e9).toFixed(1)+'GB' : b >= 1e6 ? (b/1e6).toFixed(1)+'MB' : b >= 1e3 ? (b/1e3).toFixed(0)+'KB' : b+'B';
-            network = { iface: 'en0', inBytes: ibytes, outBytes: obytes, inFmt: fmtBytes(ibytes), outFmt: fmtBytes(obytes), ipkts: +parts[4] || 0, opkts: +parts[7] || 0 };
-          }
-        } catch {}
-        _cachedSystem = { cpu, memory: { total: totalMem, used: usedMem, free, pctUsed: Math.round(usedMem / totalMem * 100), totalGB: (totalMem / 1e9).toFixed(1), usedGB: (usedMem / 1e9).toFixed(1) }, disk, network, services, uptime, timestamp: Date.now() };
-        resolve(_cachedSystem);
-      } catch (e) { resolve(_cachedSystem || { error: e.message }); }
+// getSystemAsync returns the cached result (for SSE compat)
+function getSystemAsync() { return Promise.resolve(_systemCache || getSystem()); }
+
+// Background git log cache
+let _gitLogCache = [];
+async function _refreshGitLog() {
+  try {
+    const raw = await _execBg('git -C "' + path.join(__dirname, '..') + '" log --oneline --since="6 hours ago" --format="%aI|||%an|||%s" -20 2>/dev/null', 3000);
+    const entries = [];
+    raw.trim().split('\n').filter(l => l.includes('|||')).forEach(l => {
+      const [ts, author, msg] = l.split('|||');
+      if (ts && msg) entries.push({ ts, agent: author || 'git', text: msg, type: 'commit' });
     });
-  });
+    _gitLogCache = entries;
+  } catch {}
+}
+
+// Background processes cache
+let _processesCache = { processes: [] };
+async function _refreshProcesses() {
+  try {
+    const raw = await _execBg("ps aux -r | head -8", 3000);
+    const lines = raw.trim().split("\n").slice(1, 8);
+    _processesCache = { processes: lines.map(l => { const p = l.trim().split(/\s+/); return { user: p[0], pid: p[1], cpu: p[2], mem: p[3], command: p.slice(10).join(" ").slice(0, 60) }; }) };
+  } catch {}
 }
 
 // Network throughput rate tracking (delta between polls)
@@ -953,16 +953,18 @@ let _diskBreakdownTime = 0;
 const DISK_BREAKDOWN_TTL = 120000; // 2 min cache
 
 function getDiskBreakdown() {
-  const now = Date.now();
-  if (_diskBreakdownCache && (now - _diskBreakdownTime) < DISK_BREAKDOWN_TTL) return _diskBreakdownCache;
-  try {
-    // Get total disk info
-    const dfRaw = execSync("df -k / | tail -1", { encoding: 'utf8', timeout: 5000 }).trim().split(/\s+/);
-    const totalKB = parseInt(dfRaw[1]) || 0;
-    const usedKB = parseInt(dfRaw[2]) || 0;
-    const availKB = parseInt(dfRaw[3]) || 0;
+  // Always return cache — background refresh keeps it fresh
+  return _diskBreakdownCache || { breakdown: [], total: {}, timestamp: Date.now() };
+}
 
-    // Get sizes of key directories (in KB, fast du with depth 0)
+async function _refreshDiskBreakdown() {
+  try {
+    const dfOut = await _execBg("df -k / | tail -1", 3000);
+    const dfParts = dfOut.trim().split(/\s+/);
+    const totalKB = parseInt(dfParts[1]) || 0;
+    const usedKB = parseInt(dfParts[2]) || 0;
+    const availKB = parseInt(dfParts[3]) || 0;
+
     const dirs = [
       { path: path.join(HOME, '.openclaw'), label: 'OpenClaw' },
       { path: path.join(HOME, '.openclaw', 'workspace'), label: 'Workspace' },
@@ -974,23 +976,20 @@ function getDiskBreakdown() {
       { path: path.join(HOME, 'Documents'), label: 'Documents' },
     ];
     const breakdown = [];
-    for (const d of dirs) {
-      try {
-        const raw = execSync(`du -sk "${d.path}" 2>/dev/null | cut -f1`, { encoding: 'utf8', timeout: 3000 }).trim();
-        const sizeKB = parseInt(raw) || 0;
-        if (sizeKB > 0) breakdown.push({ label: d.label, path: d.path, sizeKB, sizeGB: (sizeKB / 1048576).toFixed(2) });
-      } catch {}
-    }
+    const duResults = await Promise.all(dirs.map(d => _execBg(`du -sk "${d.path}" 2>/dev/null | cut -f1`, 5000)));
+    dirs.forEach((d, i) => {
+      const sizeKB = parseInt(duResults[i].trim()) || 0;
+      if (sizeKB > 0) breakdown.push({ label: d.label, path: d.path, sizeKB, sizeGB: (sizeKB / 1048576).toFixed(2) });
+    });
     breakdown.sort((a, b) => b.sizeKB - a.sizeKB);
 
     _diskBreakdownCache = {
       total: { totalKB, usedKB, availKB, totalGB: (totalKB / 1048576).toFixed(1), usedGB: (usedKB / 1048576).toFixed(1), availGB: (availKB / 1048576).toFixed(1) },
       breakdown,
-      timestamp: now
+      timestamp: Date.now()
     };
-    _diskBreakdownTime = now;
-    return _diskBreakdownCache;
-  } catch (e) { return { error: e.message, breakdown: [] }; }
+    _diskBreakdownTime = Date.now();
+  } catch { /* keep stale cache */ }
 }
 
 function getCron() {
@@ -1234,13 +1233,10 @@ function getActivity() {
     }
 
     // 3. Git commits from workspace
-    try {
-      const gitLog = execSync('git -C "' + path.join(__dirname, '..') + '" log --oneline --since="6 hours ago" --format="%aI|||%an|||%s" -20 2>/dev/null', { encoding: 'utf8', timeout: 3000 });
-      gitLog.trim().split('\n').filter(l => l.includes('|||')).forEach(l => {
-        const [ts, author, msg] = l.split('|||');
-        if (ts && msg) lines.push({ ts, agent: author || 'git', text: msg, type: 'commit' });
-      });
-    } catch {}
+    // 3. Git commits — use background cache
+    if (_gitLogCache) {
+      _gitLogCache.forEach(l => lines.push(l));
+    }
 
     // 4. Check agent-status.json for recent activity (legacy)
     const statusFile = path.join(__dirname, 'agent-status.json');
@@ -1636,101 +1632,34 @@ function getPerformance() {
   const now = Date.now();
   if (_perfCache && (now - _perfCacheTime) < PERF_CACHE_TTL) return { ..._perfCache, timestamp: now };
 
+  // Use cron cache data (non-blocking) — limited to last run info but never hangs
   const agents = discoverAgents().filter(a => a.cronJobId);
   const results = [];
 
   for (const agent of agents) {
-    try {
-      const raw = execSync(
-        `openclaw cron runs --id ${agent.cronJobId} --limit 50 --timeout 5000 2>/dev/null`,
-        { timeout: 8000, encoding: 'utf8' }
-      );
-      const lines = raw.split('\n');
-      let jsonStr = '', braceDepth = 0, collecting = false;
-      for (const line of lines) {
-        if (!collecting && line.trim().startsWith('{')) collecting = true;
-        if (collecting) {
-          jsonStr += line + '\n';
-          for (const ch of line) { if (ch === '{') braceDepth++; if (ch === '}') braceDepth--; }
-          if (braceDepth === 0 && jsonStr.trim()) break;
-        }
-      }
-      if (!jsonStr.trim()) continue;
-      const parsed = JSON.parse(jsonStr);
-      const entries = parsed.entries || [];
-      if (!entries.length) continue;
+    const cronData = _cronCache[agent.cronJobId]?.data;
+    if (!cronData) continue;
 
-      let total = 0, succeeded = 0, failed = 0, totalDuration = 0, durCount = 0;
-      let last24h = 0, last1h = 0;
-      const durations = [];
-      const hourBuckets = new Array(24).fill(0); // last 24h, 1h buckets
-
-      for (const e of entries) {
-        if (e.action === 'started') continue; // skip partial
-        total++;
-        const ts = e.ts || e.runAtMs || 0;
-        if (ts && (now - ts) < 86400000) { last24h++; const bucket = Math.floor((now - ts) / 3600000); if (bucket < 24) hourBuckets[23 - bucket]++; }
-        if (ts && (now - ts) < 3600000) last1h++;
-        if (e.status === 'ok' || e.status === 'success') succeeded++;
-        else if (e.status === 'error' || e.status === 'fail') failed++;
-        else succeeded++; // assume ok if no explicit error
-        if (e.durationMs && e.durationMs > 0) { totalDuration += e.durationMs; durCount++; durations.push(e.durationMs); }
-      }
-
-      const avgDuration = durCount > 0 ? Math.round(totalDuration / durCount) : 0;
-      const maxDuration = durations.length ? Math.max(...durations) : 0;
-      const minDuration = durations.length ? Math.min(...durations) : 0;
-      const successRate = total > 0 ? Math.round((succeeded / total) * 100) : 0;
-
-      // Duration trend: recent runs with timestamps (newest first → reverse for chart)
-      const durationTrend = [];
-      const errorLog = [];
-      for (const e of entries) {
-        if (e.action === 'started') continue;
-        const ts = e.ts || e.runAtMs || 0;
-        if (e.durationMs && e.durationMs > 0 && ts) {
-          durationTrend.push({ ts, ms: e.durationMs });
-        }
-        if (e.status === 'error' || e.status === 'fail') {
-          errorLog.push({ ts, summary: (e.summary || '').slice(0, 300), durationMs: e.durationMs || 0 });
-        }
-      }
-      durationTrend.reverse(); // oldest first for charting
-
-      // Success rate trend: rolling window over runs (oldest first)
-      // Each point = success rate of last N runs at that point
-      const successRateTrend = [];
-      const runTimeline = []; // {ts, ok}
-      for (const e of [...entries].reverse()) { // oldest first
-        if (e.action === 'started') continue;
-        const ts = e.ts || e.runAtMs || 0;
-        const ok = !(e.status === 'error' || e.status === 'fail');
-        if (ts) runTimeline.push({ ts, ok });
-      }
-      // Compute rolling success rate (window of 5 runs)
-      const winSize = Math.min(5, Math.max(2, Math.floor(runTimeline.length / 3)));
-      for (let i = winSize - 1; i < runTimeline.length; i++) {
-        const slice = runTimeline.slice(i - winSize + 1, i + 1);
-        const rate = Math.round((slice.filter(r => r.ok).length / slice.length) * 100);
-        successRateTrend.push({ ts: runTimeline[i].ts, rate });
-      }
-
-      results.push({
-        name: agent.name || agent.sessionDir,
-        color: agent.color || '#64748b',
-        cronJobId: agent.cronJobId,
-        total, succeeded, failed, successRate,
-        avgDurationMs: avgDuration, maxDurationMs: maxDuration, minDurationMs: minDuration,
-        last24h, last1h,
-        hourBuckets,
-        durationTrend: durationTrend.slice(-30), // last 30 data points
-        successRateTrend: successRateTrend.slice(-30),
-        errorLog: errorLog.slice(0, 10),
-      });
-    } catch {}
+    // With only cached last-run data, we can show basic status
+    const isOk = cronData.status !== 'error' && cronData.status !== 'fail';
+    results.push({
+      name: agent.name || agent.sessionDir,
+      color: agent.color || '#64748b',
+      cronJobId: agent.cronJobId,
+      total: 1, succeeded: isOk ? 1 : 0, failed: isOk ? 0 : 1,
+      successRate: isOk ? 100 : 0,
+      avgDurationMs: cronData.durationMs || 0,
+      maxDurationMs: cronData.durationMs || 0,
+      minDurationMs: cronData.durationMs || 0,
+      last24h: (cronData.lastActivity && (now - cronData.lastActivity) < 86400000) ? 1 : 0,
+      last1h: (cronData.lastActivity && (now - cronData.lastActivity) < 3600000) ? 1 : 0,
+      hourBuckets: new Array(24).fill(0),
+      durationTrend: cronData.durationMs ? [{ ts: cronData.lastActivity || now, ms: cronData.durationMs }] : [],
+      successRateTrend: [{ ts: cronData.lastActivity || now, rate: isOk ? 100 : 0 }],
+      errorLog: [],
+    });
   }
 
-  // Summary
   const totalRuns = results.reduce((s, r) => s + r.total, 0);
   const totalSucceeded = results.reduce((s, r) => s + r.succeeded, 0);
   const totalFailed = results.reduce((s, r) => s + r.failed, 0);
@@ -2498,7 +2427,7 @@ const server = http.createServer((req, res) => {
   if (url === '/api/health') return json(res, { ok: true });
   if (url === '/api/health-score') return json(res, getHealthScore());
   if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
-  if (url === '/api/processes') { try { const raw = execSync("ps aux -r | head -8", { encoding: 'utf8', timeout: 3000 }); const lines = raw.trim().split("\n").slice(1, 8); const procs = lines.map(l => { const p = l.trim().split(/\s+/); return { user: p[0], pid: p[1], cpu: p[2], mem: p[3], command: p.slice(10).join(" ").slice(0, 60) }; }); return json(res, { processes: procs }); } catch (e) { return json(res, { processes: [], error: e.message }); } }
+  if (url === '/api/processes') { return json(res, _processesCache); }
   if (url === '/api/agents') { setImmediate(() => { try { json(res, getAgents()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }
   if (url === '/api/memory') return json(res, getMemory());
   if (url === '/api/memory/history') return json(res, getMemoryHistory());
@@ -2593,6 +2522,17 @@ server.listen(18790, '0.0.0.0', () => {
   console.log(`Agent Space running on :18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
   // Warm agents cache IMMEDIATELY (synchronous) so first request is fast
   try { getAgents(); } catch {}
+  // Background system stats refresh (ZERO execSync in request path)
+  _refreshSystemCache(); // immediate first fill
+  setInterval(_refreshSystemCache, 15000); // every 15s
+  _refreshDiskBreakdown(); // immediate
+  setInterval(_refreshDiskBreakdown, 120000); // every 2 min
+  _refreshMemoryCache(); // immediate
+  setInterval(_refreshMemoryCache, 60000); // every 1 min
+  _refreshGitLog(); // immediate
+  _refreshProcesses(); // immediate
+  setInterval(_refreshGitLog, 60000); // every 1 min
+  setInterval(_refreshProcesses, 10000); // every 10s
   setTimeout(() => { warmLightCaches(); }, 2500);
   setTimeout(() => { warmHeavyCaches(); }, 12000);
   // Background cron cache: first run at 5s, then every 10 min
