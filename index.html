@@ -1826,9 +1826,17 @@ function drawAgent(agent, gx, gy, time) {
   // save/restore stack imbalances inside _drawAgentInner.
   const _savedTransform = oCtx.getTransform();
   const _savedAlpha = oCtx.globalAlpha;
+  // Intercept save/restore to track stack depth — prevents inner imbalances from
+  // corrupting the parent transform (the root cause of the "dark void" canvas bug).
+  const _origSave = oCtx.save.bind(oCtx), _origRestore = oCtx.restore.bind(oCtx);
+  let _innerDepth = 0;
+  oCtx.save = function() { _innerDepth++; _origSave(); };
+  oCtx.restore = function() { if (_innerDepth > 0) { _innerDepth--; _origRestore(); } };
   try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
-  // Hard-reset to the exact state before this agent was drawn.
-  // This is immune to save/restore stack mismatches.
+  // Unwind any remaining unmatched saves
+  while (_innerDepth > 0) { _innerDepth--; _origRestore(); }
+  oCtx.save = _origSave; oCtx.restore = _origRestore;
+  // Hard-reset transform + alpha (immune to any residual corruption)
   oCtx.setTransform(_savedTransform);
   oCtx.globalAlpha = _savedAlpha;
 }
@@ -2718,7 +2726,7 @@ function drawOffice(rafNow) {
 
   // Periodic hard reset: flush the canvas save/restore stack every ~30s.
   // The drawAgent wrapper now has save/restore guards, so this is just a safety net.
-  if (++_canvasHealthCounter >= 240) { // every ~30s at 8fps
+  if (++_canvasHealthCounter >= 64) { // every ~8s at 8fps
     _canvasHealthCounter = 0;
     const w = oCanvas.width, h = oCanvas.height;
     oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h; // hard reset clears state stack
