@@ -437,6 +437,32 @@ window.Office2D = (function() {
     const charY = dy + dh - 4;
     drawCharacter(charX, charY, agent.color || '#3b82f6', agent.status, idx, 'up');
 
+    // Speech bubble for working agents
+    if (agent.status === 'working' && agent.lastMessage) {
+      const bubbleX = charX + 14;
+      const bubbleY = charY - 6;
+      const msg = (agent.lastMessage || '').slice(0, 20);
+      ctx.font = '7px system-ui';
+      const tw = Math.min(ctx.measureText(msg).width + 6, rw - (bubbleX - rx) - 4);
+      ctx.fillStyle = '#ffffff';
+      roundRectFill(bubbleX, bubbleY, tw, 12, 3);
+      ctx.strokeStyle = '#c0c0c0';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      // Tail
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(bubbleX + 2, bubbleY + 12);
+      ctx.lineTo(bubbleX - 2, bubbleY + 15);
+      ctx.lineTo(bubbleX + 6, bubbleY + 12);
+      ctx.fill();
+      // Text
+      ctx.fillStyle = '#333333';
+      ctx.font = '7px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(msg, bubbleX + 3, bubbleY + 9);
+    }
+
     // Name tag at bottom of room
     drawNameTag(rx, ry + rh - 18, rw, agent.name);
   }
