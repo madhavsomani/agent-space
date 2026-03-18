@@ -779,8 +779,8 @@ window.Office3D = (function() {
     if (!active) return;
     animFrameId = requestAnimationFrame(animate);
 
-    const t = clock.getElapsedTime();
     const dt = clock.getDelta();
+    const t = clock.elapsedTime;
 
     // Agent animations
     Object.values(agentMeshes).forEach(am => {
