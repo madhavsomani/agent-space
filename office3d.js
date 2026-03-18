@@ -88,6 +88,15 @@ window.Office3D = (function() {
     leftWall.castShadow = true;
     scene.add(leftWall);
     wallMeshes.push(leftWall);
+
+    // Ceiling
+    const ceilGeo = new THREE.PlaneGeometry(GRID.cols * TILE_SIZE, GRID.rows * TILE_SIZE);
+    const ceilMat = new THREE.MeshStandardMaterial({ color: 0x8898a8, roughness: 0.9, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+    const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = wallHeight;
+    ceiling.receiveShadow = true;
+    scene.add(ceiling);
   }
 
   function createDesk(x, z, color) {
@@ -457,8 +466,8 @@ window.Office3D = (function() {
 
     // Camera
     camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(12, 14, 18);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(18, 10, 22);
+    camera.lookAt(0, 1, 0);
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
