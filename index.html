@@ -2729,9 +2729,26 @@ const _deskAgentsBuf = [], _visitorsBuf = [], _sortedBuf = [], _workingBuf = [];
 const _defaultDeskPos = {gx:7, gy:5};
 let _canvasHealthCounter = 0;
 let _frameCounter = 0;
+let _darkFrameCount = 0;
 function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return; // guard: canvas not initialized
   try { _drawOfficeInner(rafNow); } catch(e) { console.warn('drawOffice error:', e.message); }
+  // Dark-void self-heal: if canvas is all-black for 5+ frames, reset it
+  try {
+    const cx = oCanvas.width >> 1, cy = oCanvas.height >> 1;
+    const px = oCtx.getImageData(cx, cy, 1, 1).data;
+    if (px[0] === 0 && px[1] === 0 && px[2] === 0 && px[3] === 0) {
+      _darkFrameCount++;
+      if (_darkFrameCount >= 5) {
+        console.warn('[drawOffice] dark-void detected, resetting canvas');
+        oCanvas.width = oCanvas.width; // force context reset
+        _staticValid = false;
+        _darkFrameCount = 0;
+      }
+    } else {
+      _darkFrameCount = 0;
+    }
+  } catch(e) {}
 }
 function _drawOfficeInner(rafNow) {
   _ptIdx = 0; // reset point pool each frame
