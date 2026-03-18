@@ -474,11 +474,9 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
     <!-- Office view is now card-only (canvas removed per directive) -->
   </div>
-  <canvas id="office-canvas" style="display:none !important"></canvas>
-  <div id="office-2d-flat" style="display:none !important"></div>
-  <div id="office-3d-container" style="display:none !important">
-    <div id="activity-overlay" style="position:absolute;bottom:8px;left:8px;right:8px;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:10"></div>
-  </div>
+  <canvas id="office-canvas" style="display:none !important;width:0;height:0"></canvas>
+  <div id="office-2d-flat" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"></div>
+  <div id="office-3d-container" style="display:none !important;width:0;height:0"></div>
   <div class="office-legend" id="office-legend"></div>
   <div id="office-ticker" style="max-width:100%;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
     <span style="flex-shrink:0;font-size:13px">📡</span>
@@ -6310,6 +6308,30 @@ function updateTabTitle() {
 
 connectSSE();
 
+// Initial data fetch so quickstats show real values immediately (don't wait for SSE)
+(async function fetchInitialStats() {
+  try {
+    const [tokRes, memRes, agRes] = await Promise.all([
+      fetch('/api/tokens').then(r => r.json()).catch(() => null),
+      fetch('/api/memory').then(r => r.json()).catch(() => null),
+      fetch('/api/agents').then(r => r.json()).catch(() => null),
+    ]);
+    if (tokRes) {
+      const total = (tokRes.totals?.input||0) + (tokRes.totals?.output||0);
+      const tokLabel = total > 1e6 ? (total/1e6).toFixed(1)+'M' : total > 1e3 ? (total/1e3).toFixed(0)+'K' : String(total);
+      const qst = document.getElementById('qs-tokens'); if(qst) qst.textContent = tokLabel;
+      const qsc = document.getElementById('qs-cost'); if(qsc) qsc.textContent = '$' + (tokRes.estimatedCostUSD||0).toFixed(2);
+    }
+    if (memRes) {
+      const qsm = document.getElementById('qs-memories'); if(qsm) qsm.textContent = (memRes.totalPoints||memRes.count||0).toLocaleString();
+    }
+    if (agRes && Array.isArray(agRes)) {
+      const active = agRes.filter(a => a.status === 'working').length;
+      const qsw = document.getElementById('qs-wrs'); if(qsw) { qsw.textContent = String(active); qsw.style.color = active > 0 ? 'var(--green)' : 'var(--dim)'; }
+    }
+  } catch(e) { /* SSE will fill in later */ }
+})();
+
 // ===== CONSOLIDATED POLLING (single 5s tick, counters gate each task) =====
 let _pollTick = 0;
 setInterval(() => {
@@ -7235,7 +7257,7 @@ switchTab = function(t) { _origSwitchTab(t); syncMobileNav(t); };
 <!-- Three.js removed — using lightweight 2D canvas office instead -->
 <script src="sprites.js"></script>
 <script>
-let _officeView = 'grid'; // Card grid is the only view now (canvas removed per directive)
+let _officeView = 'grid'; // Professional card grid — canvas removed
 
 // ── Grid View Renderer ──
 function renderGridView() {
@@ -7243,21 +7265,64 @@ function renderGridView() {
   if (!el) return;
   const agents = typeof agentData !== 'undefined' ? agentData : [];
   if (!agents.length) { el.innerHTML = '<div style="text-align:center;color:var(--dim);padding:40px;grid-column:1/-1">No agents discovered</div>'; return; }
-  el.innerHTML = agents.map(a => {
-    const statusColor = a.status === 'working' ? '#22c55e' : a.status === 'idle' ? '#eab308' : '#6b7280';
-    const statusIcon = a.status === 'working' ? '💻' : a.status === 'idle' ? '☕' : '😴';
-    const ageText = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin/60) + 'h ago';
-    return '<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;border-left:3px solid ' + (a.color||'#475569') + ';cursor:pointer;transition:all .15s" onclick="openAgentDetail(\'' + a.name.replace(/'/g,"\\'") + '\')" onmouseenter="this.style.borderColor=\'' + (a.color||'#475569') + '\';this.style.transform=\'translateY(-1px)\'" onmouseleave="this.style.borderColor=\'var(--border)\';this.style.borderLeftColor=\'' + (a.color||'#475569') + '\';this.style.transform=\'\'">' +
-      '<div style="display:flex;align-items:center;gap:8px">' +
-        '<div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';flex-shrink:0"></div>' +
-        '<span style="font-weight:600;font-size:13px;color:var(--text)">' + esc(a.name) + '</span>' +
-        '<span style="margin-left:auto;font-size:18px">' + statusIcon + '</span>' +
-      '</div>' +
-      '<div style="font-size:11px;color:var(--dim)">' + esc(a.role||'Agent') + '</div>' +
-      (a.lastMessage ? '<div style="font-size:10px;color:var(--text);background:var(--card);padding:4px 8px;border-radius:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"' + esc((a.lastMessage||'').slice(0,60)) + '"</div>' : '') +
-      '<div style="font-size:10px;color:var(--dim)">' + esc(ageText) + '</div>' +
+  
+  // Group agents by zone
+  const zones = { Engineering: [], 'Content Team': [], Leadership: [], Support: [], Other: [] };
+  agents.forEach(a => {
+    const z = a.zone || a.team || 'Other';
+    if (zones[z]) zones[z].push(a); else (zones.Other = zones.Other || []).push(a);
+  });
+  
+  let html = '';
+  for (const [zoneName, zoneAgents] of Object.entries(zones)) {
+    if (!zoneAgents.length) continue;
+    const activeCount = zoneAgents.filter(a => a.status === 'working').length;
+    html += '<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:0 4px">' +
+      '<span style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:1px">' + esc(zoneName) + '</span>' +
+      '<span style="font-size:10px;color:var(--dim);background:var(--card);padding:2px 8px;border-radius:10px">' + activeCount + '/' + zoneAgents.length + ' active</span>' +
+      '<div style="flex:1;height:1px;background:var(--border)"></div>' +
     '</div>';
-  }).join('');
+    
+    zoneAgents.forEach(a => {
+      const isWorking = a.status === 'working';
+      const isIdle = a.status === 'idle';
+      const statusColor = isWorking ? '#22c55e' : isIdle ? '#eab308' : '#6b7280';
+      const statusLabel = isWorking ? 'Working' : isIdle ? 'Idle' : 'Sleeping';
+      const ageText = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin/60) + 'h ago';
+      const avatarSeed = encodeURIComponent(a.name);
+      const avatarUrl = 'https://api.dicebear.com/9.x/adventurer/svg?seed=' + avatarSeed + '&backgroundColor=transparent';
+      // Token stats
+      const tokIn = a.tokensIn ? (a.tokensIn > 1000 ? (a.tokensIn/1000).toFixed(0) + 'K' : a.tokensIn) : '0';
+      const tokOut = a.tokensOut ? (a.tokensOut > 1000 ? (a.tokensOut/1000).toFixed(0) + 'K' : a.tokensOut) : '0';
+      const cost = a.costUSD ? '$' + a.costUSD.toFixed(2) : '';
+      
+      html += '<div style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;gap:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" ' +
+        'onclick="openAgentDetail(\'' + a.name.replace(/'/g,"\\'") + '\')" ' +
+        'onmouseenter="this.style.borderColor=\'' + (a.color||'#475569') + '\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.2)\'" ' +
+        'onmouseleave="this.style.borderColor=\'var(--border)\';this.style.transform=\'\';this.style.boxShadow=\'\'">' +
+        // Avatar
+        '<div style="flex-shrink:0;width:48px;height:48px;border-radius:12px;background:var(--card);border:2px solid ' + (a.color||'#475569') + ';overflow:hidden;display:flex;align-items:center;justify-content:center">' +
+          '<img src="' + avatarUrl + '" alt="" style="width:44px;height:44px" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<span style=font-size:24px>' + (isWorking?'👨‍💻':isIdle?'☕':'😴') + '</span>\'">' +
+        '</div>' +
+        // Info
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span style="font-weight:700;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.name) + '</span>' +
+            '<span style="width:8px;height:8px;border-radius:50%;background:' + statusColor + ';flex-shrink:0;box-shadow:0 0 6px ' + statusColor + '"></span>' +
+            '<span style="font-size:9px;color:' + statusColor + ';font-weight:600;text-transform:uppercase;letter-spacing:0.5px">' + statusLabel + '</span>' +
+            (ageText ? '<span style="margin-left:auto;font-size:9px;color:var(--dim);flex-shrink:0">' + esc(ageText) + '</span>' : '') +
+          '</div>' +
+          '<div style="font-size:10px;color:var(--dim)">' + esc(a.role||'Agent') + '</div>' +
+          (a.lastMessage ? '<div style="font-size:10px;color:var(--text);opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">' + esc((a.lastMessage||'').slice(0,80)) + '</div>' : '') +
+          '<div style="display:flex;gap:8px;font-size:9px;color:var(--dim);margin-top:1px">' +
+            '<span>↗ ' + tokIn + '</span><span>↙ ' + tokOut + '</span>' +
+            (cost ? '<span style="color:var(--green)">' + cost + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    });
+  }
+  el.innerHTML = html;
 }
 
 async function switchOfficeView(view) {
