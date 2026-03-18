@@ -476,7 +476,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
     <button id="view-3d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px;opacity:0.5" onclick="switchOfficeView('3d')">🎮 3D</button>
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
-  <div id="office-2d-flat" style="width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card);padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
+  <canvas id="office-2d-pixel" style="width:100%;border:1px solid var(--border);border-radius:12px;cursor:pointer;image-rendering:pixelated"></canvas>
+  <div id="office-2d-flat" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card);padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
   <div id="office-3d-container" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:500px;position:relative">
     <div id="activity-overlay" style="position:absolute;bottom:8px;left:8px;right:8px;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:10"></div>
   </div>
@@ -1347,6 +1348,7 @@ async function refreshAgents() {
     checkStatusChanges(d.agents);
     agentData = d.agents || [];
     if (typeof Office3D !== 'undefined' && Office3D.isActive()) Office3D.updateAgents(agentData);
+    if (typeof Office2D !== 'undefined' && _officeView === '2d') Office2D.updateAgents(agentData);
     apiOnline = true;
     const el = document.getElementById('live-status');
     el.className = 'live online'; el.innerHTML = '<span class="pulse"></span>LIVE';
@@ -5655,8 +5657,8 @@ function connectSSE() {
       buildLegend(); scheduleRenderAgentCards(); markUpdated();
       // Feed 3D office with updated agent data
       if (typeof Office3D !== 'undefined' && Office3D.isActive()) Office3D.updateAgents(agentData);
-      // Update flat 2D view
-      if (typeof renderFlat2D === 'function' && _officeView === '2d') renderFlat2D();
+      // Update pixel art 2D view
+      if (typeof Office2D !== 'undefined' && _officeView === '2d') Office2D.updateAgents(agentData);
     } catch {}
   });
   es.addEventListener('activity', (e) => {
@@ -6896,20 +6898,24 @@ switchTab = function(t) { _origSwitchTab(t); syncMobileNav(t); };
   _collObs.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
+<script src="office2d.js"></script>
 <script src="office3d.js"></script>
 <script>
 let _officeView = localStorage.getItem('office-view') || '2d';
+let _pixelArtInit = false;
 async function switchOfficeView(view) {
   _officeView = view;
   localStorage.setItem('office-view', view);
-  const canvas2d = document.getElementById('office-canvas');
+  const canvasOld = document.getElementById('office-canvas');
+  const pixelCanvas = document.getElementById('office-2d-pixel');
   const flat2d = document.getElementById('office-2d-flat');
   const container3d = document.getElementById('office-3d-container');
   const btn2d = document.getElementById('view-2d-btn');
   const btn3d = document.getElementById('view-3d-btn');
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (view === '3d') {
-    canvas2d.style.display = 'none';
+    canvasOld.style.display = 'none';
+    pixelCanvas.style.display = 'none';
     flat2d.style.display = 'none';
     container3d.style.display = 'block';
     container3d.style.height = Math.max(500, window.innerHeight - 200) + 'px';
@@ -6918,45 +6924,32 @@ async function switchOfficeView(view) {
       await Office3D.start(container3d);
       if (typeof agentData !== 'undefined') Office3D.updateAgents(agentData);
     }
+    if (typeof Office2D !== 'undefined') Office2D.destroy();
   } else {
-    canvas2d.style.display = 'none';
-    flat2d.style.display = 'grid';
+    canvasOld.style.display = 'none';
+    pixelCanvas.style.display = 'block';
+    flat2d.style.display = 'none';
     container3d.style.display = 'none';
     btn2d.style.opacity = '1'; btn3d.style.opacity = '0.5';
     if (typeof Office3D !== 'undefined') Office3D.stop();
-    renderFlat2D();
+    if (typeof Office2D !== 'undefined') {
+      if (!_pixelArtInit) {
+        Office2D.init(pixelCanvas);
+        _pixelArtInit = true;
+      }
+      Office2D.updateAgents(typeof agentData !== 'undefined' ? agentData : []);
+    }
   }
 }
 
-// Flat 2D grid rendering
-function renderFlat2D() {
-  const el = document.getElementById('office-2d-flat');
-  if (!el) return;
-  const agents = typeof agentData !== 'undefined' ? agentData : [];
-  if (!agents.length) { el.innerHTML = '<div style="text-align:center;color:var(--dim);padding:40px;grid-column:1/-1">No agents discovered</div>'; return; }
-  el.innerHTML = agents.map(a => {
-    const statusColor = a.status === 'working' ? '#22c55e' : a.status === 'idle' ? '#eab308' : '#6b7280';
-    const statusIcon = a.status === 'working' ? '💻' : a.status === 'idle' ? '☕' : '😴';
-    const ageText = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin/60) + 'h ago';
-    return '<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;border-left:3px solid ' + (a.color||'#475569') + '">' +
-      '<div style="display:flex;align-items:center;gap:8px">' +
-        '<div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';flex-shrink:0"></div>' +
-        '<span style="font-weight:600;font-size:13px;color:var(--text)">' + esc(a.name) + '</span>' +
-        '<span style="margin-left:auto;font-size:18px">' + statusIcon + '</span>' +
-      '</div>' +
-      '<div style="font-size:11px;color:var(--dim)">' + esc(a.role||'Agent') + '</div>' +
-      (a.lastMessage ? '<div style="font-size:10px;color:var(--text);background:var(--card);padding:4px 8px;border-radius:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"' + esc((a.lastMessage||'').slice(0,60)) + '"</div>' : '') +
-      '<div style="font-size:10px;color:var(--dim)">' + esc(ageText) + '</div>' +
-    '</div>';
-  }).join('');
-}
-
-// Update flat 2D on agent data refresh
-const _origUpdateStatusStrip = typeof updateStatusStrip === 'function' ? updateStatusStrip : null;
-
 // Restore view preference on load
-if (_officeView === '3d') setTimeout(() => switchOfficeView('3d'), 500);
-else setTimeout(renderFlat2D, 300);
+setTimeout(() => {
+  switchOfficeView(_officeView);
+  // Feed agents on initial load
+  if (typeof agentData !== 'undefined' && agentData.length) {
+    if (typeof Office2D !== 'undefined' && _officeView === '2d') Office2D.updateAgents(agentData);
+  }
+}, 500);
 </script>
 </body>
 </html>
