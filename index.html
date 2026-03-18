@@ -3635,8 +3635,8 @@ function buildStaticLayer() {
   _staticValid = true;
 }
 
-// Frame-limited render loop (8 FPS target, pauses when tab hidden or canvas off-screen)
-const FRAME_INTERVAL = 1000 / 8;
+// Frame-limited render loop (15 FPS target — smooth enough for game-feel, light on CPU)
+const FRAME_INTERVAL = 1000 / 15;
 let _lastFrameTime = 0;
 let _framesSinceCheck = 0, _blackFrames = 0, _wasHidden = false;
 let _canvasVisible = true;
