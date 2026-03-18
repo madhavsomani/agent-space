@@ -1368,7 +1368,7 @@ async function refreshAgents() {
 
 // ===== ISOMETRIC 3D OFFICE =====
 const ISO = { tileW: 80, tileH: 40 };
-const GRID = { cols: 24, rows: 16 };
+const GRID = { cols: 20, rows: 14 };
 const oCanvas = document.getElementById('office-canvas');
 let oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
 
@@ -1414,18 +1414,29 @@ document.addEventListener('visibilitychange', () => {
 // Empty by default — auto-desk assignment handles placement dynamically
 const deskPositions = {};
 
-// Zone-aware desk slots — generous spacing on 24×16 grid
-// Zones split at col 12 / row 8.  Min 4 cells between desks.
-// Content (top-left), Engineering (top-right), Leadership (bot-left), Support (bot-right)
+// Zone-aware desk slots — 20×14 grid, zones at col 10 / row 7
+// INTERLEAVED: one from each zone per round → even distribution
 const overflowDesks = [
-  // Content zone — cols 2-10, rows 2-6
-  {gx:3, gy:3}, {gx:8, gy:3}, {gx:3, gy:6}, {gx:8, gy:6},
-  // Engineering zone — cols 14-22, rows 2-6
-  {gx:15, gy:3}, {gx:20, gy:3}, {gx:15, gy:6}, {gx:20, gy:6},
-  // Leadership zone — cols 2-10, rows 10-14
-  {gx:3, gy:10}, {gx:8, gy:10}, {gx:3, gy:13}, {gx:8, gy:13},
-  // Support zone — cols 14-22, rows 10-14
-  {gx:15, gy:10}, {gx:20, gy:10}, {gx:15, gy:13}, {gx:20, gy:13},
+  // Round 1: one from each zone
+  {gx:3,  gy:3},  // Content (top-left)
+  {gx:14, gy:3},  // Engineering (top-right)
+  {gx:3,  gy:9},  // Leadership (bot-left)
+  {gx:14, gy:9},  // Support (bot-right)
+  // Round 2
+  {gx:7,  gy:3},  // Content
+  {gx:18, gy:3},  // Engineering
+  {gx:7,  gy:9},  // Leadership
+  {gx:18, gy:9},  // Support
+  // Round 3 (lower rows within each zone)
+  {gx:3,  gy:5},  // Content
+  {gx:14, gy:5},  // Engineering
+  {gx:3,  gy:11}, // Leadership
+  {gx:14, gy:11}, // Support
+  // Round 4
+  {gx:7,  gy:5},  // Content
+  {gx:18, gy:5},  // Engineering
+  {gx:7,  gy:11}, // Leadership
+  {gx:18, gy:11}, // Support
 ];
 const _assignedOverflow = {};
 let _overflowIdx = 0;
@@ -1454,9 +1465,9 @@ const deskItems = {};
 const DESK_ITEM_LIFETIME = 45000; // items stay on desk for 45 seconds then fade
 const POI = { // Points of Interest
   whiteboard: {gx:10, gy:3},
-  coffee: {gx:12, gy:14},
-  server: {gx:14, gy:7},
-  door: {gx:23, gy:6},
+  coffee: {gx:10, gy:10},
+  server: {gx:19, gy:10},
+  door: {gx:19, gy:7},
   plant: {gx:1, gy:1},
 };
 const INTERACTION_TYPES = ['coffee','whiteboard','chat','stretch','server-check','water-plant','phone-call'];
@@ -1660,28 +1671,22 @@ function getInteractionOffset(agentName, time) {
 }
 
 const furniture = [
-  // Decor spread across 24×16 office — generous spacing
+  // Decor spread across 20×14 grid — no overlap with desk positions
   // Corner plants
-  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:23, gy:1 }, { type:'plant', gx:1, gy:15 }, { type:'plant', gx:23, gy:15 },
-  // Mid-edge plants
-  { type:'plant', gx:12, gy:1 }, { type:'plant', gx:12, gy:15 },
-  // Zone boundary plants
-  { type:'plant', gx:1, gy:8 }, { type:'plant', gx:23, gy:8 },
-  // Shared features — center corridor
-  { type:'whiteboard', gx:11, gy:4 },
-  { type:'coffee', gx:12, gy:12 },
-  { type:'server', gx:22, gy:12 },
-  { type:'clock', gx:12, gy:0 },
-  { type:'door', gx:23, gy:8 },
-  // Lamps — one per zone
-  { type:'lamp', gx:5, gy:2 }, { type:'lamp', gx:17, gy:2 },
-  { type:'lamp', gx:5, gy:11 }, { type:'lamp', gx:17, gy:11 },
-  // Extra decor — spread across unused space
-  { type:'bookshelf', gx:1, gy:4 },
-  { type:'filing-cabinet', gx:22, gy:4 },
-  { type:'cactus', gx:11, gy:8 },
-  { type:'coat-rack', gx:1, gy:12 },
-  { type:'trash-can', gx:22, gy:8 },
+  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:19, gy:1 }, { type:'plant', gx:1, gy:13 }, { type:'plant', gx:19, gy:13 },
+  // Center corridor
+  { type:'whiteboard', gx:10, gy:3 },
+  { type:'coffee', gx:10, gy:10 },
+  { type:'server', gx:19, gy:10 },
+  { type:'clock', gx:10, gy:0 },
+  { type:'door', gx:19, gy:7 },
+  // One lamp per zone (corners)
+  { type:'lamp', gx:5, gy:2 }, { type:'lamp', gx:16, gy:2 },
+  { type:'lamp', gx:5, gy:10 }, { type:'lamp', gx:16, gy:10 },
+  // Extra decor
+  { type:'bookshelf', gx:1, gy:5 },
+  { type:'cactus', gx:10, gy:7 },
+  { type:'coat-rack', gx:1, gy:8 },
 ];
 const _sortedFurniture = [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
 
@@ -1725,7 +1730,7 @@ function drawServer(gx,gy){const p=isoToScreen(gx,gy);if(typeof SpriteSystem!=='
 function drawBookshelf(gx,gy){const p=isoToScreen(gx,gy);if(typeof SpriteSystem!=='undefined'){const s=SpriteSystem.getFurnitureSprites?.();if(s?.bookshelf){oCtx.imageSmoothingEnabled=false;SpriteSystem.drawSprite(oCtx,s.bookshelf,p.x,p.y-18,1.4);return;}}const t=_th||getCanvasTheme();drawIsoCube(gx,gy,36,t.bsTop,t.bsL,t.bsR);const colors=['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6','#e67e22'];for(let row=0;row<3;row++){for(let i=0;i<3;i++){oCtx.fillStyle=colors[(row*3+i)%colors.length];oCtx.fillRect(p.x-9+i*7,p.y-32+row*10,5,8);}}oCtx.font='7px system-ui';oCtx.fillStyle=t.bsLabel;oCtx.textAlign='center';oCtx.fillText('📚',p.x,p.y+ISO.tileH+8);}
 function drawLamp(gx,gy){const p=isoToScreen(gx,gy);if(typeof SpriteSystem!=='undefined'){const s=SpriteSystem.getFurnitureSprites?.();if(s?.lamp){oCtx.imageSmoothingEnabled=false;SpriteSystem.drawSprite(oCtx,s.lamp,p.x,p.y-22,1.3);// Still draw the glow effect on top for warmth
 const t=_th||getCanvasTheme();const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();return;}}const t=_th||getCanvasTheme();const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-45,8,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+(flicker+0.1)+')';oCtx.fill();oCtx.strokeStyle=t.lampPole;oCtx.lineWidth=1.5;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-38);oCtx.stroke();oCtx.fillStyle=t.lampShade;oCtx.beginPath();oCtx.moveTo(p.x-8,p.y-44);oCtx.lineTo(p.x+8,p.y-44);oCtx.lineTo(p.x+5,p.y-38);oCtx.lineTo(p.x-5,p.y-38);oCtx.closePath();oCtx.fill();}
-function drawRug(){const cx=isoToScreen(12,8);oCtx.save();oCtx.globalAlpha=0.15;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,240,100,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,180);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
+function drawRug(){const cx=isoToScreen(10,7);oCtx.save();oCtx.globalAlpha=0.12;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,200,90,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,160);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
 // Cached window sky colors — recomputed every 10s instead of every frame
 let _winCache = null;
 function _getWindowColors() {
@@ -1915,7 +1920,7 @@ function _drawAgentSprite(agent, gx, gy, time) {
   oCtx.fill();
   
   // Draw sprite (centered, scaled to fit isometric tile)
-  const spriteScale = 2.2; // large enough to read as pixel-art at default zoom
+  const spriteScale = 2.5; // large enough to read as pixel-art at default zoom
   oCtx.imageSmoothingEnabled = false;
   SpriteSystem.drawSprite(oCtx, frame, px, py, spriteScale);
   
@@ -1931,37 +1936,21 @@ function _drawAgentSprite(agent, gx, gy, time) {
   }
   
   // Name label (below sprite)
-  oCtx.font = 'bold 8px system-ui';
+  oCtx.font = 'bold 9px system-ui';
   oCtx.textAlign = 'center';
+  // Name with background pill for readability
+  const nameW = oCtx.measureText(agent.name).width + 8;
+  oCtx.fillStyle = 'rgba(0,0,0,0.5)';
+  oCtx.beginPath();
+  oCtx.roundRect(px - nameW/2, baseP.y + 8, nameW, 14, 4);
+  oCtx.fill();
   oCtx.fillStyle = agent.color || '#94a3b8';
-  oCtx.fillText(agent.name, px, baseP.y + 16);
+  oCtx.fillText(agent.name, px, baseP.y + 18);
   
-  // Speech bubble (if has recent message)
-  if (agent.lastMessage && agent.ageMin !== undefined && agent.ageMin < 5) {
-    const bubbleText = agent.lastMessage.slice(0, 40) + (agent.lastMessage.length > 40 ? '…' : '');
-    const bubbleW = Math.min(oCtx.measureText(bubbleText).width + 12, 160);
-    const bubbleH = 16;
-    const bubbleX = px - bubbleW / 2;
-    const bubbleY = py - 24;
-    
-    // Bubble background
-    oCtx.fillStyle = 'rgba(255,255,255,0.95)';
-    oCtx.beginPath();
-    oCtx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 6);
-    oCtx.fill();
-    
-    // Bubble tail
-    oCtx.beginPath();
-    oCtx.moveTo(px - 3, bubbleY + bubbleH);
-    oCtx.lineTo(px, bubbleY + bubbleH + 5);
-    oCtx.lineTo(px + 3, bubbleY + bubbleH);
-    oCtx.fill();
-    
-    // Text
-    oCtx.fillStyle = '#1e293b';
-    oCtx.font = '7px system-ui';
-    oCtx.fillText(bubbleText, px, bubbleY + 11);
-  }
+  // Status emoji (compact — no speech bubbles to avoid overlap)
+  const statusEmoji = isWorking ? '⚡' : isSleeping ? '💤' : '☕';
+  oCtx.font = '10px system-ui';
+  oCtx.fillText(statusEmoji, px + nameW/2 + 6, baseP.y + 18);
   
   // Typing dots for working agents
   if (isWorking) {
@@ -3671,31 +3660,31 @@ function buildStaticLayer() {
   // Floor with zone-based tinting for visual depth
   const zoneFloor = (c, r) => {
     // Content zone (top-left): warm purple
-    if (c < 12 && r < 8) return (r+c) % 2 === 0 ? '#2a2235' : '#2e2639';
+    if (c < 10 && r < 7) return (r+c) % 2 === 0 ? '#2a2235' : '#2e2639';
     // Engineering zone (top-right): dark blue-gray
-    if (c >= 12 && r < 8) return (r+c) % 2 === 0 ? '#1a2744' : '#1e2d4e';
+    if (c >= 10 && r < 7) return (r+c) % 2 === 0 ? '#1a2744' : '#1e2d4e';
     // Leadership zone (bottom-left): amber
-    if (c < 12 && r >= 8) return (r+c) % 2 === 0 ? '#2a2420' : '#2e2824';
+    if (c < 10 && r >= 7) return (r+c) % 2 === 0 ? '#2a2420' : '#2e2824';
     // Support zone (bottom-right): teal
-    if (c >= 12 && r >= 8) return (r+c) % 2 === 0 ? '#1a2a2a' : '#1e2e2e';
+    if (c >= 10 && r >= 7) return (r+c) % 2 === 0 ? '#1a2a2a' : '#1e2e2e';
     return (r+c) % 2 === 0 ? th.floor1 : th.floor2;
   };
   for (let r = 0; r < GRID.rows; r++) for (let c = 0; c < GRID.cols; c++)
     drawIsoTile(c, r, zoneFloor(c, r), th.floorStroke);
   // Zone divider lines (subtle)
-  oCtx.save(); oCtx.globalAlpha = 0.15; oCtx.strokeStyle = '#ffffff'; oCtx.lineWidth = 1;
-  // Vertical divider at col 12
-  for (let r = 0; r < GRID.rows; r++) {
-    const p = isoToScreen(12, r);
-    if (r === 0) { oCtx.beginPath(); oCtx.moveTo(p.x, p.y); }
-    else { oCtx.lineTo(p.x, p.y); }
+  oCtx.save(); oCtx.globalAlpha = 0.2; oCtx.strokeStyle = '#ffffff'; oCtx.lineWidth = 1.5;
+  // Vertical divider at col 10
+  oCtx.beginPath();
+  for (let r = 0; r <= GRID.rows; r++) {
+    const p = isoToScreen(10, r);
+    if (r === 0) oCtx.moveTo(p.x, p.y); else oCtx.lineTo(p.x, p.y);
   }
   oCtx.stroke();
-  // Horizontal divider at row 8
-  for (let c = 0; c < GRID.cols; c++) {
-    const p = isoToScreen(c, 8);
-    if (c === 0) { oCtx.beginPath(); oCtx.moveTo(p.x, p.y); }
-    else { oCtx.lineTo(p.x, p.y); }
+  // Horizontal divider at row 7
+  oCtx.beginPath();
+  for (let c = 0; c <= GRID.cols; c++) {
+    const p = isoToScreen(c, 7);
+    if (c === 0) oCtx.moveTo(p.x, p.y); else oCtx.lineTo(p.x, p.y);
   }
   oCtx.stroke();
   oCtx.restore();
@@ -3706,12 +3695,12 @@ function buildStaticLayer() {
 
   // Team labels (zone headers — big, bold, clearly above their section)
   oCtx.save();
-  oCtx.globalAlpha = 0.6;
-  oCtx.font = 'bold 16px system-ui'; oCtx.textAlign = 'center';
-  const ctP = isoToScreen(6, 1); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + 8);
-  const enP = isoToScreen(18, 1); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + 8);
-  const ldP = isoToScreen(6, 9); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y - 4);
-  const supP = isoToScreen(18, 9); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('🛟 SUPPORT', supP.x, supP.y - 4);
+  oCtx.globalAlpha = 0.7;
+  oCtx.font = 'bold 18px system-ui'; oCtx.textAlign = 'center';
+  const ctP = isoToScreen(5, 1); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + 8);
+  const enP = isoToScreen(15, 1); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + 8);
+  const ldP = isoToScreen(5, 8); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y - 6);
+  const supP = isoToScreen(15, 8); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('🛟 SUPPORT', supP.x, supP.y - 6);
   oCtx.restore();
 
   // Static furniture
@@ -5773,8 +5762,8 @@ function resizeCanvas() {
   // On phones, avoid a giant empty blue slab: cap office height and bias toward a shorter, denser viewport.
   const mobilePreferredH = Math.min(Math.max(260, window.innerHeight * 0.36), 360);
   const canvasW = w;
-  // Cap desktop at ~55% viewport so the office is a compact scene, not a giant void
-  const desktopPreferredH = Math.min(availH, Math.max(380, window.innerHeight * 0.55));
+  // Cap desktop at ~70% viewport so the office fills the view as primary content
+  const desktopPreferredH = Math.min(availH, Math.max(450, window.innerHeight * 0.70));
   const canvasH = isMobile ? Math.min(availH, mobilePreferredH) : desktopPreferredH;
   const dpr = window.devicePixelRatio || 1;
   // Internal resolution scaled to width
@@ -5800,7 +5789,7 @@ function resizeCanvas() {
   const fitZoomW = internalW / gridPixelW;
   const fitZoomH = internalH / gridPixelH;
   const fitZoomBase = Math.min(fitZoomW, fitZoomH);
-  const fitZoom = isMobile ? fitZoomBase * 1.15 : fitZoomBase * 1.5; // fill the viewport with the office scene
+  const fitZoom = isMobile ? fitZoomBase * 1.2 : fitZoomBase * 1.6; // fill the viewport — tight framing
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
