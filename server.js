@@ -1020,7 +1020,7 @@ const TOKEN_CACHE_TTL = 300000; // 5 min — scanning JSONLs is expensive
 
 function getTokens() {
   if (tokenCache && Date.now() - tokenCacheTime < TOKEN_CACHE_TTL) return { ...tokenCache, timestamp: Date.now() };
-  const pricing = { 'claude-opus-4.6': { input: 15, output: 75, cachedInput: 1.875 }, 'gpt-4o-mini': { input: 0.15, output: 0.60 }, 'text-embedding-3-small': { input: 0.02, output: 0 } };
+  const pricing = { 'claude-opus-4.6': { input: 15, output: 75, cachedInput: 1.875 }, 'claude-sonnet-4': { input: 3, output: 15, cachedInput: 0.30 }, 'gpt-4o': { input: 2.50, output: 10 }, 'gpt-4o-mini': { input: 0.15, output: 0.60 }, 'o3-mini': { input: 1.10, output: 4.40 }, 'gemini-2.5-pro': { input: 1.25, output: 10 }, 'text-embedding-3-small': { input: 0.02, output: 0 }, 'default': { input: 3, output: 15, cachedInput: 0.30 } };
   const agentsDir = path.join(HOME, '.openclaw', 'agents');
   const byAgent = {};
   let totalInput = 0, totalOutput = 0, totalCached = 0;
@@ -1064,7 +1064,7 @@ function getTokens() {
       }
     }
   } catch {}
-  const p = pricing['claude-opus-4.6'];
+  const p = pricing['default']; // conservative default estimate
   const estCost = (totalInput * p.input + totalCached * p.cachedInput + totalOutput * p.output) / 1_000_000;
   tokenCache = { pricing, totals: { input: totalInput, output: totalOutput, cached: totalCached }, estimatedCostUSD: Math.round(estCost * 100) / 100, byAgent, note: 'Estimated based on model pricing (last 2MB per session file)' };
   tokenCacheTime = Date.now();
@@ -1801,7 +1801,7 @@ function getDependencyGraph() {
         const lines = buf.toString('utf8').trim().split('\n');
 
         for (const line of lines) {
-          if (!line.includes('sessions_spawn') && !line.includes('subagent')) continue;
+          if (!line.includes('sessions_spawn') && !line.includes('sessions_send') && !line.includes('subagent')) continue;
           try {
             const entry = JSON.parse(line);
             const msg = entry.message || entry;
@@ -1812,11 +1812,11 @@ function getDependencyGraph() {
               const toolName = c.name || c.function?.name || '';
               const isToolBlock = c.type === 'tool_use' || c.type === 'function' || c.type === 'toolCall';
               if (!isToolBlock && !toolName) continue;
-              if (toolName !== 'sessions_spawn') continue;
+              if (toolName !== 'sessions_spawn' && toolName !== 'sessions_send') continue;
 
               const input = c.input || c.arguments || (c.function?.arguments ? (() => { try { return JSON.parse(c.function.arguments); } catch { return {}; } })() : {});
               let targetName = null;
-              const sk = input.label || input.agentId || '';
+              const sk = input.label || input.agentId || input.sessionKey || '';
               if (agentNames[sk]) targetName = agentNames[sk];
               else {
                 const parts = sk.split(/[:\-_]/);
@@ -1825,7 +1825,7 @@ function getDependencyGraph() {
               // If no match, use the label/agentId as-is (sub-agent)
               if (!targetName && sk) {
                 targetName = sk.split(':').pop() || sk;
-                if (!nodeTypes[targetName]) nodeTypes[targetName] = 'subagent';
+                if (!nodeTypes[targetName]) nodeTypes[targetName] = toolName === 'sessions_send' ? 'persistent' : 'subagent';
               }
 
               if (targetName && targetName !== fromName) {
@@ -2425,7 +2425,23 @@ const server = http.createServer((req, res) => {
     return json(res, { tokens: tokenCount.c, costs: costCount.c, events: eventCount.c, metrics: metricCount.c });
   }
 
-  if (url === '/api/health') return json(res, { ok: true });
+  if (url === '/api/health') {
+    const mem = process.memoryUsage();
+    const agents = getAgents();
+    const working = (agents.agents || []).filter(a => a.status === 'working').length;
+    const total = (agents.agents || []).length;
+    const qdrantOk = _memoryCache?.status === 'online';
+    return json(res, {
+      ok: true,
+      uptime: Math.round(process.uptime()),
+      version: '1.0.0',
+      agents: { total, working },
+      memory: { rssKB: Math.round(mem.rss / 1024), heapUsedKB: Math.round(mem.heapUsed / 1024) },
+      qdrant: qdrantOk ? 'online' : 'offline',
+      sseClients: sseClients.size,
+      timestamp: Date.now()
+    });
+  }
   if (url === '/api/health-score') return json(res, getHealthScore());
   if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
   if (url === '/api/processes') { return json(res, _processesCache); }
