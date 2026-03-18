@@ -851,7 +851,17 @@ async function _refreshMemoryCache() {
       }
     } catch {}
     memFiles.sort((a, b) => b.mtime - a.mtime);
-    _memoryCache = { collections: details, count: collections.length, totalPoints, status: 'online', memFiles: memFiles.slice(0, 20), memFileCount: memFiles.length, timestamp: Date.now() };
+    // Per-agent memory breakdown
+    const agentBreakdown = {};
+    for (const f of memFiles) {
+      const agentName = f.name.split('/')[0];
+      if (!agentBreakdown[agentName]) agentBreakdown[agentName] = { files: 0, totalKB: 0 };
+      agentBreakdown[agentName].files++;
+      agentBreakdown[agentName].totalKB += parseFloat(f.sizeKB) || 0;
+    }
+    // Round totals
+    for (const k of Object.keys(agentBreakdown)) agentBreakdown[k].totalKB = +agentBreakdown[k].totalKB.toFixed(1);
+    _memoryCache = { collections: details, count: collections.length, totalPoints, status: 'online', memFiles: memFiles.slice(0, 50), memFileCount: memFiles.length, agentBreakdown, timestamp: Date.now() };
     appendMemorySnapshot(totalPoints, memFiles.length, details);
   } catch {
     _memoryCache = _memoryCache || { collections: [], count: 0, totalPoints: 0, status: 'offline', timestamp: Date.now() };
