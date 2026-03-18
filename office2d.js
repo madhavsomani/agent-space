@@ -463,6 +463,28 @@ window.Office2D = (function() {
       ctx.fillText(msg, bubbleX + 3, bubbleY + 9);
     }
 
+    // Room-specific furniture variety based on agent index
+    const furnType = idx % 5;
+    if (rh > 100) {
+      const fy = ry + rh - 44; // above name tag
+      if (furnType === 0) {
+        // Plant in corner
+        drawPlant(rx + 6, fy);
+      } else if (furnType === 1) {
+        // Small bookshelf
+        drawBookshelf(rx + rw - 30, ry + 6, 22, 36);
+      } else if (furnType === 2) {
+        // Cabinet/drawers
+        drawCabinet(rx + 6, fy, 18, 20);
+      } else if (furnType === 3) {
+        // Coffee machine
+        drawCoffeeMachine(rx + rw - 24, fy);
+      } else {
+        // Floor lamp
+        drawFloorLamp(rx + rw - 18, fy - 8);
+      }
+    }
+
     // Name tag at bottom of room
     drawNameTag(rx, ry + rh - 18, rw, agent.name);
   }
@@ -505,7 +527,7 @@ window.Office2D = (function() {
     const cols = Math.max(2, Math.min(4, Math.floor(cw / 160)));
     const padding = 8;
     const roomW = Math.floor((cw - padding * (cols + 1)) / cols);
-    const roomH = Math.min(140, Math.floor((ch - 100) / Math.ceil((agents.length + 1) / cols)));
+    const roomH = Math.min(180, Math.floor((ch - 100) / Math.ceil((agents.length + 1) / cols)));
 
     // Wall decorations
     if (cw > 300) {
@@ -550,7 +572,7 @@ window.Office2D = (function() {
     // Height: enough for all agent rooms + lounge
     const cols = Math.max(2, Math.min(4, Math.floor(w / 160)));
     const rows = Math.ceil((agents.length || 4) / cols);
-    const roomH = Math.min(140, 120);
+    const roomH = Math.min(180, 160);
     const h = Math.max(400, 58 + rows * (roomH + 8) + 120);
 
     canvas.width = w * dpr;
