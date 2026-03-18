@@ -339,26 +339,41 @@ window.Office3D = (function() {
     const hour = new Date().getHours();
     const isNight = hour < 6 || hour >= 20;
     const isDusk = (hour >= 18 && hour < 20) || (hour >= 6 && hour < 8);
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
 
     if (isNight) {
       sunLight.intensity = 0.1;
       ambientLight.intensity = 0.3;
       ambientLight.color.setHex(0x202040);
-      scene.background = new THREE.Color(0x0a0a20);
+      scene.background = new THREE.Color(isLight ? 0x1a1a30 : 0x0a0a20);
       pointLights.forEach(pl => { pl.intensity = 0.8; });
     } else if (isDusk) {
       sunLight.intensity = 0.6;
       sunLight.color.setHex(0xffa050);
       ambientLight.intensity = 0.4;
-      scene.background = new THREE.Color(0x1a1040);
+      scene.background = new THREE.Color(isLight ? 0x40304a : 0x1a1040);
       pointLights.forEach(pl => { pl.intensity = 0.5; });
     } else {
-      sunLight.intensity = 1.2;
+      sunLight.intensity = isLight ? 1.5 : 1.2;
       sunLight.color.setHex(0xfff0d0);
-      ambientLight.intensity = 0.6;
-      ambientLight.color.setHex(0x404060);
-      scene.background = new THREE.Color(0x87CEEB);
-      pointLights.forEach(pl => { pl.intensity = 0.3; });
+      ambientLight.intensity = isLight ? 0.9 : 0.6;
+      ambientLight.color.setHex(isLight ? 0x8090b0 : 0x404060);
+      scene.background = new THREE.Color(isLight ? 0xb0d8f0 : 0x87CEEB);
+      if (floorMesh) {
+        const c1 = new THREE.Color(isLight ? 0x7a9aba : FLOOR_COLOR);
+        const c2 = new THREE.Color(isLight ? 0x6e8eae : FLOOR_COLOR2);
+        const colors = floorMesh.geometry.attributes.color;
+        const pos = floorMesh.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = Math.floor((pos.getX(i) + GRID.cols * TILE_SIZE / 2) / TILE_SIZE);
+          const y = Math.floor((pos.getY(i) + GRID.rows * TILE_SIZE / 2) / TILE_SIZE);
+          const c = (x + y) % 2 === 0 ? c1 : c2;
+          colors.setXYZ(i, c.r, c.g, c.b);
+        }
+        colors.needsUpdate = true;
+      }
+      wallMeshes.forEach(w => { w.material.color.setHex(isLight ? 0x8a9aaa : WALL_COLOR); });
+      pointLights.forEach(pl => { pl.intensity = isLight ? 0.2 : 0.3; });
     }
   }
 
