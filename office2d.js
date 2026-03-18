@@ -10,6 +10,7 @@ window.Office2D = (function() {
   let clickHandler = null;
   let dpr = 1;
   let frameCount = 0;
+  let hitRegions = [];
 
   // ── PALETTE (warm, cozy) ──
   const P = {
@@ -460,6 +461,7 @@ window.Office2D = (function() {
   function render() {
     if (!canvas || !ctx) return;
     frameCount++;
+    hitRegions = [];
 
     const cw = canvas.width / dpr;
     const ch = canvas.height / dpr;
@@ -499,6 +501,7 @@ window.Office2D = (function() {
       const rx = padding + col * (roomW + padding);
       const ry = 58 + row * (roomH + padding);
       drawDeskRoom(rx, ry, roomW, roomH, agent, i);
+      hitRegions.push({ x: rx, y: ry, w: roomW, h: roomH, agentName: agent.name });
     });
 
     // Lounge / common area (if space allows)
@@ -552,9 +555,10 @@ window.Office2D = (function() {
     // Click handler
     clickHandler = (e) => {
       const rect = canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) * dpr;
-      const my = (e.clientY - rect.top) * dpr;
-      // TODO: hit-test agent rooms
+      const mx = (e.clientX - rect.left);
+      const my = (e.clientY - rect.top);
+      const hit = hitRegions.find(r => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h);
+      if (hit && typeof window.openAgentDetail === 'function') window.openAgentDetail(hit.agentName);
     };
     canvas.addEventListener('click', clickHandler);
 

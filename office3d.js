@@ -468,6 +468,23 @@ window.Office3D = (function() {
     window.addEventListener('resize', onResize);
     container._resizeHandler = onResize;
 
+    // Click → agent detail
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    renderer.domElement.addEventListener('click', (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      for (const [name, am] of Object.entries(agentMeshes)) {
+        const hits = raycaster.intersectObject(am.group, true);
+        if (hits.length > 0) {
+          if (typeof window.openAgentDetail === 'function') window.openAgentDetail(name);
+          break;
+        }
+      }
+    });
+
     initialized = true;
     active = true;
     animate();
