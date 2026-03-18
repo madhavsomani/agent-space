@@ -1368,7 +1368,7 @@ async function refreshAgents() {
 
 // ===== ISOMETRIC 3D OFFICE =====
 const ISO = { tileW: 80, tileH: 40 };
-const GRID = { cols: 20, rows: 14 };
+const GRID = { cols: 16, rows: 12 };
 const oCanvas = document.getElementById('office-canvas');
 let oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
 
@@ -1414,29 +1414,29 @@ document.addEventListener('visibilitychange', () => {
 // Empty by default — auto-desk assignment handles placement dynamically
 const deskPositions = {};
 
-// Zone-aware desk slots — 20×14 grid, zones at col 10 / row 7
+// Zone-aware desk slots — 16×12 grid, zones at col 8 / row 6
 // INTERLEAVED: one from each zone per round → even distribution
 const overflowDesks = [
   // Round 1: one from each zone
-  {gx:3,  gy:3},  // Content (top-left)
-  {gx:14, gy:3},  // Engineering (top-right)
-  {gx:3,  gy:9},  // Leadership (bot-left)
-  {gx:14, gy:9},  // Support (bot-right)
+  {gx:3,  gy:2},  // Content (top-left)
+  {gx:12, gy:2},  // Engineering (top-right)
+  {gx:3,  gy:8},  // Leadership (bot-left)
+  {gx:12, gy:8},  // Support (bot-right)
   // Round 2
-  {gx:7,  gy:3},  // Content
-  {gx:18, gy:3},  // Engineering
-  {gx:7,  gy:9},  // Leadership
-  {gx:18, gy:9},  // Support
+  {gx:6,  gy:2},  // Content
+  {gx:15, gy:2},  // Engineering — right edge but within bounds
+  {gx:6,  gy:8},  // Leadership
+  {gx:15, gy:8},  // Support
   // Round 3 (lower rows within each zone)
-  {gx:3,  gy:5},  // Content
-  {gx:14, gy:5},  // Engineering
-  {gx:3,  gy:11}, // Leadership
-  {gx:14, gy:11}, // Support
+  {gx:3,  gy:4},  // Content
+  {gx:12, gy:4},  // Engineering
+  {gx:3,  gy:10}, // Leadership
+  {gx:12, gy:10}, // Support
   // Round 4
-  {gx:7,  gy:5},  // Content
-  {gx:18, gy:5},  // Engineering
-  {gx:7,  gy:11}, // Leadership
-  {gx:18, gy:11}, // Support
+  {gx:6,  gy:4},  // Content
+  {gx:15, gy:4},  // Engineering
+  {gx:6,  gy:10}, // Leadership
+  {gx:15, gy:10}, // Support
 ];
 const _assignedOverflow = {};
 let _overflowIdx = 0;
@@ -1671,22 +1671,22 @@ function getInteractionOffset(agentName, time) {
 }
 
 const furniture = [
-  // Decor spread across 20×14 grid — no overlap with desk positions
+  // Decor spread across 16×12 grid — no overlap with desk positions
   // Corner plants
-  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:19, gy:1 }, { type:'plant', gx:1, gy:13 }, { type:'plant', gx:19, gy:13 },
+  { type:'plant', gx:1, gy:1 }, { type:'plant', gx:15, gy:1 }, { type:'plant', gx:1, gy:11 }, { type:'plant', gx:15, gy:11 },
   // Center corridor
-  { type:'whiteboard', gx:10, gy:3 },
-  { type:'coffee', gx:10, gy:10 },
-  { type:'server', gx:19, gy:10 },
-  { type:'clock', gx:10, gy:0 },
-  { type:'door', gx:19, gy:7 },
-  // One lamp per zone (corners)
-  { type:'lamp', gx:5, gy:2 }, { type:'lamp', gx:16, gy:2 },
-  { type:'lamp', gx:5, gy:10 }, { type:'lamp', gx:16, gy:10 },
+  { type:'whiteboard', gx:8, gy:3 },
+  { type:'coffee', gx:8, gy:9 },
+  { type:'server', gx:14, gy:9 },
+  { type:'clock', gx:8, gy:0 },
+  { type:'door', gx:15, gy:6 },
+  // One lamp per zone
+  { type:'lamp', gx:5, gy:1 }, { type:'lamp', gx:13, gy:1 },
+  { type:'lamp', gx:5, gy:7 }, { type:'lamp', gx:13, gy:7 },
   // Extra decor
   { type:'bookshelf', gx:1, gy:5 },
-  { type:'cactus', gx:10, gy:7 },
-  { type:'coat-rack', gx:1, gy:8 },
+  { type:'cactus', gx:8, gy:6 },
+  { type:'coat-rack', gx:1, gy:7 },
 ];
 const _sortedFurniture = [...furniture].sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));
 
@@ -1730,7 +1730,7 @@ function drawServer(gx,gy){const p=isoToScreen(gx,gy);if(typeof SpriteSystem!=='
 function drawBookshelf(gx,gy){const p=isoToScreen(gx,gy);if(typeof SpriteSystem!=='undefined'){const s=SpriteSystem.getFurnitureSprites?.();if(s?.bookshelf){oCtx.imageSmoothingEnabled=false;SpriteSystem.drawSprite(oCtx,s.bookshelf,p.x,p.y-18,1.4);return;}}const t=_th||getCanvasTheme();drawIsoCube(gx,gy,36,t.bsTop,t.bsL,t.bsR);const colors=['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6','#e67e22'];for(let row=0;row<3;row++){for(let i=0;i<3;i++){oCtx.fillStyle=colors[(row*3+i)%colors.length];oCtx.fillRect(p.x-9+i*7,p.y-32+row*10,5,8);}}oCtx.font='7px system-ui';oCtx.fillStyle=t.bsLabel;oCtx.textAlign='center';oCtx.fillText('📚',p.x,p.y+ISO.tileH+8);}
 function drawLamp(gx,gy){const p=isoToScreen(gx,gy);if(typeof SpriteSystem!=='undefined'){const s=SpriteSystem.getFurnitureSprites?.();if(s?.lamp){oCtx.imageSmoothingEnabled=false;SpriteSystem.drawSprite(oCtx,s.lamp,p.x,p.y-22,1.3);// Still draw the glow effect on top for warmth
 const t=_th||getCanvasTheme();const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();return;}}const t=_th||getCanvasTheme();const tm=_frameTime;const flicker=0.15+Math.sin(tm/2000+gx)*0.05;oCtx.beginPath();oCtx.arc(p.x,p.y-45,18,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+flicker+')';oCtx.fill();oCtx.beginPath();oCtx.arc(p.x,p.y-45,8,0,Math.PI*2);oCtx.fillStyle=t.lampGlow+(flicker+0.1)+')';oCtx.fill();oCtx.strokeStyle=t.lampPole;oCtx.lineWidth=1.5;oCtx.beginPath();oCtx.moveTo(p.x,p.y);oCtx.lineTo(p.x,p.y-38);oCtx.stroke();oCtx.fillStyle=t.lampShade;oCtx.beginPath();oCtx.moveTo(p.x-8,p.y-44);oCtx.lineTo(p.x+8,p.y-44);oCtx.lineTo(p.x+5,p.y-38);oCtx.lineTo(p.x-5,p.y-38);oCtx.closePath();oCtx.fill();}
-function drawRug(){const cx=isoToScreen(10,7);oCtx.save();oCtx.globalAlpha=0.12;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,200,90,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,160);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
+function drawRug(){const cx=isoToScreen(8,6);oCtx.save();oCtx.globalAlpha=0.12;oCtx.beginPath();oCtx.ellipse(cx.x,cx.y+10,200,90,0,0,Math.PI*2);const rg=oCtx.createRadialGradient(cx.x,cx.y+10,10,cx.x,cx.y+10,160);rg.addColorStop(0,'#8b5cf6');rg.addColorStop(0.5,'#6d28d9');rg.addColorStop(1,'transparent');oCtx.fillStyle=rg;oCtx.fill();oCtx.restore();}
 // Cached window sky colors — recomputed every 10s instead of every frame
 let _winCache = null;
 function _getWindowColors() {
@@ -1920,7 +1920,7 @@ function _drawAgentSprite(agent, gx, gy, time) {
   oCtx.fill();
   
   // Draw sprite (centered, scaled to fit isometric tile)
-  const spriteScale = 2.5; // large enough to read as pixel-art at default zoom
+  const spriteScale = 2.8; // large enough to read as distinct pixel-art characters
   oCtx.imageSmoothingEnabled = false;
   SpriteSystem.drawSprite(oCtx, frame, px, py, spriteScale);
   
@@ -3660,30 +3660,30 @@ function buildStaticLayer() {
   // Floor with zone-based tinting for visual depth
   const zoneFloor = (c, r) => {
     // Content zone (top-left): warm purple
-    if (c < 10 && r < 7) return (r+c) % 2 === 0 ? '#2a2235' : '#2e2639';
+    if (c < 8 && r < 6) return (r+c) % 2 === 0 ? '#2a2235' : '#2e2639';
     // Engineering zone (top-right): dark blue-gray
-    if (c >= 10 && r < 7) return (r+c) % 2 === 0 ? '#1a2744' : '#1e2d4e';
+    if (c >= 8 && r < 6) return (r+c) % 2 === 0 ? '#1a2744' : '#1e2d4e';
     // Leadership zone (bottom-left): amber
-    if (c < 10 && r >= 7) return (r+c) % 2 === 0 ? '#2a2420' : '#2e2824';
+    if (c < 8 && r >= 6) return (r+c) % 2 === 0 ? '#2a2420' : '#2e2824';
     // Support zone (bottom-right): teal
-    if (c >= 10 && r >= 7) return (r+c) % 2 === 0 ? '#1a2a2a' : '#1e2e2e';
+    if (c >= 8 && r >= 6) return (r+c) % 2 === 0 ? '#1a2a2a' : '#1e2e2e';
     return (r+c) % 2 === 0 ? th.floor1 : th.floor2;
   };
   for (let r = 0; r < GRID.rows; r++) for (let c = 0; c < GRID.cols; c++)
     drawIsoTile(c, r, zoneFloor(c, r), th.floorStroke);
   // Zone divider lines (subtle)
   oCtx.save(); oCtx.globalAlpha = 0.2; oCtx.strokeStyle = '#ffffff'; oCtx.lineWidth = 1.5;
-  // Vertical divider at col 10
+  // Vertical divider at col 8
   oCtx.beginPath();
   for (let r = 0; r <= GRID.rows; r++) {
-    const p = isoToScreen(10, r);
+    const p = isoToScreen(8, r);
     if (r === 0) oCtx.moveTo(p.x, p.y); else oCtx.lineTo(p.x, p.y);
   }
   oCtx.stroke();
-  // Horizontal divider at row 7
+  // Horizontal divider at row 6
   oCtx.beginPath();
   for (let c = 0; c <= GRID.cols; c++) {
-    const p = isoToScreen(c, 7);
+    const p = isoToScreen(c, 6);
     if (c === 0) oCtx.moveTo(p.x, p.y); else oCtx.lineTo(p.x, p.y);
   }
   oCtx.stroke();
@@ -3697,10 +3697,10 @@ function buildStaticLayer() {
   oCtx.save();
   oCtx.globalAlpha = 0.7;
   oCtx.font = 'bold 18px system-ui'; oCtx.textAlign = 'center';
-  const ctP = isoToScreen(5, 1); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + 8);
-  const enP = isoToScreen(15, 1); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + 8);
-  const ldP = isoToScreen(5, 8); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y - 6);
-  const supP = isoToScreen(15, 8); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('🛟 SUPPORT', supP.x, supP.y - 6);
+  const ctP = isoToScreen(4, 1); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + 8);
+  const enP = isoToScreen(12, 1); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + 8);
+  const ldP = isoToScreen(4, 7); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y - 6);
+  const supP = isoToScreen(12, 7); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('🛟 SUPPORT', supP.x, supP.y - 6);
   oCtx.restore();
 
   // Static furniture
