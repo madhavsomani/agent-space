@@ -40,8 +40,11 @@ window.Office3D = (function() {
   const hw = GRID.cols * TILE / 2, hh = GRID.rows * TILE / 2;
   const ZONES = {
     breakRoom: { x: -hw + 2, z: -hh + 1.5, label: 'Break Room' },
+    lounge: { x: -hw + 2.2, z: -hh + 2.3, label: 'Lounge' },
     serverRoom: { x: hw - 1.5, z: -hh + 0.5, label: 'Server Room' },
     whiteboard: { x: 3, z: -hh + 1.5, label: 'Whiteboard' },
+    review: { x: 1.5, z: -hh + 2.2, label: 'Review' },
+    center: { x: 0, z: 0, label: 'Center' },
   };
 
   // Walking speed (world units per second)
@@ -507,8 +510,30 @@ window.Office3D = (function() {
     am.isWandering = false; // true when on an autonomous wander (not API-driven)
   }
 
+  function jitterPoint(base, radius = 0.6) {
+    return {
+      x: base.x + (Math.random() - 0.5) * radius,
+      z: base.z + (Math.random() - 0.5) * radius
+    };
+  }
+
+  function getStatusTarget(am, status, agent) {
+    const s = String(status || '').toLowerCase();
+    const role = String(agent?.role || '').toLowerCase();
+    if (s.includes('sleep')) return am.deskPos;
+    if (s.includes('review')) return jitterPoint(ZONES.review, 0.8);
+    if (s.includes('qa') || role.includes('qa') || role.includes('tester')) return jitterPoint(ZONES.serverRoom, 0.9);
+    if (s.includes('idle')) {
+      const choices = [ZONES.breakRoom, ZONES.lounge, ZONES.whiteboard, ZONES.center];
+      return jitterPoint(choices[Math.floor(Math.random() * choices.length)], 1.0);
+    }
+    if (s.includes('working')) return am.deskPos;
+    return jitterPoint(ZONES.center, 0.8);
+  }
+
   function transitionToWalking(am, target) {
     am.state = 'walking';
+    am.stateTimer = 0;
     am.walkFrom = { x: am.group.position.x, z: am.group.position.z };
     am.walkTo = { x: target.x, z: target.z };
     am.walkProgress = 0;
@@ -762,30 +787,39 @@ window.Office3D = (function() {
         am.group.add(am.badge);
 
         if (prevStatus && prevStatus !== agent.status) {
-          // Animate: walk back to desk if not there, then sit
           const atDesk = Math.abs(am.group.position.x - am.deskPos.x) < 0.3 &&
                          Math.abs(am.group.position.z - am.deskPos.z) < 0.3;
+          const nextStatus = String(agent.status || '').toLowerCase();
 
-          if (agent.status === 'idle' && prevStatus === 'working') {
-            // Stand and stretch briefly, then idle at desk
-            transitionToSitting(am, 'idle');
-          } else if (agent.status === 'sleeping') {
-            if (!atDesk) transitionToWalking(am, am.deskPos);
-            else transitionToSitting(am, 'sleeping');
-            am._pendingState = 'sleeping';
-          } else if (agent.status === 'working') {
+          if (nextStatus.includes('working')) {
             if (!atDesk) {
               transitionToWalking(am, am.deskPos);
+              am.isWandering = false;
               am._pendingState = 'working';
             } else {
               transitionToSitting(am, 'working');
             }
+          } else if (nextStatus.includes('sleep')) {
+            if (!atDesk) transitionToWalking(am, am.deskPos);
+            else transitionToSitting(am, 'sleeping');
+            am.isWandering = false;
+            am._pendingState = 'sleeping';
           } else {
-            transitionToSitting(am, agent.status);
+            // Idle / review / QA-like states should visibly leave the desk.
+            transitionToWalking(am, getStatusTarget(am, nextStatus, agent));
+            am.isWandering = true;
+            am._pendingState = 'idle';
           }
         } else {
           // First load
-          transitionToSitting(am, agent.status);
+          const initialStatus = String(agent.status || '').toLowerCase();
+          if (initialStatus.includes('working') || initialStatus.includes('sleep')) {
+            transitionToSitting(am, initialStatus.includes('sleep') ? 'sleeping' : 'working');
+          } else {
+            transitionToWalking(am, getStatusTarget(am, initialStatus, agent));
+            am.isWandering = true;
+            am._pendingState = 'idle';
+          }
         }
       }
 
