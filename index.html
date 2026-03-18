@@ -465,7 +465,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <button data-tab="tokens">💰 Tokens</button>
   <button data-tab="performance">📊 Performance</button>
   <button data-tab="comm-graph">🔗 Comm Graph</button>
-  <button data-tab="dep-graph">🌳 Dependencies</button>
+  <!-- Dependencies tab hidden per feedback: confusing, unclear value -->
+  <!-- <button data-tab="dep-graph">🌳 Dependencies</button> -->
   <button data-tab="system">⚙️ System</button>
 </nav>
 
@@ -3410,21 +3411,50 @@ function buildStaticLayer() {
   try {
 
   // Floor
+  // Floor with zone-based tinting for visual depth
+  const zoneFloor = (c, r) => {
+    // Engineering zone: dark blue-gray wood
+    if (c >= 8 && r <= 5) return (r+c) % 2 === 0 ? '#1a2744' : '#1e2d4e';
+    // Content zone: warm brown carpet
+    if (c < 8 && r <= 5) return (r+c) % 2 === 0 ? '#2a2235' : '#2e2639';
+    // Break room / support: softer tile
+    if (c >= 8 && r > 5) return (r+c) % 2 === 0 ? '#1a2a2a' : '#1e2e2e';
+    // CEO / leadership area
+    if (c < 8 && r > 5) return (r+c) % 2 === 0 ? '#2a2420' : '#2e2824';
+    return (r+c) % 2 === 0 ? th.floor1 : th.floor2;
+  };
   for (let r = 0; r < GRID.rows; r++) for (let c = 0; c < GRID.cols; c++)
-    drawIsoTile(c, r, (r + c) % 2 === 0 ? th.floor1 : th.floor2, th.floorStroke);
+    drawIsoTile(c, r, zoneFloor(c, r), th.floorStroke);
+  // Zone divider lines (subtle)
+  oCtx.save(); oCtx.globalAlpha = 0.15; oCtx.strokeStyle = '#ffffff'; oCtx.lineWidth = 1;
+  // Vertical divider at col 8
+  for (let r = 0; r < GRID.rows; r++) {
+    const p = isoToScreen(8, r);
+    if (r === 0) { oCtx.beginPath(); oCtx.moveTo(p.x, p.y); }
+    else { oCtx.lineTo(p.x, p.y); }
+  }
+  oCtx.stroke();
+  // Horizontal divider at row 6
+  for (let c = 0; c < GRID.cols; c++) {
+    const p = isoToScreen(c, 6);
+    if (c === 0) { oCtx.beginPath(); oCtx.moveTo(p.x, p.y); }
+    else { oCtx.lineTo(p.x, p.y); }
+  }
+  oCtx.stroke();
+  oCtx.restore();
 
   // Walls
   for (let c = 0; c < GRID.cols; c++) drawIsoCube(c, 0, 16, th.wall1, th.wall2, th.wall3);
   for (let r = 0; r < GRID.rows; r++) drawIsoCube(0, r, 16, th.wall1, th.wall2, th.wall3);
 
-  // Team labels
+  // Team labels (zone headers — bolder, bigger)
   oCtx.save();
-  oCtx.globalAlpha = 0.45;
-  oCtx.font = 'bold 11px system-ui'; oCtx.textAlign = 'center';
-  const ctP = isoToScreen(5, 8); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('CONTENT TEAM', ctP.x, ctP.y + ISO.tileH + 6);
-  const enP = isoToScreen(18, 7); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('ENGINEERING', enP.x, enP.y + ISO.tileH + 6);
-  const ceoP = isoToScreen(12, 8); oCtx.fillStyle = '#FFD700'; oCtx.fillText('CEO', ceoP.x, ceoP.y + ISO.tileH + 42);
-  const supP = isoToScreen(12, 13); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('SUPPORT', supP.x, supP.y + ISO.tileH + 6);
+  oCtx.globalAlpha = 0.55;
+  oCtx.font = 'bold 13px system-ui'; oCtx.textAlign = 'center';
+  const ctP = isoToScreen(4, 2); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + ISO.tileH + 6);
+  const enP = isoToScreen(12, 2); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + ISO.tileH + 6);
+  const ldP = isoToScreen(4, 7); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y + ISO.tileH + 6);
+  const supP = isoToScreen(12, 7); oCtx.fillStyle = '#FF69B4'; oCtx.fillText('🛟 SUPPORT', supP.x, supP.y + ISO.tileH + 6);
   oCtx.restore();
 
   // Static furniture
@@ -5457,6 +5487,8 @@ function resizeCanvas() {
   oCanvas.style.width = canvasW + 'px';
   oCanvas.style.height = canvasH + 'px';
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Crisp pixel art rendering — no smoothing
+  oCtx.imageSmoothingEnabled = false;
   // Recalculate iso origin to center grid in canvas
   _isoOriginX = internalW / 2 + (GRID.rows * ISO.tileW / 4) - (GRID.cols * ISO.tileW / 4);
   // Vertically center the grid in available space
