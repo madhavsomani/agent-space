@@ -379,12 +379,15 @@ window.Office3D = (function() {
 
   function updateAgents(agents) {
     if (!initialized || !active) return;
+    const savedLayout = (typeof localStorage !== 'undefined') ? (function() { try { return JSON.parse(localStorage.getItem('agent-space-desk-layout')) || {}; } catch { return {}; } })() : {};
 
     agents.forEach(agent => {
       const name = agent.name;
       if (!agentMeshes[name]) {
-        // Find desk position from 2D canvas deskPositions or auto-assign
-        const deskPos = (typeof deskPositions !== 'undefined' && deskPositions[name])
+        // Use saved position first, then deskPositions, then auto
+        const saved = savedLayout[name];
+        const deskPos = saved
+          || (typeof deskPositions !== 'undefined' && deskPositions[name])
           || (typeof getAutoDesk === 'function' && getAutoDesk(name))
           || { gx: 8, gy: 5 };
         const wp = gridToWorld(deskPos.gx, deskPos.gy);
@@ -399,7 +402,7 @@ window.Office3D = (function() {
         ring.rotation.x = -Math.PI / 2;
         ring.position.set(wp.x, 0.02, wp.z + 0.5);
         scene.add(ring);
-        agentMeshes[name] = { ...desk, ...char, ring, wp, status: null };
+        agentMeshes[name] = { ...desk, ...char, ring, wp, gx: deskPos.gx, gy: deskPos.gy, status: null };
       }
 
       const am = agentMeshes[name];
@@ -518,6 +521,92 @@ window.Office3D = (function() {
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
     resizeObs.observe(container);
+
+    // ── Drag-to-reposition desks ──
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let dragAgent = null, dragPlane = null;
+    const DRAG_KEY = 'agent-space-desk-layout';
+
+    // Load saved positions
+    function loadDeskLayout() {
+      try { return JSON.parse(localStorage.getItem(DRAG_KEY)) || {}; } catch { return {}; }
+    }
+    function saveDeskLayout() {
+      const layout = {};
+      Object.entries(agentMeshes).forEach(([name, am]) => {
+        layout[name] = { gx: am.gx, gy: am.gy };
+      });
+      localStorage.setItem(DRAG_KEY, JSON.stringify(layout));
+    }
+
+    function onPointerDown(e) {
+      if (e.button !== 0) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      // Check character bodies
+      const bodies = Object.entries(agentMeshes).map(([n, am]) => { am.body.userData.agentName = n; return am.body; });
+      const hits = raycaster.intersectObjects(bodies);
+      if (hits.length) {
+        dragAgent = hits[0].object.userData.agentName;
+        controls.enabled = false;
+        dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        renderer.domElement.style.cursor = 'grabbing';
+      }
+    }
+    function onPointerMove(e) {
+      if (!dragAgent) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const pt = new THREE.Vector3();
+      raycaster.ray.intersectPlane(dragPlane, pt);
+      if (!pt) return;
+      // Snap to grid
+      const gx = Math.round(pt.x / TILE_SIZE + GRID.cols / 2 - 0.5);
+      const gy = Math.round(pt.z / TILE_SIZE + GRID.rows / 2 - 0.5);
+      const cx = Math.max(0, Math.min(GRID.cols - 1, gx));
+      const cy = Math.max(0, Math.min(GRID.rows - 1, gy));
+      const wp = gridToWorld(cx, cy);
+      const am = agentMeshes[dragAgent];
+      if (am) {
+        // Move desk group + character + ring
+        am.group.position.set(wp.x, 0, wp.z);       // desk
+        am.group.children && void 0;                  // desk is the desk group returned from createDesk
+        // Character group is separate
+        const charGroup = scene.children.find(c => c === am.group && c.userData);
+        // Actually move all pieces
+        // The desk group from createDesk:
+        if (am.screen) {
+          // Find the desk parent group
+          const deskParent = am.screen.parent;
+          if (deskParent) deskParent.position.set(wp.x, 0, wp.z);
+        }
+        // Character body's parent group
+        if (am.body && am.body.parent) am.body.parent.position.set(wp.x, 0, wp.z + 0.5);
+        // Ring
+        if (am.ring) am.ring.position.set(wp.x, 0.02, wp.z + 0.5);
+        am.wp = wp;
+        am.gx = cx;
+        am.gy = cy;
+      }
+    }
+    function onPointerUp() {
+      if (dragAgent) {
+        saveDeskLayout();
+        dragAgent = null;
+        controls.enabled = true;
+        renderer.domElement.style.cursor = 'grab';
+      }
+    }
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.style.cursor = 'grab';
 
     initialized = true;
   }
