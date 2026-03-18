@@ -27,7 +27,7 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ```bash
 # Clone
-git clone https://github.com/madhavsomani/agent-space.git
+git clone https://github.com/openclaw/agent-space.git
 cd agent-space
 
 # Try it instantly with demo data (no OpenClaw needed!)
@@ -74,15 +74,6 @@ cp config.example.json config.json
 | `cronJobId` | Cron job UUID (for cron-based agents) |
 | `persistent` | `true` if agent runs on a cron loop |
 
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BIND_HOST` | `127.0.0.1` | Network interface to bind. Use `0.0.0.0` for LAN/external access. |
-| `HOME` | OS default | Home directory (used to find `~/.openclaw/agents/`) |
-
-Pass `--demo` flag to run with mock data (no OpenClaw installation needed).
-
 ## Docker
 
 ```bash
@@ -122,6 +113,10 @@ docker compose up -d
 | `GET /api/agent-detail/:id` | Detailed agent info |
 | `POST /api/queue` | Create a new work request |
 | `POST /api/wake-agent` | Trigger a cron agent manually |
+
+## Contributing
+
+PRs welcome! Agent Space has zero npm dependencies by design — keep it that way.
 
 ## License
 
