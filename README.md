@@ -1,6 +1,6 @@
 # Agent Space
 
-A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI agent team.
+A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI agent team — presented as an isometric pixel-art virtual office.
 
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
 
@@ -8,20 +8,23 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ## Features
 
-- **3D virtual office** — Three.js isometric office with zone-based layout, walking animations, and agent desks
-- **Live agent status** — agents visually move between zones based on state (working → desk, idle → lounge, review → whiteboard)
-- **Fade-in/out animations** — agents appear and disappear smoothly as they come online/offline
-- **Zone boundaries & path lines** — visual indicators showing office zones and agent movement paths
-- **System health** — CPU, memory, disk, services at a glance
-- **Work request queue** — Kanban board for task tracking
+- **Isometric pixel-art office** — 2D canvas office with zone-based layout, pixel-art agent sprites, and desk animations
+- **Day/night cycle** — ambient lighting synced to real time (dawn, day, dusk, night)
+- **Live agent status** — agents visually reflect their state (working → typing at desk, idle → off-desk, sleeping → desk sleep pose)
+- **Zone-based floor textures** — distinct tinted areas for Engineering, Content, Leadership, Support zones
+- **Click-to-inspect** — click any agent in the office to open a detail panel
+- **System health** — CPU, memory, disk, services at a glance with sparklines
+- **Work request queue** — Kanban board for task tracking with real-time SSE updates
 - **Activity feed** — real-time log of agent actions
-- **Token usage** — track input/output/cached tokens with cost estimates
-- **Performance metrics** — success rates, durations, error logs for cron agents
-- **Communication graph** — visualize which agents talk to each other
-- **Timeline heatmap** — 6-hour activity heatmap per agent
+- **Token usage** — track input/output/cached tokens with per-agent cost breakdown
+- **Performance metrics** — success rates, durations, histograms, per-agent sparklines
+- **Communication graph** — force-directed graph with active-only filtering
+- **Memory inspector** — Qdrant stats, per-agent file breakdown, growth trends
+- **Timeline heatmap** — activity calendar and per-agent uptime charts
 - **SSE live updates** — no polling, instant UI updates
 - **Dynamic agent discovery** — persistent agents auto-appear at desks, sub-agents shown as visitors
-- **Mobile-friendly** — responsive viewport sizing, no dark voids
+- **Mobile-friendly** — responsive layout optimized down to 375px width
+- **Minimap** — corner minimap with viewport indicator for zoomed views
 
 ## Quick Start
 
@@ -91,10 +94,10 @@ docker compose up -d
 
 ## Architecture
 
-- **`server.js`** — Node.js HTTP server with REST API + SSE
+- **`server.js`** — Node.js HTTP server with REST API + SSE (zero npm deps)
 - **`index.html`** — Single-file frontend (vanilla JS, no build step)
-- **`office3d.js`** — Three.js 3D office renderer (zone layout, walking, fade animations)
-- **No dependencies** — zero npm packages required (Three.js loaded via CDN)
+- **`sprites.js`** — Pixel-art sprite system for agent characters
+- **No dependencies** — zero npm packages required
 
 ## API Endpoints
 
@@ -107,8 +110,9 @@ docker compose up -d
 | `GET /api/queue` | Work request queue |
 | `GET /api/tokens` | Token usage summary |
 | `GET /api/tokens/daily` | Daily token breakdown (14 days) |
-| `GET /api/memory` | Qdrant vector memory stats |
+| `GET /api/memory` | Qdrant vector memory stats + per-agent breakdown |
 | `GET /api/performance` | Cron agent performance metrics |
+| `GET /api/comm-graph` | Agent communication graph data |
 | `GET /api/events` | SSE stream for live updates |
 | `GET /api/agent-detail/:id` | Detailed agent info |
 | `POST /api/queue` | Create a new work request |
