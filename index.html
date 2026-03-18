@@ -477,7 +477,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
   <div id="office-2d-flat" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card);padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
-  <div id="office-3d-container" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:500px;position:relative">
+  <div id="office-3d-container" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:400px;position:relative;background:#d0e8f8">
     <div id="activity-overlay" style="position:absolute;bottom:8px;left:8px;right:8px;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:10"></div>
   </div>
   <div class="office-legend" id="office-legend"></div>
@@ -6944,7 +6944,8 @@ async function switchOfficeView(view) {
 
   if (view === '3d') {
     container3d.style.display = 'block';
-    container3d.style.height = Math.max(500, window.innerHeight - 200) + 'px';
+    const mobileOffset = window.innerWidth <= 768 ? 260 : 200;
+    container3d.style.height = Math.max(350, window.innerHeight - mobileOffset) + 'px';
     btn3d.style.opacity = '1';
     if (typeof Office3D !== 'undefined') {
       await Office3D.start(container3d);
