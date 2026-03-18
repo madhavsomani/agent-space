@@ -393,6 +393,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
     <div class="help-row"><span>Zoom in / out office</span><span><span class="help-key">+</span> / <span class="help-key">-</span></span></div>
     <div class="help-row"><span>Reset zoom</span><span class="help-key">`</span></div>
     <div class="help-row"><span>Pan office</span><span class="help-key">Click + Drag</span></div>
+    <div class="help-row"><span>Toggle 2D / 3D office view</span><span class="help-key">V</span></div>
     <div class="help-row"><span>Show this help</span><span class="help-key">?</span></div>
     <div class="help-row"><span>Close overlay</span><span class="help-key">Esc</span></div>
     <div style="margin-top:12px;font-size:11px;color:var(--dim);text-align:center">Hover agents in the office for details · Scroll to zoom</div>
@@ -813,6 +814,7 @@ document.addEventListener('keydown', e => {
   if(e.key === '?') document.getElementById('help-overlay').classList.toggle('visible');
   if(e.key === 't' || e.key === 'T') toggleTheme();
   if(e.key === 's' || e.key === 'S') toggleAmbientSound();
+  if(e.key === 'v' || e.key === 'V') switchOfficeView(_officeView === '3d' ? '2d' : '3d');
   if(e.key === 'n' || e.key === 'N') toggleNotifSounds();
   if(e.key === 'i' || e.key === 'I') toggleNotifCenter();
   if(e.key === '+' || e.key === '=') { e.preventDefault(); zoomIn(); }
