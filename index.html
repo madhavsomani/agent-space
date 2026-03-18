@@ -1886,7 +1886,7 @@ function _drawAgentSprite(agent, gx, gy, time) {
   oCtx.fill();
   
   // Draw sprite (centered, scaled to fit isometric tile)
-  const spriteScale = 1.35; // slightly oversized so pixel characters read clearly at default zoom
+  const spriteScale = 1.6; // larger so pixel characters read clearly
   oCtx.imageSmoothingEnabled = false;
   SpriteSystem.drawSprite(oCtx, frame, px, py, spriteScale);
   
@@ -3494,6 +3494,22 @@ function _drawOfficeInner(rafNow) {
   oCtx.restore();
 
   // Draw mini-map & zoom controls (in screen space, not transformed)
+  // Day/night ambient overlay synced to real time
+  {
+    const hour = new Date().getHours() + new Date().getMinutes() / 60;
+    // Night: 22:00-06:00 = blue overlay. Dawn/dusk: gradual transition.
+    let nightAlpha = 0;
+    if (hour >= 22 || hour < 5) nightAlpha = 0.15; // deep night
+    else if (hour >= 5 && hour < 7) nightAlpha = 0.15 * (1 - (hour - 5) / 2); // dawn
+    else if (hour >= 19 && hour < 22) nightAlpha = 0.15 * ((hour - 19) / 3); // dusk
+    if (nightAlpha > 0.005) {
+      oCtx.save();
+      oCtx.globalAlpha = nightAlpha;
+      oCtx.fillStyle = '#0a1628';
+      oCtx.fillRect(0, 0, oCanvas.width, oCanvas.height);
+      oCtx.restore();
+    }
+  }
   drawMiniMap(allAgents);
   drawZoomControls();
 

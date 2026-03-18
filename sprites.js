@@ -24,7 +24,7 @@ window.SpriteSystem = (function() {
   };
 
   const SPRITE_SIZE = 16; // Base sprite size
-  const SCALE = 2;        // Render at 2x for crispness (32×32 actual)
+  const SCALE = 3;        // Render at 3x for crispness (48×48 actual)
 
   // Cache for generated sprite canvases
   const cache = {};
