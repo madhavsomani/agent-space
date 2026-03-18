@@ -967,10 +967,14 @@ window.Office3D = (function() {
         if (am.desk?.group) setGroupOpacity(am.desk.group, am._fadeOut);
         if (am.chair) setGroupOpacity(am.chair, am._fadeOut);
         if (am._fadeOut <= 0) {
-          if (am.group) scene.remove(am.group);
-          if (am.desk?.group) scene.remove(am.desk.group);
-          if (am.chair) scene.remove(am.chair);
-          am.zzzSprites?.forEach(z => { am.group.remove(z); z.material.dispose(); });
+          [am.group, am.desk?.group, am.chair].filter(Boolean).forEach(g => {
+            scene.remove(g);
+            g.traverse(child => {
+              if (child.isMesh) { child.geometry?.dispose(); if (Array.isArray(child.material)) child.material.forEach(m => { m.map?.dispose(); m.dispose(); }); else if (child.material) { child.material.map?.dispose(); child.material.dispose(); } }
+            });
+          });
+          am.zzzSprites?.forEach(z => { z.material.map?.dispose(); z.material.dispose(); });
+          am._pathLine?.geometry?.dispose(); am._pathLine?.material?.dispose();
           delete agentMeshes[am._name];
           return;
         }

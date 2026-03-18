@@ -8,8 +8,10 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ## Features
 
-- **Live agent status** — see which agents are working, idle, or sleeping
-- **Virtual office** — isometric office view with animated agent avatars
+- **3D virtual office** — Three.js isometric office with zone-based layout, walking animations, and agent desks
+- **Live agent status** — agents visually move between zones based on state (working → desk, idle → lounge, review → whiteboard)
+- **Fade-in/out animations** — agents appear and disappear smoothly as they come online/offline
+- **Zone boundaries & path lines** — visual indicators showing office zones and agent movement paths
 - **System health** — CPU, memory, disk, services at a glance
 - **Work request queue** — Kanban board for task tracking
 - **Activity feed** — real-time log of agent actions
@@ -18,6 +20,8 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 - **Communication graph** — visualize which agents talk to each other
 - **Timeline heatmap** — 6-hour activity heatmap per agent
 - **SSE live updates** — no polling, instant UI updates
+- **Dynamic agent discovery** — persistent agents auto-appear at desks, sub-agents shown as visitors
+- **Mobile-friendly** — responsive viewport sizing, no dark voids
 
 ## Quick Start
 
@@ -98,7 +102,8 @@ docker compose up -d
 
 - **`server.js`** — Node.js HTTP server with REST API + SSE
 - **`index.html`** — Single-file frontend (vanilla JS, no build step)
-- **No dependencies** — zero npm packages required
+- **`office3d.js`** — Three.js 3D office renderer (zone layout, walking, fade animations)
+- **No dependencies** — zero npm packages required (Three.js loaded via CDN)
 
 ## API Endpoints
 
