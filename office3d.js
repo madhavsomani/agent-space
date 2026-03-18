@@ -437,6 +437,39 @@ window.Office3D = (function() {
     furnitureGroup.add(coolerTop);
 
     scene.add(furnitureGroup);
+
+    // Zone labels on floor
+    const zoneLabelData = [
+      { text: '☕ Break Room', x: -hw + 2, z: -hh + 2.5 },
+      { text: '🖥️ Server Room', x: hw - 1.5, z: -hh + 2 },
+      { text: '📋 Whiteboard', x: 3, z: -hh + 2.5 },
+      { text: '📚 Library', x: -2, z: -hh + 2 },
+    ];
+    zoneLabelData.forEach(zl => {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 48;
+      const cx = c.getContext('2d');
+      cx.fillStyle = 'rgba(0,0,0,0.25)';
+      cx.fillRect(0, 0, 256, 48);
+      cx.fillStyle = '#ffffff';
+      cx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillText(zl.text, 128, 24);
+      const tex = new THREE.CanvasTexture(c);
+      tex.minFilter = THREE.LinearFilter;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.5), mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(zl.x, 0.01, zl.z);
+      scene.add(mesh);
+    });
+
+    // Break room rug
+    const rugMat = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9, transparent: true, opacity: 0.4 });
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), rugMat);
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(-hw + 2, 0.005, -hh + 1.8);
+    scene.add(rug);
   }
 
   // ── GRID → WORLD ──
