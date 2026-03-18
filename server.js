@@ -2421,6 +2421,13 @@ const server = http.createServer((req, res) => {
   if (url === '/api/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*' });
     res.write(`event: connected\ndata: {"ok":true}\n\n`);
+    // Send initial state burst so reconnecting clients don't miss anything
+    try {
+      const agents = getAgents();
+      res.write(`event: agents\ndata: ${JSON.stringify(agents)}\n\n`);
+      const activity = getActivity();
+      res.write(`event: activity\ndata: ${JSON.stringify(activity)}\n\n`);
+    } catch {}
     sseClients.add(res);
     req.on('close', () => sseClients.delete(res));
     return;

@@ -5617,6 +5617,8 @@ let _sseClients = 0;
 let _sseEventCount = 0;
 let _sseInstance = null;
 let _sseReconnectTimer = null;
+let _sseReconnectDelay = 1000;
+let _sseReconnectCount = 0;
 function connectSSE() {
   if (_sseInstance) { try { _sseInstance.close(); } catch {} }
   if (_sseReconnectTimer) { clearTimeout(_sseReconnectTimer); _sseReconnectTimer = null; }
@@ -5624,6 +5626,8 @@ function connectSSE() {
   _sseInstance = es;
   es.addEventListener('connected', () => {
     _sseConnected = true;
+    _sseReconnectDelay = 1000;
+    _sseReconnectCount = 0;
     updateSSEIndicator();
   });
   es.addEventListener('ping', (e) => {
@@ -5712,7 +5716,9 @@ function connectSSE() {
     updateSSEIndicator();
     es.close();
     _sseInstance = null;
-    _sseReconnectTimer = setTimeout(connectSSE, 3000);
+    _sseReconnectCount++;
+    _sseReconnectDelay = Math.min(_sseReconnectDelay * 2, 30000);
+    _sseReconnectTimer = setTimeout(connectSSE, _sseReconnectDelay);
   };
 }
 function updateSSEIndicator() {
