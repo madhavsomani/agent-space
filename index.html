@@ -471,6 +471,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 <div class="tab active" id="tab-office">
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
+    <button id="layout-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px;opacity:0.5" onclick="toggleLayoutMode()">🔧 Layout</button>
     <button id="view-2d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px" onclick="switchOfficeView('2d')">🏢 2D</button>
     <button id="view-3d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px;opacity:0.5" onclick="switchOfficeView('3d')">🎮 3D</button>
   </div>
@@ -843,6 +844,7 @@ async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spinning');
   await Promise.allSettled([refreshAgents(), refreshSystem(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshCommGraph(), refreshDepGraph(), refreshHeatmapCalendar(), refreshDiskBreakdown(), refreshLiveLogs()]);
+  if (typeof loadDeskLayout === 'function') loadDeskLayout();
   buildLegend(); renderAgentCards(); markUpdated();
   setTimeout(() => btn.classList.remove('spinning'), 600);
 }
@@ -2640,19 +2642,107 @@ oCanvas.addEventListener('wheel', e => {
   if (e.deltaY < 0) zoomIn(); else zoomOut();
 }, { passive: false });
 
+// ── Layout Mode (desk drag & drop) ──
+let _layoutMode = false, _layoutDragging = null, _layoutMouseX = 0, _layoutMouseY = 0;
+let _layoutGhostGx = 0, _layoutGhostGy = 0;
+
+function toggleLayoutMode() {
+  _layoutMode = !_layoutMode;
+  const btn = document.getElementById('layout-btn');
+  btn.style.opacity = _layoutMode ? '1' : '0.5';
+  btn.style.background = _layoutMode ? 'var(--accent)' : '';
+  btn.style.color = _layoutMode ? '#fff' : '';
+  oCanvas.style.cursor = _layoutMode ? 'crosshair' : 'default';
+  _staticValid = false; // force redraw to show grid overlay
+}
+
+function isoToGrid(px, py) {
+  // Invert the gridToIso: px = ox + (gx-gy)*tw/2, py = oy + (gx+gy)*th/2
+  const dx = px - _isoOriginX, dy = py - _isoOriginY;
+  const gx = (dx / (ISO.tileW / 2) + dy / (ISO.tileH / 2)) / 2;
+  const gy = (dy / (ISO.tileH / 2) - dx / (ISO.tileW / 2)) / 2;
+  return { gx: Math.round(gx), gy: Math.round(gy) };
+}
+
+function canvasToIso(clientX, clientY) {
+  const rect = oCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const cx = (clientX - rect.left) * dpr;
+  const cy = (clientY - rect.top) * dpr;
+  // Undo zoom+pan transform: the canvas applies scale(zoom) then translate(panX, panY)
+  const px = cx / camZoom - camPanX;
+  const py = cy / camZoom - camPanY;
+  return isoToGrid(px, py);
+}
+
+function findAgentAtGrid(gx, gy) {
+  for (const a of agentData) {
+    const pos = deskPositions[a.name];
+    if (pos && pos.gx === gx && pos.gy === gy) return a.name;
+  }
+  return null;
+}
+
 oCanvas.addEventListener('mousedown', e => {
+  if (_layoutMode) {
+    const grid = canvasToIso(e.clientX, e.clientY);
+    const name = findAgentAtGrid(grid.gx, grid.gy);
+    if (name) {
+      _layoutDragging = name;
+      _layoutGhostGx = grid.gx;
+      _layoutGhostGy = grid.gy;
+      oCanvas.style.cursor = 'grabbing';
+      e.preventDefault();
+      return;
+    }
+  }
   _dragging = true; _dragStartX = e.clientX; _dragStartY = e.clientY;
   _panStartX = camPanX; _panStartY = camPanY;
   oCanvas.style.cursor = 'grabbing';
 });
+
 window.addEventListener('mousemove', e => {
+  if (_layoutDragging) {
+    const grid = canvasToIso(e.clientX, e.clientY);
+    _layoutGhostGx = Math.max(0, Math.min(GRID.cols - 1, grid.gx));
+    _layoutGhostGy = Math.max(0, Math.min(GRID.rows - 1, grid.gy));
+    _layoutMouseX = e.clientX;
+    _layoutMouseY = e.clientY;
+    return;
+  }
   if (!_dragging) return;
   camPanX = _panStartX + (e.clientX - _dragStartX) / camZoom;
   camPanY = _panStartY + (e.clientY - _dragStartY) / camZoom;
 });
+
 window.addEventListener('mouseup', () => {
-  _dragging = false; oCanvas.style.cursor = camZoom > 1 ? 'grab' : 'default';
+  if (_layoutDragging) {
+    // Snap desk to new position
+    const name = _layoutDragging;
+    deskPositions[name] = { gx: _layoutGhostGx, gy: _layoutGhostGy };
+    // Persist to localStorage
+    const saved = JSON.parse(localStorage.getItem('desk-layout') || '{}');
+    saved[name] = { gx: _layoutGhostGx, gy: _layoutGhostGy };
+    localStorage.setItem('desk-layout', JSON.stringify(saved));
+    _layoutDragging = null;
+    _staticValid = false; // rebuild static layer
+    oCanvas.style.cursor = _layoutMode ? 'crosshair' : 'default';
+    return;
+  }
+  _dragging = false; oCanvas.style.cursor = _layoutMode ? 'crosshair' : (camZoom > 1 ? 'grab' : 'default');
 });
+
+// Load saved desk layout from localStorage
+function loadDeskLayout() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('desk-layout') || '{}');
+    for (const [name, pos] of Object.entries(saved)) {
+      if (pos && typeof pos.gx === 'number' && typeof pos.gy === 'number') {
+        deskPositions[name] = pos;
+      }
+    }
+  } catch {}
+}
 
 // Mini-map settings
 const MINIMAP_W = 140, MINIMAP_H = 80, MINIMAP_PAD = 8;
@@ -2885,6 +2975,44 @@ function _drawOfficeInner(rafNow) {
   const visitors = _visitorsBuf;
 
   sorted.forEach(a => { oCtx.save(); drawAgent(a, a._gx, a._gy, time); oCtx.restore(); });
+
+  // Layout mode: draw ghost desk at target position
+  if (_layoutMode && _layoutDragging) {
+    const gp = isoToScreen(_layoutGhostGx, _layoutGhostGy);
+    oCtx.save();
+    oCtx.globalAlpha = 0.5;
+    oCtx.strokeStyle = '#22c55e';
+    oCtx.lineWidth = 3;
+    oCtx.setLineDash([6, 4]);
+    oCtx.beginPath();
+    oCtx.ellipse(gp.x, gp.y - 10, 28, 16, 0, 0, Math.PI * 2);
+    oCtx.stroke();
+    oCtx.setLineDash([]);
+    oCtx.fillStyle = 'rgba(34,197,94,0.15)';
+    oCtx.fill();
+    oCtx.font = 'bold 10px system-ui';
+    oCtx.textAlign = 'center';
+    oCtx.fillStyle = '#22c55e';
+    oCtx.fillText(_layoutDragging, gp.x, gp.y + 20);
+    oCtx.restore();
+  }
+
+  // Layout mode indicator: show grid overlay
+  if (_layoutMode) {
+    oCtx.save();
+    oCtx.globalAlpha = 0.15;
+    oCtx.strokeStyle = '#94a3b8';
+    oCtx.lineWidth = 0.5;
+    for (let gx = 0; gx <= GRID.cols; gx++) {
+      for (let gy = 0; gy <= GRID.rows; gy++) {
+        const p = isoToScreen(gx, gy);
+        oCtx.beginPath();
+        oCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        oCtx.stroke();
+      }
+    }
+    oCtx.restore();
+  }
 
   // Activity speech bubbles for working agents — show what they're doing
   sorted.forEach(a => {
