@@ -105,6 +105,85 @@ function recordAgentEvent(agentName, event, detail = '') {
   try { _stmts.insertEvent.run(Date.now(), agentName, event, detail); } catch {}
 }
 
+// ===== INTERACTION EVENT QUEUE =====
+// Tracks recent agent-to-agent communications for 3D visualization
+const INTERACTION_QUEUE_MAX = 50;
+const INTERACTION_SCAN_WINDOW = 10 * 60 * 1000; // 10 min
+let _interactionQueue = []; // { ts, from, to, topic, type }
+let _interactionScanTime = 0;
+const INTERACTION_SCAN_TTL = 15000; // rescan every 15s
+
+function scanInteractions() {
+  const now = Date.now();
+  if ((now - _interactionScanTime) < INTERACTION_SCAN_TTL) return _interactionQueue;
+  _interactionScanTime = now;
+
+  const agents = discoverAgents();
+  const agentNames = {};
+  for (const a of agents) {
+    agentNames[a.sessionDir] = a.name;
+    agentNames[a.name] = a.name;
+    if (a.sessionKey) agentNames[a.sessionKey] = a.name;
+  }
+
+  const events = [];
+  for (const agent of agents) {
+    const sessDir = path.join(AGENTS_DIR, agent.sessionDir, 'sessions');
+    if (!fs.existsSync(sessDir)) continue;
+    const fromName = agent.name;
+
+    try {
+      const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.endsWith('.lock'));
+      for (const f of files) {
+        const fp = path.join(sessDir, f);
+        const stat = fs.statSync(fp);
+        if (now - stat.mtimeMs > INTERACTION_SCAN_WINDOW) continue;
+
+        const readSize = Math.min(stat.size, 200000);
+        const fd = fs.openSync(fp, 'r');
+        const buf = Buffer.alloc(readSize);
+        fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
+        fs.closeSync(fd);
+        const lines = buf.toString('utf8').trim().split('\n');
+
+        for (let i = lines.length - 1; i >= Math.max(0, lines.length - 100); i--) {
+          const line = lines[i];
+          if (!line.includes('sessions_send') && !line.includes('sessions_spawn')) continue;
+          try {
+            const entry = JSON.parse(line);
+            const msg = entry.message || entry;
+            if (msg.role !== 'assistant' || !msg.content) continue;
+            let ts = entry.timestamp ? (typeof entry.timestamp === 'string' ? new Date(entry.timestamp).getTime() : entry.timestamp) : stat.mtimeMs;
+            if (now - ts > INTERACTION_SCAN_WINDOW) continue;
+
+            const contents = Array.isArray(msg.content) ? msg.content : [msg.content];
+            for (const c of contents) {
+              if (typeof c !== 'object') continue;
+              const toolName = c.name || c.function?.name || '';
+              if (toolName !== 'sessions_send' && toolName !== 'sessions_spawn') continue;
+              const input = c.input || c.arguments || {};
+              const sk = input.sessionKey || input.label || input.agentId || '';
+              let targetName = agentNames[sk];
+              if (!targetName) {
+                for (const p of sk.split(/[:\-_]/)) { if (agentNames[p]) { targetName = agentNames[p]; break; } }
+              }
+              if (!targetName) targetName = sk.split(':').pop() || sk;
+              if (targetName && targetName !== fromName) {
+                const topic = (input.message || input.task || '').replace(/[^\x20-\x7E]/g, '').slice(0, 80);
+                events.push({ ts, from: fromName, to: targetName, topic, type: toolName === 'sessions_spawn' ? 'spawn' : 'message' });
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  events.sort((a, b) => b.ts - a.ts);
+  _interactionQueue = events.slice(0, INTERACTION_QUEUE_MAX);
+  return _interactionQueue;
+}
+
 // Record a metric data point
 function recordMetric(key, value) {
   try { _stmts.insertMetric.run(Date.now(), key, value); } catch {}
@@ -1458,6 +1537,7 @@ let _lastSystemHash = '';
 let _lastTokensHash = '';
 let _lastTimelineHash = '';
 let _lastQueueHash = '';
+let _lastInteractionsHash = '';
 
 function simpleHash(obj) {
   const s = JSON.stringify(obj);
@@ -1533,6 +1613,13 @@ setInterval(() => {
         if (tlh !== _lastTimelineHash) { _lastTimelineHash = tlh; broadcastSSE('timeline', tl); }
       } catch {}
     }
+
+    // Interactions every tick (~15s) — lightweight scan
+    try {
+      const interactions = scanInteractions();
+      const ih = simpleHash(interactions);
+      if (ih !== _lastInteractionsHash) { _lastInteractionsHash = ih; broadcastSSE('interactions', { interactions }); }
+    } catch {}
   } catch (e) { console.error('SSE tick error:', e.message); }
   finally { _sseBusy = false; }
 }, 15000);
@@ -2481,6 +2568,7 @@ const server = http.createServer((req, res) => {
   if (url === '/api/dependency-graph') { setImmediate(() => { try { json(res, getDependencyGraph()); } catch(e) { json(res, {nodes:[],links:[],error:e.message}); } }); return; }
   if (url === '/api/heatmap-calendar') { setImmediate(() => { try { json(res, getHeatmapCalendar()); } catch(e) { json(res, {data:[],error:e.message}); } }); return; }
   if (url === '/api/live-logs') { setImmediate(() => { try { json(res, getLiveLogs()); } catch(e) { json(res, {logs:[],error:e.message}); } }); return; }
+  if (url === '/api/interactions') { setImmediate(() => { try { json(res, { interactions: scanInteractions(), timestamp: Date.now() }); } catch(e) { json(res, {interactions:[],error:e.message}); } }); return; }
   if (url.startsWith('/api/agent-logs/')) {
     const agentDir = decodeURIComponent(url.replace('/api/agent-logs/', ''));
     return json(res, getAgentLogs(agentDir));
