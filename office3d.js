@@ -486,6 +486,7 @@ window.Office3D = (function() {
   }
 
   function transitionToSitting(am, status) {
+    const normalizedStatus = String(status || '').toLowerCase();
     const atDesk = Math.abs(am.group.position.x - am.deskPos.x) < 0.5 &&
                    Math.abs(am.group.position.z - am.deskPos.z) < 0.5;
 
@@ -498,12 +499,12 @@ window.Office3D = (function() {
     }
 
     am.isWandering = false;
-    am.state = status === 'working' ? 'sitting_working' : status === 'sleeping' ? 'sleeping' : 'sitting_idle';
+    am.state = normalizedStatus.includes('working') ? 'sitting_working' : normalizedStatus.includes('sleep') ? 'sleeping' : 'sitting_idle';
     am.stateTimer = 0;
     am.group.position.x = am.deskPos.x;
     am.group.position.z = am.deskPos.z;
 
-    if (status === 'sleeping') {
+    if (normalizedStatus.includes('sleep')) {
       am.head.position.y = 0.95;
       am.head.rotation.x = 0.4;
       am.body.rotation.x = 0.3;
@@ -820,7 +821,10 @@ window.Office3D = (function() {
             else transitionToSitting(am, 'working');
             am.isWandering = false;
           } else if (nextStatus.includes('sleep')) {
-            transitionToWalking(am, jitter(ZONES.breakRoom, 1.0));
+            const atDesk = Math.abs(am.group.position.x - am.deskPos.x) < 0.3 &&
+                           Math.abs(am.group.position.z - am.deskPos.z) < 0.3;
+            if (!atDesk) transitionToWalking(am, am.deskPos);
+            else transitionToSitting(am, 'sleeping');
             am._pendingState = 'sleeping';
             am.isWandering = false;
           } else {
@@ -895,13 +899,10 @@ window.Office3D = (function() {
         am._pendingState = 'idle';
       }
 
-      // Working agents occasionally get coffee
+      // Working agents stay desk-bound so status mapping remains visually unambiguous.
+      // Keep their motion in-place via typing/fidget animation rather than off-desk wandering.
       if (am.state === 'sitting_working' && am.stateTimer > am.nextWanderTime) {
-        const coffeeSpots = [ZONES.waterCooler, ZONES.breakRoom];
-        const spot = coffeeSpots[Math.floor(Math.random() * coffeeSpots.length)];
-        transitionToWalking(am, jitter(spot, 0.8));
-        am.isWandering = true;
-        am._pendingState = 'working';
+        am.stateTimer = 0;
         am.nextWanderTime = WORK_STRETCH_MIN + Math.random() * (WORK_STRETCH_MAX - WORK_STRETCH_MIN);
       }
 
