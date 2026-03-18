@@ -472,8 +472,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 <div class="tab active" id="tab-office">
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
 
-    <button id="view-3d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px;opacity:0.5" onclick="switchOfficeView('3d')">🎮 3D</button>
-    <button id="view-grid-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px" onclick="switchOfficeView('grid')">📋 Grid</button>
+    <button id="view-2d-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px" onclick="switchOfficeView('2d')">🎮 Office</button>
+    <button id="view-grid-btn" class="refresh-btn" style="font-size:11px;padding:4px 12px;opacity:0.5" onclick="switchOfficeView('grid')">📋 Grid</button>
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
   <div id="office-2d-flat" style="display:none;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card);padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
@@ -816,7 +816,7 @@ document.addEventListener('keydown', e => {
   if(e.key === '?') document.getElementById('help-overlay').classList.toggle('visible');
   if(e.key === 't' || e.key === 'T') toggleTheme();
   if(e.key === 's' || e.key === 'S') toggleAmbientSound();
-  if(e.key === 'v' || e.key === 'V') { switchOfficeView(_officeView === '3d' ? 'grid' : '3d'); }
+  if(e.key === 'v' || e.key === 'V') { switchOfficeView(_officeView === '2d' ? 'grid' : '2d'); }
   if(e.key === 'n' || e.key === 'N') toggleNotifSounds();
   if(e.key === 'i' || e.key === 'I') toggleNotifCenter();
   if(e.key === '+' || e.key === '=') { e.preventDefault(); zoomIn(); }
@@ -1346,7 +1346,7 @@ async function refreshAgents() {
     const d = await r.json();
     checkStatusChanges(d.agents);
     agentData = d.agents || [];
-    if (typeof Office3D !== 'undefined' && Office3D.isActive()) Office3D.updateAgents(agentData);
+    
     if (_officeView === 'grid' && typeof renderGridView === 'function') renderGridView();
     apiOnline = true;
     const el = document.getElementById('live-status');
@@ -5659,7 +5659,7 @@ function connectSSE() {
       updateStatusStrip();
       buildLegend(); scheduleRenderAgentCards(); markUpdated();
       // Feed 3D office with updated agent data
-      if (typeof Office3D !== 'undefined' && Office3D.isActive()) Office3D.updateAgents(agentData);
+      
       // Update grid view
       if (_officeView === 'grid') renderGridView();
     } catch {}
@@ -6903,10 +6903,9 @@ switchTab = function(t) { _origSwitchTab(t); syncMobileNav(t); };
   _collObs.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
-<script src="office3d.js"></script>
+<!-- Three.js removed — using lightweight 2D canvas office instead -->
 <script>
-let _officeView = localStorage.getItem('office-view') || 'grid';
+let _officeView = localStorage.getItem('office-view') || '2d';
 
 // ── Grid View Renderer ──
 function renderGridView() {
@@ -6934,42 +6933,36 @@ function renderGridView() {
 async function switchOfficeView(view) {
   _officeView = view;
   localStorage.setItem('office-view', view);
-  const canvasOld = document.getElementById('office-canvas');
+  const canvas2d = document.getElementById('office-canvas');
   const flat2d = document.getElementById('office-2d-flat');
   const container3d = document.getElementById('office-3d-container');
-  const btn3d = document.getElementById('view-3d-btn');
+  const btn2d = document.getElementById('view-2d-btn');
   const btnGrid = document.getElementById('view-grid-btn');
   window.scrollTo({ top: 0, behavior: 'instant' });
 
   // Hide all
-  canvasOld.style.display = 'none';
+  canvas2d.style.display = 'none';
   flat2d.style.display = 'none';
   container3d.style.display = 'none';
-  btn3d.style.opacity = '0.5';
+  btn2d.style.opacity = '0.5';
   btnGrid.style.opacity = '0.5';
 
-  if (view === '3d') {
-    container3d.style.display = 'block';
-    const mobileOffset = window.innerWidth <= 768 ? 260 : 200;
-    container3d.style.height = Math.max(350, window.innerHeight - mobileOffset) + 'px';
-    btn3d.style.opacity = '1';
-    if (typeof Office3D !== 'undefined') {
-      await Office3D.start(container3d);
-      if (typeof agentData !== 'undefined') Office3D.updateAgents(agentData);
-    }
+  if (view === '2d') {
+    canvas2d.style.display = 'block';
+    btn2d.style.opacity = '1';
+    resizeCanvas();
   } else {
     // grid (default)
     flat2d.style.display = 'grid';
     btnGrid.style.opacity = '1';
-    if (typeof Office3D !== 'undefined') Office3D.stop();
     renderGridView();
   }
 }
 
 // Restore view preference on load
 setTimeout(() => {
-  // Migrate old preferences
-  if (_officeView === '2d' || _officeView === 'pixel') _officeView = 'grid';
+  // Migrate old preferences — 3d/pixel/old 2d → new 2d
+  if (_officeView === '3d' || _officeView === 'pixel') _officeView = '2d';
   switchOfficeView(_officeView);
 }, 500);
 </script>
