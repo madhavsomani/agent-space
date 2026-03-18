@@ -1365,7 +1365,7 @@ async function refreshAgents() {
 const ISO = { tileW: 80, tileH: 40 };
 const GRID = { cols: 16, rows: 10 };
 const oCanvas = document.getElementById('office-canvas');
-let oCtx = oCanvas.getContext('2d');
+let oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
 
 // Canvas context loss recovery — handles browser GC, tab backgrounding, GPU reset
 oCanvas.addEventListener('contextlost', (e) => {
@@ -1374,7 +1374,7 @@ oCanvas.addEventListener('contextlost', (e) => {
 });
 oCanvas.addEventListener('contextrestored', () => {
   console.log('[Agent Space] Canvas context restored');
-  oCtx = oCanvas.getContext('2d');
+  oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
   const dpr = window.devicePixelRatio || 1;
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   invalidateStaticCache();
@@ -1395,7 +1395,7 @@ document.addEventListener('visibilitychange', () => {
         console.warn('[Agent Space] Canvas dead after tab focus — hard reset');
         const w = oCanvas.width, h = oCanvas.height;
         oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h;
-        oCtx = oCanvas.getContext('2d');
+        oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
         oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         invalidateStaticCache();
         resizeCanvas();
@@ -1839,6 +1839,130 @@ function drawVisitor(agent, screenX, screenY, time) {
   oCtx.restore();
 }
 
+// ── SPRITE-BASED AGENT DRAWING ──
+// Uses SpriteSystem for pixel-art rendering when available
+function _drawAgentSprite(agent, gx, gy, time) {
+  if (typeof SpriteSystem === 'undefined') return false;
+  
+  const baseP = isoToScreen(gx, gy);
+  const isWorking = agent.status === 'working';
+  const isSleeping = agent.status === 'sleeping';
+  const isIdle = !isWorking && !isSleeping;
+  
+  // Get sprite set for this agent's color
+  const sprites = SpriteSystem.getAgentSprites(agent.color || '#3b82f6');
+  
+  // Calculate position with bobble
+  const bobble = isWorking ? Math.sin(time / 250) * 1.5 : 0;
+  const px = baseP.x;
+  const py = baseP.y - 28 + bobble; // Offset up so sprite sits at desk level
+  
+  // Pick animation state
+  let frame;
+  if (isSleeping) {
+    frame = sprites.sleeping[0];
+  } else if (isWorking) {
+    frame = SpriteSystem.getFrame(sprites.typing, time, 6);
+  } else {
+    // Check if walking to POI
+    const interactionInfo = getInteractionOffset ? getInteractionOffset(agent.name, time) : null;
+    if (interactionInfo && interactionInfo.walking) {
+      frame = SpriteSystem.getFrame(sprites.walking, time, 4);
+    } else {
+      frame = SpriteSystem.getFrame(sprites.idle, time, 1); // Slow breathing
+    }
+  }
+  
+  if (!frame) return false;
+  
+  // Shadow
+  oCtx.beginPath();
+  oCtx.ellipse(px, baseP.y + 4, 12, 5, 0, 0, Math.PI * 2);
+  oCtx.fillStyle = 'rgba(0,0,0,0.25)';
+  oCtx.fill();
+  
+  // Draw sprite (centered, scaled to fit isometric tile)
+  const spriteScale = 1.35; // slightly oversized so pixel characters read clearly at default zoom
+  oCtx.imageSmoothingEnabled = false;
+  SpriteSystem.drawSprite(oCtx, frame, px, py, spriteScale);
+  
+  // Status glow ring
+  if (isWorking) {
+    oCtx.beginPath();
+    oCtx.ellipse(px, baseP.y + 4, 14, 6, 0, 0, Math.PI * 2);
+    oCtx.strokeStyle = agent.color || '#22c55e';
+    oCtx.lineWidth = 1;
+    oCtx.globalAlpha = 0.3 + 0.2 * Math.sin(time / 500);
+    oCtx.stroke();
+    oCtx.globalAlpha = 1;
+  }
+  
+  // Name label (below sprite)
+  oCtx.font = 'bold 8px system-ui';
+  oCtx.textAlign = 'center';
+  oCtx.fillStyle = agent.color || '#94a3b8';
+  oCtx.fillText(agent.name, px, baseP.y + 16);
+  
+  // Speech bubble (if has recent message)
+  if (agent.lastMessage && agent.ageMin !== undefined && agent.ageMin < 5) {
+    const bubbleText = agent.lastMessage.slice(0, 40) + (agent.lastMessage.length > 40 ? '…' : '');
+    const bubbleW = Math.min(oCtx.measureText(bubbleText).width + 12, 160);
+    const bubbleH = 16;
+    const bubbleX = px - bubbleW / 2;
+    const bubbleY = py - 24;
+    
+    // Bubble background
+    oCtx.fillStyle = 'rgba(255,255,255,0.95)';
+    oCtx.beginPath();
+    oCtx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 6);
+    oCtx.fill();
+    
+    // Bubble tail
+    oCtx.beginPath();
+    oCtx.moveTo(px - 3, bubbleY + bubbleH);
+    oCtx.lineTo(px, bubbleY + bubbleH + 5);
+    oCtx.lineTo(px + 3, bubbleY + bubbleH);
+    oCtx.fill();
+    
+    // Text
+    oCtx.fillStyle = '#1e293b';
+    oCtx.font = '7px system-ui';
+    oCtx.fillText(bubbleText, px, bubbleY + 11);
+  }
+  
+  // Typing dots for working agents
+  if (isWorking) {
+    const dotPhase = time / 400;
+    for (let i = 0; i < 3; i++) {
+      const dy = Math.sin(dotPhase + i * 0.8) * 2;
+      oCtx.beginPath();
+      oCtx.arc(px - 4 + i * 4, py - 8 + dy, 1.5, 0, Math.PI * 2);
+      oCtx.fillStyle = agent.color;
+      oCtx.globalAlpha = 0.7;
+      oCtx.fill();
+      oCtx.globalAlpha = 1;
+    }
+  }
+  
+  // Sleeping zzZ particles
+  if (isSleeping) {
+    const zPhase = (time % 3000) / 3000;
+    for (let z = 0; z < 3; z++) {
+      const zp = (zPhase + z * 0.33) % 1;
+      const zx = px + 12 + zp * 8;
+      const zy = py - 8 - zp * 16;
+      const za = zp < 0.2 ? zp / 0.2 : zp > 0.7 ? (1 - zp) / 0.3 : 1;
+      oCtx.globalAlpha = za * 0.6;
+      oCtx.font = `${7 + z * 2}px system-ui`;
+      oCtx.fillStyle = '#94a3b8';
+      oCtx.fillText('z', zx, zy);
+    }
+    oCtx.globalAlpha = 1;
+  }
+  
+  return true; // Sprite drawn successfully
+}
+
 function drawAgent(agent, gx, gy, time) {
   // Save the current transform matrix so we can restore it regardless of
   // save/restore stack imbalances inside _drawAgentInner.
@@ -1850,7 +1974,13 @@ function drawAgent(agent, gx, gy, time) {
   let _innerDepth = 0;
   oCtx.save = function() { _innerDepth++; _origSave(); };
   oCtx.restore = function() { if (_innerDepth > 0) { _innerDepth--; _origRestore(); } };
-  try { _drawAgentInner(agent, gx, gy, time); } catch(e) { console.warn('[drawAgent] error:', e); }
+  try {
+    // Try sprite-based rendering first (pixel art)
+    if (!_drawAgentSprite(agent, gx, gy, time)) {
+      // Fall back to procedural rendering
+      _drawAgentInner(agent, gx, gy, time);
+    }
+  } catch(e) { console.warn('[drawAgent] error:', e); }
   // Unwind any remaining unmatched saves
   while (_innerDepth > 0) { _innerDepth--; _origRestore(); }
   oCtx.save = _origSave; oCtx.restore = _origRestore;
@@ -2867,7 +2997,7 @@ function _drawOfficeInner(rafNow) {
     if (probe[3] === 0) { // write was silently swallowed — context is dead
       const w = oCanvas.width, h = oCanvas.height;
       oCanvas.width = w; // hard reset — clears state stack + backing store
-      oCtx = oCanvas.getContext('2d');
+      oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
       invalidateStaticCache();
     }
   }
@@ -2895,7 +3025,7 @@ function _drawOfficeInner(rafNow) {
     if (_probe[3] === 0) { // alpha 0 = nothing was drawn = context dead
       console.warn('[canvas] Pre-draw: context dead — hard reset');
       oCanvas.width = oCanvas.width; // force reset
-      oCtx = oCanvas.getContext('2d');
+      oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
       invalidateStaticCache();
       resizeCanvas();
       return; // skip this frame
@@ -2916,7 +3046,7 @@ function _drawOfficeInner(rafNow) {
   // will correctly zoom and pan the static content.
   buildStaticLayer();
   // Safety: ensure oCtx always points at the visible canvas after buildStaticLayer
-  if (oCtx !== oCanvas.getContext('2d')) { oCtx = oCanvas.getContext('2d'); oCtx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  if (oCtx !== oCanvas.getContext('2d')) { oCtx = oCanvas.getContext('2d', { willReadFrequently: true }); oCtx.setTransform(dpr, 0, 0, dpr, 0, 0); }
   if (_staticCanvas) {
     const dpr = window.devicePixelRatio || 1;
     const iW = oCanvas.width / dpr, iH = oCanvas.height / dpr;
@@ -3399,7 +3529,7 @@ function buildStaticLayer() {
 
   if (!_staticCanvas) _staticCanvas = document.createElement('canvas');
   _staticCanvas.width = w; _staticCanvas.height = h;
-  _staticCtx = _staticCanvas.getContext('2d');
+  _staticCtx = _staticCanvas.getContext('2d', { willReadFrequently: true });
   _staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // Temporarily swap oCtx so draw functions render to the offscreen canvas.
@@ -3520,7 +3650,7 @@ function officeLoop(now) {
         console.warn('[canvas] Context lost after tab hide — resetting');
         const w = oCanvas.width, h = oCanvas.height;
         oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h;
-        oCtx = oCanvas.getContext('2d');
+        oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
         invalidateStaticCache();
         resizeCanvas();
         return; // skip this frame, draw fresh next time
@@ -3549,7 +3679,7 @@ function officeLoop(now) {
           console.warn('[canvas] Context corrupted — resetting canvas');
           const w = oCanvas.width, h = oCanvas.height;
           oCanvas.width = 1; oCanvas.width = w; oCanvas.height = h; // force hard reset
-          oCtx = oCanvas.getContext('2d');
+          oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
           invalidateStaticCache();
           resizeCanvas();
           _blackFrames = 0;
@@ -5950,7 +6080,7 @@ function updateFaviconBadge(activeCount, isCritical) {
   const size = 64;
   const c = document.createElement('canvas');
   c.width = size; c.height = size;
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
 
   // Background circle
   if (isCritical) {
@@ -6936,6 +7066,7 @@ switchTab = function(t) { _origSwitchTab(t); syncMobileNav(t); };
 })();
 </script>
 <!-- Three.js removed — using lightweight 2D canvas office instead -->
+<script src="sprites.js"></script>
 <script>
 let _officeView = localStorage.getItem('office-view') || '2d';
 
