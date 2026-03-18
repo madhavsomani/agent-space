@@ -1856,7 +1856,7 @@ function _drawAgentSprite(agent, gx, gy, time) {
   const isIdle = !isWorking && !isSleeping;
   
   // Get sprite set for this agent's color
-  const sprites = SpriteSystem.getAgentSprites(agent.color || '#3b82f6');
+  const sprites = SpriteSystem.getAgentSprites(agent.color || '#3b82f6', agent.name);
   
   // Calculate position with bobble
   const bobble = isWorking ? Math.sin(time / 250) * 1.5 : 0;

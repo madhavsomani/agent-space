@@ -803,12 +803,118 @@ FFFFFFFFFFFFFFFF`;
   }
 
   // Agent sprite cache by color
+  // ── HAIR STYLES (drawn as overlays on the base sprite) ──
+  // Each style is a small pixel map drawn at the head position
+  const HAIR_STYLES = [
+    // 0: default short (already in base sprite via 'B' pixels)
+    null,
+    // 1: spiky/mohawk — extra pixels on top
+    { pixels: [[4,0],[5,0],[6,0],[7,0],[5,-1],[6,-1]], color: null },
+    // 2: long side hair — extra pixels on sides
+    { pixels: [[2,1],[2,2],[2,3],[9,1],[9,2],[9,3]], color: null },
+    // 3: hat/cap — horizontal bar above head
+    { pixels: [[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],[3,-1],[4,-1],[5,-1],[6,-1],[7,-1],[8,-1]], color: null },
+    // 4: poofy/afro — wider top
+    { pixels: [[3,-1],[4,-1],[5,-1],[6,-1],[7,-1],[8,-1],[2,0],[9,0],[2,1],[9,1]], color: null },
+    // 5: ponytail — extra pixels to the right
+    { pixels: [[9,1],[10,1],[10,2],[10,3],[11,2]], color: null },
+  ];
+
+  const SKIN_TONES = [PAL.skin1, PAL.skin2, PAL.skin3, PAL.skin4];
+  const HAIR_COLORS = [PAL.darkBlue, PAL.brown, PAL.darkBrown, PAL.darkRed, PAL.black, PAL.orange, PAL.darkPurple];
+
+  // Deterministic hash from agent name → visual traits
+  function agentTraitsFromName(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+    h = Math.abs(h);
+    return {
+      skinTone: SKIN_TONES[h % SKIN_TONES.length],
+      hairColor: HAIR_COLORS[(h >> 4) % HAIR_COLORS.length],
+      hairStyle: h % HAIR_STYLES.length,
+    };
+  }
+
+  // Apply trait overlays to a sprite canvas (returns new canvas)
+  function applyTraits(baseCanvas, traits) {
+    const c = document.createElement('canvas');
+    c.width = baseCanvas.width; c.height = baseCanvas.height;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(baseCanvas, 0, 0);
+
+    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const d = imgData.data;
+
+    // Color-replace skin (PAL.skin1 → traits.skinTone)
+    const replaceSkin = traits.skinTone !== PAL.skin1;
+    const replaceSkinShadow = traits.skinTone !== PAL.skin1;
+    const oldSkin = hexToRgb(PAL.skin1);
+    const oldSkinSh = hexToRgb(PAL.skin2);
+    const newSkin = hexToRgb(traits.skinTone);
+    // Darken skin for shadow
+    const newSkinSh = { r: Math.max(0, newSkin.r - 40), g: Math.max(0, newSkin.g - 40), b: Math.max(0, newSkin.b - 40) };
+
+    // Color-replace hair (PAL.darkBlue → traits.hairColor)
+    const oldHair = hexToRgb(PAL.darkBlue);
+    const oldHairSh = hexToRgb(PAL.darkerBlue);
+    const newHair = hexToRgb(traits.hairColor);
+    const newHairSh = { r: Math.max(0, newHair.r - 30), g: Math.max(0, newHair.g - 30), b: Math.max(0, newHair.b - 30) };
+
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i+3] === 0) continue;
+      // Skin swap
+      if (replaceSkin && matchRgb(d, i, oldSkin)) { d[i]=newSkin.r; d[i+1]=newSkin.g; d[i+2]=newSkin.b; }
+      else if (replaceSkinShadow && matchRgb(d, i, oldSkinSh)) { d[i]=newSkinSh.r; d[i+1]=newSkinSh.g; d[i+2]=newSkinSh.b; }
+      // Hair swap
+      else if (matchRgb(d, i, oldHair)) { d[i]=newHair.r; d[i+1]=newHair.g; d[i+2]=newHair.b; }
+      else if (matchRgb(d, i, oldHairSh)) { d[i]=newHairSh.r; d[i+1]=newHairSh.g; d[i+2]=newHairSh.b; }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // Draw hair style overlay
+    const style = HAIR_STYLES[traits.hairStyle];
+    if (style) {
+      const hairC = traits.hairColor;
+      ctx.fillStyle = hairC;
+      // Head starts around row 2-3, col 4-7 in a 16-wide sprite at SCALE
+      const headX = 4 * SCALE, headY = 1 * SCALE;
+      for (const [dx, dy] of style.pixels) {
+        ctx.fillRect(headX + dx * SCALE, headY + dy * SCALE, SCALE, SCALE);
+      }
+    }
+
+    return c;
+  }
+
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return { r: parseInt(h.substr(0,2),16), g: parseInt(h.substr(2,2),16), b: parseInt(h.substr(4,2),16) };
+  }
+  function matchRgb(d, i, rgb) {
+    return d[i] === rgb.r && d[i+1] === rgb.g && d[i+2] === rgb.b;
+  }
+
+  // Cache keyed by color + name
   const agentSpriteCache = {};
-  function getAgentSprites(hexColor) {
-    if (agentSpriteCache[hexColor]) return agentSpriteCache[hexColor];
+  function getAgentSprites(hexColor, agentName) {
+    const key = hexColor + '|' + (agentName || '');
+    if (agentSpriteCache[key]) return agentSpriteCache[key];
     const { shirt, shadow } = getShirtColors(hexColor);
-    agentSpriteCache[hexColor] = generateAgentSprites(shirt, shadow);
-    return agentSpriteCache[hexColor];
+    const base = generateAgentSprites(shirt, shadow);
+
+    // Apply visual traits if we have a name
+    if (agentName) {
+      const traits = agentTraitsFromName(agentName);
+      const result = {};
+      for (const [state, frames] of Object.entries(base)) {
+        result[state] = frames.map(f => applyTraits(f, traits));
+      }
+      agentSpriteCache[key] = result;
+    } else {
+      agentSpriteCache[key] = base;
+    }
+    return agentSpriteCache[key];
   }
 
   // Pre-generate furniture on load
