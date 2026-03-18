@@ -368,7 +368,14 @@ window.Office3D = (function() {
         const char = createCharacter(agent.color, name);
         char.group.position.set(wp.x, 0, wp.z + 0.5);
         scene.add(char.group);
-        agentMeshes[name] = { ...desk, ...char, wp, status: null };
+        // Status ring (flat circle under agent)
+        const ringGeo = new THREE.RingGeometry(0.35, 0.5, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(wp.x, 0.02, wp.z + 0.5);
+        scene.add(ring);
+        agentMeshes[name] = { ...desk, ...char, ring, wp, status: null };
       }
 
       const am = agentMeshes[name];
@@ -377,14 +384,20 @@ window.Office3D = (function() {
       if (am.status !== agent.status) {
         am.status = agent.status;
         if (agent.status === 'sleeping') {
-          // Slump head forward
           am.head.position.y = 1.35;
           am.head.position.z = 0.1;
           am.body.rotation.x = 0.3;
+          if (am.ring) { am.ring.material.color.setHex(0x64748b); am.ring.material.opacity = 0.3; }
+        } else if (agent.status === 'working') {
+          am.head.position.y = 1.55;
+          am.head.position.z = 0;
+          am.body.rotation.x = 0;
+          if (am.ring) { am.ring.material.color.setHex(0x22c55e); am.ring.material.opacity = 0.6; }
         } else {
           am.head.position.y = 1.55;
           am.head.position.z = 0;
           am.body.rotation.x = 0;
+          if (am.ring) { am.ring.material.color.setHex(0xf59e0b); am.ring.material.opacity = 0.5; }
         }
       }
 
@@ -416,6 +429,8 @@ window.Office3D = (function() {
         if (am.screen && am.screen.material) {
           am.screen.material.emissiveIntensity = 0.4 + Math.sin(time * 3) * 0.15;
         }
+        // Pulse status ring
+        if (am.ring) am.ring.material.opacity = 0.4 + 0.3 * Math.sin(time * 2);
       } else if (am.status === 'idle') {
         // Gentle sway
         am.group.rotation.y = Math.sin(time * 0.5 + am.wp.x) * 0.05;
