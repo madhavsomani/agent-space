@@ -15,10 +15,10 @@ window.Office3D = (function() {
   let active = false;
 
   // Colors
-  const FLOOR_COLOR = 0x3a5a80;
-  const FLOOR_COLOR2 = 0x344e6e;
-  const WALL_COLOR = 0x4a6585;
-  const DESK_COLOR = 0x8B6914;
+  const FLOOR_COLOR = 0x5a7a9a;
+  const FLOOR_COLOR2 = 0x4e6e8e;
+  const WALL_COLOR = 0x5a7a9a;
+  const DESK_COLOR = 0x9B7924;
   const MONITOR_COLOR = 0x1a1f2e;
   const MONITOR_SCREEN = 0x3b82f6;
 
@@ -256,7 +256,7 @@ window.Office3D = (function() {
       [-6, 3.8, 3], [0, 3.8, 3], [6, 3.8, 3]
     ];
     lightPositions.forEach(([x, y, z]) => {
-      const pl = new THREE.PointLight(0xfff5e0, 0.4, 15);
+      const pl = new THREE.PointLight(0xfff5e0, 0.6, 18);
       pl.position.set(x, y, z);
       scene.add(pl);
       pointLights.push(pl);
