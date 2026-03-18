@@ -8,11 +8,11 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 :root, [data-theme="dark"] {
-  --bg:#09090b; --card:#111113; --card-hover:#18181b; --border:#27272a;
-  --text:#e4e4e7; --dim:#71717a; --accent:#3b82f6; --accent-glow:rgba(59,130,246,0.05);
-  --green:#22c55e; --green-dim:rgba(34,197,94,0.06); --red:#ef4444; --red-dim:rgba(239,68,68,0.06);
-  --orange:#eab308; --orange-dim:rgba(234,179,8,0.06); --purple:#8b5cf6;
-  --glass:rgba(9,9,11,0.85); --glass-border:rgba(255,255,255,0.03);
+  --bg:#0a0a0c; --card:#131316; --card-hover:#1a1a1e; --border:#232329;
+  --text:#d4d4d8; --dim:#71717a; --accent:#6366f1; --accent-glow:rgba(99,102,241,0.06);
+  --green:#34d399; --green-dim:rgba(52,211,153,0.06); --red:#f87171; --red-dim:rgba(248,113,113,0.06);
+  --orange:#fbbf24; --orange-dim:rgba(251,191,36,0.06); --purple:#a78bfa;
+  --glass:rgba(10,10,12,0.9); --glass-border:rgba(255,255,255,0.04);
   --canvas-grid:rgba(255,255,255,0.05); --canvas-floor:#3c5a80; --theme-icon:'🌙';
 }
 [data-theme="light"] {
@@ -7323,7 +7323,7 @@ function renderGridView() {
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +
           '<div style="display:flex;align-items:center;gap:6px">' +
             '<span style="font-weight:700;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.name) + '</span>' +
-            '<span style="width:8px;height:8px;border-radius:50%;background:' + statusColor + ';flex-shrink:0;box-shadow:0 0 6px ' + statusColor + '"></span>' +
+            '<span style="width:8px;height:8px;border-radius:50%;background:' + statusColor + ';flex-shrink:0"></span>' +
             '<span style="font-size:9px;color:' + statusColor + ';font-weight:600;text-transform:uppercase;letter-spacing:0.5px">' + statusLabel + '</span>' +
             (ageText ? '<span style="margin-left:auto;font-size:9px;color:var(--dim);flex-shrink:0">' + esc(ageText) + '</span>' : '') +
           '</div>' +
