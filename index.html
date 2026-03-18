@@ -5666,7 +5666,9 @@ function resizeCanvas() {
   // On phones, avoid a giant empty blue slab: cap office height and bias toward a shorter, denser viewport.
   const mobilePreferredH = Math.min(Math.max(260, window.innerHeight * 0.36), 360);
   const canvasW = w;
-  const canvasH = isMobile ? Math.min(availH, mobilePreferredH) : availH;
+  // Cap desktop at ~55% viewport so the office is a compact scene, not a giant void
+  const desktopPreferredH = Math.min(availH, Math.max(380, window.innerHeight * 0.55));
+  const canvasH = isMobile ? Math.min(availH, mobilePreferredH) : desktopPreferredH;
   const dpr = window.devicePixelRatio || 1;
   // Internal resolution scaled to width
   const internalW = Math.max(canvasW, 1000);
@@ -5691,7 +5693,7 @@ function resizeCanvas() {
   const fitZoomW = internalW / gridPixelW;
   const fitZoomH = internalH / gridPixelH;
   const fitZoomBase = Math.min(fitZoomW, fitZoomH);
-  const fitZoom = isMobile ? fitZoomBase * 1.08 : fitZoomBase; // slightly tighter framing on phones
+  const fitZoom = isMobile ? fitZoomBase * 1.08 : fitZoomBase * 1.35; // fill the viewport with the office scene
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
