@@ -42,15 +42,31 @@ window.Office3D = (function() {
   };
 
   // Walking speed (world units per second)
-  const WALK_SPEED = 1.5;
+  const WALK_SPEED = 1.8;
   const LEG_SWING = 0.5; // radians
+
+  // Wandering: nearby points-of-interest agents walk to
+  const WANDER_POINTS = [
+    { x: -hw + 2, z: -hh + 1.5, label: 'couch' },       // break room couch
+    { x: -hw + 4, z: -hh + 0.6, label: 'water' },       // water cooler
+    { x: 3, z: -hh + 1.5, label: 'whiteboard' },         // whiteboard
+    { x: -2, z: -hh + 1, label: 'bookshelf' },           // bookshelf
+    { x: hw - 1.5, z: -hh + 1, label: 'server' },       // server rack
+    { x: 0, z: 0, label: 'center' },                     // center of office
+  ];
+  // How often idle agents decide to wander (seconds)
+  const IDLE_WANDER_MIN = 4;
+  const IDLE_WANDER_MAX = 10;
+  // Working agents occasionally stretch
+  const WORK_STRETCH_MIN = 12;
+  const WORK_STRETCH_MAX = 25;
 
   // ── LOAD THREE.JS ──
   async function loadThreeJS() {
     if (THREE) return;
     const [threeModule, controlsModule] = await Promise.all([
-      import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'),
-      import('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js')
+      import('three'),
+      import('three/addons/controls/OrbitControls.js')
     ]);
     THREE = threeModule;
     OrbitControls = controlsModule.OrbitControls;
@@ -451,6 +467,8 @@ window.Office3D = (function() {
     am.fidgetTimer = 0;
     am.blinkTimer = 0;
     am.prevApiStatus = null;
+    am.nextWanderTime = 2 + Math.random() * 5; // first wander soon after spawn
+    am.isWandering = false; // true when on an autonomous wander (not API-driven)
   }
 
   function transitionToWalking(am, target) {
@@ -463,6 +481,20 @@ window.Office3D = (function() {
   }
 
   function transitionToSitting(am, status) {
+    // Check if we're at desk or at a wandering POI
+    const atDesk = Math.abs(am.group.position.x - am.deskPos.x) < 0.5 &&
+                   Math.abs(am.group.position.z - am.deskPos.z) < 0.5;
+
+    if (am.isWandering && !atDesk) {
+      // Arrived at POI — stand around looking at it
+      am.state = 'standing_idle';
+      am.stateTimer = 0;
+      am.isWandering = false;
+      resetPose(am);
+      return;
+    }
+
+    am.isWandering = false;
     am.state = status === 'working' ? 'sitting_working' : status === 'sleeping' ? 'sleeping' : 'sitting_idle';
     am.stateTimer = 0;
     // Snap to desk
@@ -721,6 +753,32 @@ window.Office3D = (function() {
     Object.values(agentMeshes).forEach(am => {
       am.stateTimer += dt;
 
+      // ── AUTONOMOUS WANDERING ──
+      // Idle agents wander to points of interest
+      if (am.state === 'sitting_idle' && am.stateTimer > am.nextWanderTime) {
+        const poi = WANDER_POINTS[Math.floor(Math.random() * WANDER_POINTS.length)];
+        // Add slight randomness to target so agents don't stack
+        const jitter = { x: poi.x + (Math.random() - 0.5) * 0.8, z: poi.z + (Math.random() - 0.5) * 0.8 };
+        transitionToWalking(am, jitter);
+        am.isWandering = true;
+        am._pendingState = 'idle'; // come back to idle when arrived
+        am.nextWanderTime = IDLE_WANDER_MIN + Math.random() * (IDLE_WANDER_MAX - IDLE_WANDER_MIN);
+      }
+      // Idle agents standing at a POI should walk back to desk after a pause
+      if (am.state === 'standing_idle' && am.stateTimer > 2 + Math.random() * 3) {
+        transitionToWalking(am, am.deskPos);
+        am.isWandering = true;
+        am._pendingState = 'idle';
+      }
+      // Working agents occasionally stand/stretch then walk to water cooler and back
+      if (am.state === 'sitting_working' && am.stateTimer > am.nextWanderTime) {
+        const waterCooler = { x: -hw + 4 + (Math.random() - 0.5) * 0.5, z: -hh + 0.6 + (Math.random() - 0.5) * 0.5 };
+        transitionToWalking(am, waterCooler);
+        am.isWandering = true;
+        am._pendingState = 'working'; // sit back down and work when done
+        am.nextWanderTime = WORK_STRETCH_MIN + Math.random() * (WORK_STRETCH_MAX - WORK_STRETCH_MIN);
+      }
+
       switch (am.state) {
         case 'walking': {
           if (!am.walkFrom || !am.walkTo) { transitionToSitting(am, am.prevApiStatus || 'idle'); break; }
@@ -789,6 +847,20 @@ window.Office3D = (function() {
           // Zzz particles
           updateZzz(am, t);
           am.group.rotation.y = 0;
+          break;
+        }
+
+        case 'standing_idle': {
+          // Standing at a POI — look around, shift weight
+          am.head.rotation.y = Math.sin(t * 0.6 + am.idx * 2) * 0.4;
+          am.head.rotation.x = Math.sin(t * 0.3 + am.idx) * 0.1;
+          am.body.position.y = 0.72;
+          // Weight shift: lean side to side
+          am.body.rotation.z = Math.sin(t * 0.3 + am.idx * 2.5) * 0.04;
+          // Arms relaxed at sides, slight movement
+          am.armL.rotation.x = Math.sin(t * 0.5 + am.idx) * 0.08;
+          am.armR.rotation.x = -Math.sin(t * 0.4 + am.idx) * 0.06;
+          am.legL.rotation.x = 0; am.legR.rotation.x = 0;
           break;
         }
       }
