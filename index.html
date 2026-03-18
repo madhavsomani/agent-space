@@ -1650,7 +1650,7 @@ function getInteractionOffset(agentName, time) {
   const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
   const gx = fromGx + (toGx - fromGx) * ease;
   const gy = fromGy + (toGy - fromGy) * ease;
-  return { gx, gy, atPoi: false, type: inter.type, chatPartner: inter.chatPartner, walking: true, carriedItem: inter.carriedItem };
+  return { gx, gy, atPoi: false, type: inter.type, chatPartner: inter.chatPartner, walking: true, carriedItem: inter.carriedItem, dx: toGx - fromGx, dy: toGy - fromGy };
 }
 
 const furniture = [
@@ -1871,9 +1871,18 @@ function _drawAgentSprite(agent, gx, gy, time) {
     frame = SpriteSystem.getFrame(sprites.typing, time, 6);
   } else {
     // Check if walking to POI
-    const interactionInfo = getInteractionOffset ? getInteractionOffset(agent.name, time) : null;
+    const interactionInfo = (typeof getInteractionOffset === 'function') ? getInteractionOffset(agent.name, time) : null;
     if (interactionInfo && interactionInfo.walking) {
-      frame = SpriteSystem.getFrame(sprites.walking, time, 4);
+      // Pick directional walk based on movement delta
+      const dx = interactionInfo.dx || 0;
+      const dy = interactionInfo.dy || 0;
+      let walkSet = sprites.walking; // fallback = down
+      if (Math.abs(dx) > Math.abs(dy)) {
+        walkSet = dx > 0 ? (sprites.walkRight || sprites.walking) : (sprites.walkLeft || sprites.walking);
+      } else {
+        walkSet = dy < 0 ? (sprites.walkUp || sprites.walking) : (sprites.walkDown || sprites.walking);
+      }
+      frame = SpriteSystem.getFrame(walkSet, time, 4);
     } else {
       frame = SpriteSystem.getFrame(sprites.idle, time, 1); // Slow breathing
     }
