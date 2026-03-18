@@ -823,6 +823,14 @@ FFFFFFFFFFFFFFFF`;
   const SKIN_TONES = [PAL.skin1, PAL.skin2, PAL.skin3, PAL.skin4];
   const HAIR_COLORS = [PAL.darkBlue, PAL.brown, PAL.darkBrown, PAL.darkRed, PAL.black, PAL.orange, PAL.darkPurple];
 
+  // Accessories — drawn as pixel overlays after base sprite
+  const ACCESSORIES = [
+    null, // none
+    'glasses',    // round glasses over eyes
+    'headphones', // headphones over ears + top of head
+    'shades',     // dark sunglasses
+  ];
+
   // Deterministic hash from agent name → visual traits
   function agentTraitsFromName(name) {
     let h = 0;
@@ -832,6 +840,7 @@ FFFFFFFFFFFFFFFF`;
       skinTone: SKIN_TONES[h % SKIN_TONES.length],
       hairColor: HAIR_COLORS[(h >> 4) % HAIR_COLORS.length],
       hairStyle: h % HAIR_STYLES.length,
+      accessory: ACCESSORIES[(h >> 8) % ACCESSORIES.length],
     };
   }
 
@@ -882,6 +891,38 @@ FFFFFFFFFFFFFFFF`;
       for (const [dx, dy] of style.pixels) {
         ctx.fillRect(headX + dx * SCALE, headY + dy * SCALE, SCALE, SCALE);
       }
+    }
+
+    // Draw accessories
+    if (traits.accessory === 'glasses') {
+      // Round glasses over eyes (row 3, cols 3-4 and 6-7)
+      ctx.strokeStyle = PAL.lightGray;
+      ctx.lineWidth = 1;
+      // Left lens
+      ctx.strokeRect(3 * SCALE, 3 * SCALE, 2 * SCALE, 2 * SCALE);
+      // Right lens
+      ctx.strokeRect(6 * SCALE, 3 * SCALE, 2 * SCALE, 2 * SCALE);
+      // Bridge
+      ctx.fillStyle = PAL.lightGray;
+      ctx.fillRect(5 * SCALE, 3 * SCALE + 1, SCALE, 1);
+    } else if (traits.accessory === 'headphones') {
+      // Headphone band across top of head + ear cups
+      ctx.fillStyle = PAL.darkGray;
+      // Band
+      for (let x = 3; x <= 8; x++) ctx.fillRect(x * SCALE, 0, SCALE, SCALE);
+      // Left ear cup
+      ctx.fillRect(2 * SCALE, 1 * SCALE, SCALE, 3 * SCALE);
+      ctx.fillRect(1 * SCALE, 2 * SCALE, SCALE, SCALE);
+      // Right ear cup
+      ctx.fillRect(9 * SCALE, 1 * SCALE, SCALE, 3 * SCALE);
+      ctx.fillRect(10 * SCALE, 2 * SCALE, SCALE, SCALE);
+    } else if (traits.accessory === 'shades') {
+      // Dark sunglasses — filled rectangles over eyes
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(3 * SCALE, 3 * SCALE, 2 * SCALE, SCALE);
+      ctx.fillRect(6 * SCALE, 3 * SCALE, 2 * SCALE, SCALE);
+      // Bridge + arms
+      ctx.fillRect(5 * SCALE, 3 * SCALE, SCALE, SCALE);
     }
 
     return c;
