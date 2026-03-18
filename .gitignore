@@ -5,3 +5,4 @@ node_modules/
 memory-history.json
 agent-status.json
 agent-space.db
+.DS_Store
