@@ -4482,7 +4482,7 @@ async function refreshPerformance() {
         const maxMs = Math.max(...trend.map(t=>t.ms), 1);
         const minMs = Math.min(...trend.map(t=>t.ms), 0);
         const range = maxMs - minMs || 1;
-        const pts = trend.map((t,i) => `${pad + (i/(trend.length-1))*(tw-pad*2)},${pad + (1 - (t.ms-minMs)/range)*(th-pad*2)}`).join(' ');
+        const pts = trend.map((t,i) => `${pad + (i/(Math.max(trend.length-1,1)))*(tw-pad*2)},${pad + (1 - (t.ms-minMs)/range)*(th-pad*2)}`).join(' ');
         // Area fill
         const areaPts = pts + ` ${pad+(trend.length-1)/(trend.length-1)*(tw-pad*2)},${th-pad} ${pad},${th-pad}`;
         // Avg line
@@ -4494,7 +4494,7 @@ async function refreshPerformance() {
             <line x1="${pad}" y1="${avgY}" x2="${tw-pad}" y2="${avgY}" stroke="${a.color}" stroke-width="0.5" stroke-dasharray="3,2" opacity="0.5"/>
             <polyline points="${pts}" fill="none" stroke="${a.color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             ${trend.map((t,i) => {
-              const cx = pad + (i/(trend.length-1))*(tw-pad*2);
+              const cx = pad + (i/(Math.max(trend.length-1,1)))*(tw-pad*2);
               const cy = pad + (1 - (t.ms-minMs)/range)*(th-pad*2);
               return `<circle cx="${cx}" cy="${cy}" r="2" fill="${a.color}" opacity="0.7"><title>${fmtDur(t.ms)} — ${new Date(t.ts).toLocaleTimeString()}</title></circle>`;
             }).join('')}
