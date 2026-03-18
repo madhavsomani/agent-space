@@ -2992,6 +2992,81 @@ function drawOffice(rafNow) {
     }
   } catch(e) {}
 }
+// ── AMBIENT PARTICLE SYSTEM ──
+// Lightweight particles: typing sparks, coffee steam, ambient dust motes
+const _particles = [];
+const MAX_PARTICLES = 60;
+
+function _spawnParticle(x, y, type) {
+  if (_particles.length >= MAX_PARTICLES) _particles.shift();
+  const p = { x, y, type, born: performance.now(), life: 800 + Math.random() * 1200 };
+  if (type === 'spark') {
+    p.vx = (Math.random() - 0.5) * 2;
+    p.vy = -1.5 - Math.random() * 1.5;
+    p.color = ['#ffa300','#ffec27','#ff6c24'][Math.floor(Math.random()*3)];
+    p.size = 1.5 + Math.random();
+    p.life = 400 + Math.random() * 400;
+  } else if (type === 'steam') {
+    p.vx = (Math.random() - 0.5) * 0.3;
+    p.vy = -0.6 - Math.random() * 0.4;
+    p.color = '#c2c3c7';
+    p.size = 2 + Math.random() * 2;
+    p.life = 1200 + Math.random() * 800;
+  } else { // dust
+    p.vx = (Math.random() - 0.5) * 0.15;
+    p.vy = -0.1 + Math.random() * 0.05;
+    p.color = '#fff1e8';
+    p.size = 0.8 + Math.random() * 0.8;
+    p.life = 3000 + Math.random() * 2000;
+  }
+  _particles.push(p);
+}
+
+function _drawParticles(time, agents) {
+  const now = performance.now();
+
+  // Spawn typing sparks for working agents (occasional)
+  for (const a of agents) {
+    if (a.status === 'working' && Math.random() < 0.08) {
+      const p = isoToScreen(a._gx, a._gy);
+      _spawnParticle(p.x + (Math.random()-0.5)*8, p.y - 18, 'spark');
+    }
+  }
+
+  // Spawn steam from coffee machine POI (every ~15 frames)
+  if (typeof POI !== 'undefined' && POI.coffee && Math.random() < 0.07) {
+    const cp = isoToScreen(POI.coffee.x, POI.coffee.y);
+    _spawnParticle(cp.x + (Math.random()-0.5)*4, cp.y - 24, 'steam');
+  }
+
+  // Spawn ambient dust motes (very rare)
+  if (Math.random() < 0.015) {
+    // Random position across visible office
+    const rx = oCanvas.width * 0.1 + Math.random() * oCanvas.width * 0.8;
+    const ry = oCanvas.height * 0.1 + Math.random() * oCanvas.height * 0.8;
+    _spawnParticle(rx / (camZoom || 1), ry / (camZoom || 1), 'dust');
+  }
+
+  // Update & draw
+  oCtx.save();
+  for (let i = _particles.length - 1; i >= 0; i--) {
+    const p = _particles[i];
+    const age = now - p.born;
+    if (age > p.life) { _particles.splice(i, 1); continue; }
+    const t = age / p.life; // 0→1
+    p.x += p.vx;
+    p.y += p.vy;
+    // Fade out
+    const alpha = t < 0.2 ? t / 0.2 : t > 0.6 ? (1 - t) / 0.4 : 1;
+    oCtx.globalAlpha = alpha * (p.type === 'dust' ? 0.15 : p.type === 'steam' ? 0.35 : 0.8);
+    oCtx.fillStyle = p.color;
+    oCtx.beginPath();
+    oCtx.arc(p.x, p.y, p.size * (p.type === 'steam' ? (1 + t * 0.8) : 1), 0, Math.PI * 2);
+    oCtx.fill();
+  }
+  oCtx.restore();
+}
+
 function _drawOfficeInner(rafNow) {
   _ptIdx = 0; // reset point pool each frame
 
@@ -3123,6 +3198,9 @@ function _drawOfficeInner(rafNow) {
   const visitors = _visitorsBuf;
 
   sorted.forEach(a => { oCtx.save(); drawAgent(a, a._gx, a._gy, time); oCtx.restore(); });
+
+  // ── AMBIENT PARTICLES ──
+  _drawParticles(time, sorted);
 
   // Layout mode: draw ghost desk at target position
   if (_layoutMode && _layoutDragging) {
