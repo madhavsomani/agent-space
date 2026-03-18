@@ -485,6 +485,15 @@ window.Office3D = (function() {
   // States: sitting_working, sitting_idle, sleeping, walking, standing_idle, conversing
   // ══════════════════════════════════════════════
 
+  function setGroupOpacity(group, opacity) {
+    group.traverse(obj => {
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(m => { m.transparent = true; m.opacity = opacity * (m._baseOpacity ?? (m._baseOpacity = m.opacity || 1)); });
+      }
+    });
+  }
+
   function initAgentState(am, wp) {
     am.deskPos = { x: wp.x, z: wp.z + 0.5 };
     am.state = 'sitting_idle';
@@ -856,6 +865,12 @@ window.Office3D = (function() {
         const am = { ...char, desk, chair, badge, wp, idx };
         initAgentState(am, wp);
         am.agentRole = agent.role;
+        // Fade-in: start invisible, lerp to 1
+        am.fadeIn = 0;
+        am._name = name;
+        setGroupOpacity(am.group, 0);
+        if (am.desk?.group) setGroupOpacity(am.desk.group, 0);
+        if (am.chair) setGroupOpacity(am.chair, 0);
         agentMeshes[name] = am;
       }
 
@@ -911,15 +926,14 @@ window.Office3D = (function() {
       updateSpeechBubble(am, msg);
     });
 
-    // Remove departed agents
+    // Remove departed agents (with fade-out)
     Object.keys(agentMeshes).forEach(name => {
       if (!seen.has(name)) {
         const am = agentMeshes[name];
-        if (am.group) scene.remove(am.group);
-        if (am.desk?.group) scene.remove(am.desk.group);
-        if (am.chair) scene.remove(am.chair);
-        am.zzzSprites?.forEach(z => { am.group.remove(z); z.material.dispose(); });
-        delete agentMeshes[name];
+        if (!am._fadingOut) {
+          am._fadingOut = true;
+          am._fadeOut = 1;
+        }
       }
     });
   }
@@ -939,6 +953,28 @@ window.Office3D = (function() {
 
     Object.values(agentMeshes).forEach(am => {
       am.stateTimer += dt;
+
+      // ── FADE IN/OUT ──
+      if (am.fadeIn !== undefined && am.fadeIn < 1) {
+        am.fadeIn = Math.min(1, am.fadeIn + dt * 2); // 0.5s fade-in
+        setGroupOpacity(am.group, am.fadeIn);
+        if (am.desk?.group) setGroupOpacity(am.desk.group, am.fadeIn);
+        if (am.chair) setGroupOpacity(am.chair, am.fadeIn);
+      }
+      if (am._fadingOut) {
+        am._fadeOut = Math.max(0, am._fadeOut - dt * 2.5); // 0.4s fade-out
+        setGroupOpacity(am.group, am._fadeOut);
+        if (am.desk?.group) setGroupOpacity(am.desk.group, am._fadeOut);
+        if (am.chair) setGroupOpacity(am.chair, am._fadeOut);
+        if (am._fadeOut <= 0) {
+          if (am.group) scene.remove(am.group);
+          if (am.desk?.group) scene.remove(am.desk.group);
+          if (am.chair) scene.remove(am.chair);
+          am.zzzSprites?.forEach(z => { am.group.remove(z); z.material.dispose(); });
+          delete agentMeshes[am._name];
+          return;
+        }
+      }
 
       // ── AUTONOMOUS BEHAVIORS ──
 
