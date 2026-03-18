@@ -8,6 +8,9 @@ window.Office3D = (function() {
   let container = null;
   let initialized = false, active = false;
   let animFrameId = null;
+  let agentPollTimer = null;
+  let lastPollAt = 0;
+  let lastUpdateAt = 0;
   let agentMeshes = {}; // name -> AgentState
   let furnitureGroup;
   let ambientObjects = []; // plants, lamps, server LEDs etc for ambient anim
@@ -602,6 +605,25 @@ window.Office3D = (function() {
     }
   }
 
+  async function pollAgentsOnce() {
+    if (!active) return;
+    try {
+      lastPollAt = Date.now();
+      const r = await fetch('/api/agents', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      if (Array.isArray(d.agents)) updateAgents(d.agents);
+    } catch {}
+  }
+
+  function startAgentPolling() {
+    if (agentPollTimer) clearInterval(agentPollTimer);
+    agentPollTimer = setInterval(() => {
+      if (active) pollAgentsOnce();
+    }, 10000);
+    setTimeout(() => { if (active && !lastUpdateAt) pollAgentsOnce(); }, 1200);
+  }
+
   // ── INIT ──
   async function start(containerEl) {
     container = containerEl;
@@ -660,6 +682,7 @@ window.Office3D = (function() {
     active = true;
 
     window.addEventListener('resize', onResize);
+    startAgentPolling();
     animate();
   }
 
@@ -673,8 +696,17 @@ window.Office3D = (function() {
     renderer.setSize(w, h);
   }
 
-  function resume() { active = true; clock?.start(); animate(); }
-  function stop() { active = false; if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; } }
+  function resume() {
+    active = true;
+    clock?.start();
+    startAgentPolling();
+    animate();
+  }
+  function stop() {
+    active = false;
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+    if (agentPollTimer) { clearInterval(agentPollTimer); agentPollTimer = null; }
+  }
   function dispose() {
     stop();
     if (renderer && container) {
@@ -690,6 +722,7 @@ window.Office3D = (function() {
   // ── UPDATE AGENTS ──
   function updateAgents(agents) {
     if (!initialized || !active) return;
+    lastUpdateAt = Date.now();
 
     const seen = new Set();
     agents.forEach((agent, idx) => {
@@ -942,6 +975,34 @@ window.Office3D = (function() {
   return {
     start, stop, dispose, updateAgents,
     isActive: () => active,
-    isInitialized: () => initialized
+    isInitialized: () => initialized,
+    debugSnapshot: () => ({
+      active,
+      initialized,
+      lastPollAt,
+      lastUpdateAt,
+      agentCount: Object.keys(agentMeshes).length,
+      agents: Object.entries(agentMeshes).map(([name, am]) => ({
+        name,
+        state: am.state,
+        apiStatus: am.prevApiStatus,
+        isWandering: !!am.isWandering,
+        walkProgress: Number((am.walkProgress || 0).toFixed(3)),
+        position: {
+          x: Number(am.group.position.x.toFixed(2)),
+          y: Number(am.group.position.y.toFixed(2)),
+          z: Number(am.group.position.z.toFixed(2))
+        },
+        deskPos: {
+          x: Number(am.deskPos.x.toFixed(2)),
+          z: Number(am.deskPos.z.toFixed(2))
+        },
+        walkTo: am.walkTo ? {
+          x: Number(am.walkTo.x.toFixed(2)),
+          z: Number(am.walkTo.z.toFixed(2))
+        } : null,
+        speech: am.lastMessage || ''
+      }))
+    })
   };
 })();
