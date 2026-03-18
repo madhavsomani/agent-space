@@ -359,8 +359,10 @@ window.Office3D = (function() {
     agents.forEach(agent => {
       const name = agent.name;
       if (!agentMeshes[name]) {
-        // Find desk position from agentDeskMap or use default
-        const deskPos = (typeof agentDeskMap !== 'undefined' && agentDeskMap[name]) || { gx: 8, gy: 5 };
+        // Find desk position from 2D canvas deskPositions or auto-assign
+        const deskPos = (typeof deskPositions !== 'undefined' && deskPositions[name])
+          || (typeof getAutoDesk === 'function' && getAutoDesk(name))
+          || { gx: 8, gy: 5 };
         const wp = gridToWorld(deskPos.gx, deskPos.gy);
         const desk = createDesk(wp.x, wp.z, hexToInt(agent.color));
         const char = createCharacter(agent.color, name);
