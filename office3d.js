@@ -444,6 +444,35 @@ window.Office3D = (function() {
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(-hw + 2, 0.005, -hh + 1.8);
     scene.add(rug);
+
+    // ── ZONE BOUNDARY CIRCLES ──
+    // Subtle translucent rings on the floor marking each zone's territory
+    const zoneBoundaryColor = {
+      engineering: 0x4488ff, writing: 0x44cc88, qa: 0xcc4444,
+      research: 0x8844cc, ops: 0xff8844, design: 0xff44aa,
+      management: 0xcccc44, breakRoom: 0x8b6914, serverRoom: 0x448888,
+    };
+    workZones.forEach(zk => {
+      const z = ZONES[zk];
+      if (!z) return;
+      const color = zoneBoundaryColor[zk] || 0x888888;
+      // Ring = torus laid flat
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(1.6, 1.75, 32),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(z.x, 0.008, z.z);
+      scene.add(ring);
+      // Filled circle for very subtle tint
+      const fill = new THREE.Mesh(
+        new THREE.CircleGeometry(1.6, 32),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.04, side: THREE.DoubleSide, depthWrite: false })
+      );
+      fill.rotation.x = -Math.PI / 2;
+      fill.position.set(z.x, 0.006, z.z);
+      scene.add(fill);
+    });
   }
 
   // ── GRID → WORLD ──
@@ -476,6 +505,36 @@ window.Office3D = (function() {
     am.agentRole = null;
   }
 
+  // ── PATH LINE (faint line while walking) ──
+  const pathLineMat = new THREE.LineBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.25, depthWrite: false });
+
+  function showPathLine(am) {
+    removePathLine(am);
+    if (!am.walkTo) return;
+    const pts = [
+      new THREE.Vector3(am.group.position.x, 0.05, am.group.position.z),
+      new THREE.Vector3(am.walkTo.x, 0.05, am.walkTo.z),
+    ];
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    am._pathLine = new THREE.Line(geo, pathLineMat);
+    scene.add(am._pathLine);
+  }
+
+  function updatePathLine(am) {
+    if (!am._pathLine || !am.walkTo) return;
+    const pos = am._pathLine.geometry.attributes.position;
+    pos.setXYZ(0, am.group.position.x, 0.05, am.group.position.z);
+    pos.needsUpdate = true;
+  }
+
+  function removePathLine(am) {
+    if (am._pathLine) {
+      scene.remove(am._pathLine);
+      am._pathLine.geometry.dispose();
+      am._pathLine = null;
+    }
+  }
+
   function transitionToWalking(am, target) {
     am.state = 'walking';
     am.stateTimer = 0;
@@ -483,9 +542,11 @@ window.Office3D = (function() {
     am.walkTo = { x: target.x, z: target.z };
     am.walkProgress = 0;
     resetPose(am);
+    showPathLine(am);
   }
 
   function transitionToSitting(am, status) {
+    removePathLine(am);
     const normalizedStatus = String(status || '').toLowerCase();
     const atDesk = Math.abs(am.group.position.x - am.deskPos.x) < 0.5 &&
                    Math.abs(am.group.position.z - am.deskPos.z) < 0.5;
@@ -929,6 +990,7 @@ window.Office3D = (function() {
           if (am.walkProgress >= 1) {
             am.group.position.x = am.walkTo.x;
             am.group.position.z = am.walkTo.z;
+            removePathLine(am);
             const pending = am._pendingState || am.prevApiStatus || 'idle';
             am._pendingState = null;
 
@@ -941,6 +1003,7 @@ window.Office3D = (function() {
           } else {
             am.group.position.x = am.walkFrom.x + dx * am.walkProgress;
             am.group.position.z = am.walkFrom.z + dz * am.walkProgress;
+            updatePathLine(am);
             am.group.rotation.y = Math.atan2(dx, dz);
             // Walking animation
             const phase = t * 8;
