@@ -443,14 +443,14 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
     <option value="comm-graph">🔗 Comm Graph</option>
     <option value="system">⚙️ System</option>
   </select>
-  <button class="refresh-btn" id="refresh-btn" title="Refresh all data (R)"><span class="icon">⟳</span> Refresh</button>
-  <button class="refresh-btn" id="pause-btn" title="Pause/resume auto-refresh (P)" style="gap:4px"><span class="icon" id="pause-icon">⏸</span> <span id="pause-label">Auto</span></button>
-  <button class="refresh-btn" id="theme-btn" title="Toggle dark/light theme (T)" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
+  <button class="refresh-btn" id="refresh-btn" title="Refresh all data (R)" aria-label="Refresh all data"><span class="icon">⟳</span> Refresh</button>
+  <button class="refresh-btn" id="pause-btn" title="Pause/resume auto-refresh (P)" aria-label="Pause or resume auto-refresh" style="gap:4px"><span class="icon" id="pause-icon">⏸</span> <span id="pause-label">Auto</span></button>
+  <button class="refresh-btn" id="theme-btn" title="Toggle dark/light theme (T)" aria-label="Toggle dark or light theme" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
   <button class="refresh-btn" title="Command Palette (⌘K)" onclick="document.getElementById('cmd-palette-overlay').classList.add('visible');document.getElementById('cmd-input').focus()" style="font-size:10px;gap:3px"><span>⌘K</span></button>
   <button class="refresh-btn" id="sound-btn" title="Toggle ambient sounds (S)" onclick="toggleAmbientSound()"><span id="sound-icon">🔇</span></button>
   <button class="refresh-btn" id="notif-sound-btn" title="Toggle status change notifications (N)" onclick="toggleNotifSounds()"><span id="notif-sound-icon">🔔</span></button>
-  <button class="refresh-btn" id="notif-center-btn" title="Notification Center (I)" onclick="toggleNotifCenter()" style="position:relative"><span>🔔</span><span class="notif-badge" id="notif-badge" style="display:none">0</span></button>
-  <button class="refresh-btn" id="help-btn" title="Keyboard shortcuts (?)" onclick="document.getElementById('help-overlay').classList.toggle('visible')">?</button>
+  <button class="refresh-btn" id="notif-center-btn" title="Notification Center (I)" aria-label="Notification Center" onclick="toggleNotifCenter()" style="position:relative"><span>🔔</span><span class="notif-badge" id="notif-badge" style="display:none">0</span></button>
+  <button class="refresh-btn" id="help-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onclick="document.getElementById('help-overlay').classList.toggle('visible')">?</button>
 </header>
 
 <!-- Notification Center Panel -->
@@ -491,23 +491,23 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <div id="alerts-content" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap"></div>
 </div>
 
-<nav id="tabs-nav">
-  <button data-tab="office" class="active">🏢 Office</button>
-  <button data-tab="activity">📡 Activity</button>
-  <button data-tab="queue">📋 Queue</button>
-  <button data-tab="memory">🧠 Memory</button>
-  <button data-tab="tokens">💰 Tokens</button>
-  <button data-tab="performance">📊 Performance</button>
-  <button data-tab="comm-graph">🔗 Comm Graph</button>
+<nav id="tabs-nav" role="tablist" aria-label="Dashboard sections">
+  <button data-tab="office" class="active" role="tab" aria-selected="true" aria-label="Office">🏢 Office</button>
+  <button data-tab="activity" role="tab" aria-selected="false" aria-label="Activity Feed">📡 Activity</button>
+  <button data-tab="queue" role="tab" aria-selected="false" aria-label="Work Queue">📋 Queue</button>
+  <button data-tab="memory" role="tab" aria-selected="false" aria-label="Memory">🧠 Memory</button>
+  <button data-tab="tokens" role="tab" aria-selected="false" aria-label="Token Usage">💰 Tokens</button>
+  <button data-tab="performance" role="tab" aria-selected="false" aria-label="Performance">📊 Performance</button>
+  <button data-tab="comm-graph" role="tab" aria-selected="false" aria-label="Communication Graph">🔗 Comm Graph</button>
   <!-- Dependencies tab hidden per feedback: confusing, unclear value -->
   <!-- <button data-tab="dep-graph">🌳 Dependencies</button> -->
-  <button data-tab="system">⚙️ System</button>
+  <button data-tab="system" role="tab" aria-selected="false" aria-label="System">⚙️ System</button>
 </nav>
 
-<div class="tab active" id="tab-office">
+<div class="tab active" role="tabpanel" id="tab-office">
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px" class="view-toggle-bar">
-    <button id="view-grid-btn" onclick="switchOfficeView('grid')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Card Grid View">▦ Cards</button>
-    <button id="view-2d-btn" onclick="switchOfficeView('2d')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="Isometric Office View">🏢 Office</button>
+    <button id="view-grid-btn" onclick="switchOfficeView('grid')" role="tab" aria-selected="true" aria-label="Card Grid View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Card Grid View">▦ Cards</button>
+    <button id="view-2d-btn" onclick="switchOfficeView('2d')" role="tab" aria-selected="false" aria-label="Isometric Office View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="Isometric Office View">🏢 Office</button>
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
   <div id="office-2d-flat" style="display:none"></div>
@@ -589,7 +589,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   </div>
 </div>
 
-<div class="tab" id="tab-activity">
+<div class="tab" role="tabpanel" id="tab-activity">
   <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center" id="activity-filters">
     <button class="activity-filter active" data-filter="all">All</button>
     <button class="activity-filter" data-filter="wr">📋 WR</button>
@@ -603,7 +603,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <div class="card" id="activity-feed"><h3>Agent Activity Feed</h3><div class="sub">Loading...</div></div>
 </div>
 
-<div class="tab" id="tab-queue">
+<div class="tab" role="tabpanel" id="tab-queue">
   <!-- WR Creation Form -->
   <div class="card" style="margin-bottom:12px" id="wr-create-panel">
     <div style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0" onclick="toggleWrForm()">
@@ -663,7 +663,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <div id="queue-content"></div>
 </div>
 
-<div class="tab" id="tab-memory">
+<div class="tab" role="tabpanel" id="tab-memory">
   <div class="grid grid-2" id="mem-stats"></div>
   <div style="margin-top:12px">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
@@ -694,12 +694,12 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   </div>
 </div>
 
-<div class="tab" id="tab-tokens">
+<div class="tab" role="tabpanel" id="tab-tokens">
   <div class="grid grid-3" id="tok-top"></div>
   <div class="card" style="margin-top:12px" id="tok-agents"></div>
 </div>
 
-<div class="tab" id="tab-performance">
+<div class="tab" role="tabpanel" id="tab-performance">
   <div class="grid grid-3" id="perf-summary"></div>
   <div class="card" style="margin-top:12px" id="perf-overall-trend">
     <h3>📈 Overall Success Rate Trend <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--dim)">(aggregate across all cron agents)</span></h3>
@@ -724,7 +724,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <div class="card" style="margin-top:12px" id="perf-agents"><h3>📊 Agent Performance</h3><div class="sub">Loading...</div></div>
 </div>
 
-<div class="tab" id="tab-system">
+<div class="tab" role="tabpanel" id="tab-system">
   <div class="card" id="sys-health" style="margin-bottom:12px">
     <h3>💚 System Health Score</h3>
     <div class="sub">Loading...</div>
@@ -744,7 +744,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   </div>
 </div>
 
-<div class="tab" id="tab-dep-graph">
+<div class="tab" role="tabpanel" id="tab-dep-graph">
   <div class="card" style="margin-bottom:12px">
     <h3>🌳 Agent Dependency Graph</h3>
     <div class="sub">Who spawns whom — tree view of parent→child agent relationships (last 7d)</div>
@@ -758,7 +758,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   </div>
 </div>
 
-<div class="tab" id="tab-comm-graph">
+<div class="tab" role="tabpanel" id="tab-comm-graph">
   <div class="card" style="margin-bottom:12px">
     <h3>🔗 Agent Communication</h3>
     <div class="sub">Who talks to whom — message/spawn frequency between agents</div>
@@ -830,7 +830,7 @@ function switchTab(tabName) {
   const oldIdx = _tabOrder.indexOf(_currentTab);
   const newIdx = _tabOrder.indexOf(tabName);
   const direction = newIdx > oldIdx ? 'right' : 'left';
-  document.querySelectorAll('#tabs-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#tabs-nav button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
   document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active','slide-in-right','slide-in-left'); });
   // Also update mobile nav
   document.querySelectorAll('.mobile-nav button').forEach(b => b.classList.remove('active'));
@@ -838,7 +838,7 @@ function switchTab(tabName) {
   if(mobBtn) mobBtn.classList.add('active');
   const btn = document.querySelector(`#tabs-nav [data-tab="${tabName}"]`);
   const tabEl = document.getElementById('tab-' + tabName);
-  if(btn) btn.classList.add('active');
+  if(btn) { btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
   const sel = document.getElementById('tab-select');
   if(sel) sel.value = tabName;
   if(tabEl) {
@@ -6847,7 +6847,7 @@ async function openAgentDetail(agentName) {
         <div style="font-size:15px;font-weight:700;color:${agent.color}">${agent.name}</div>
         <div style="font-size:11px;color:var(--dim)">${agent.role} · ${age}</div>
       </div>
-      <button class="close-btn" onclick="closeAgentDetail()">✕</button>
+      <button class="close-btn" onclick="closeAgentDetail()" aria-label="Close agent detail panel">✕</button>
     </div>
     <div class="agent-detail-body">
       <div class="skeleton" style="height:60px;margin-bottom:12px"></div>
@@ -6947,7 +6947,7 @@ async function openAgentDetail(agentName) {
           <div style="font-size:11px;color:var(--dim)">${agent.role} · ${age}${d.discovered ? ' · <span style="color:var(--accent)">discovered</span>' : ''}</div>
         </div>
         ${agent.cronJobId && agent.status !== 'working' ? `<button onclick="wakeAgent('${agent.cronJobId}','${agent.name.replace(/'/g,"\\'")}','${agent.color}')" style="background:linear-gradient(135deg,var(--green),#16a34a);border:none;color:#fff;padding:4px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;margin-left:8px;transition:transform .15s,box-shadow .15s" onmouseenter="this.style.transform='scale(1.05)';this.style.boxShadow='0 2px 12px rgba(34,197,94,0.4)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">⚡ Wake</button>` : ''}
-        <button class="close-btn" onclick="closeAgentDetail()">✕</button>
+        <button class="close-btn" onclick="closeAgentDetail()" aria-label="Close agent detail panel">✕</button>
       </div>
       <div class="agent-detail-body">
         <div class="agent-detail-stats">
