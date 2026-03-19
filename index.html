@@ -3686,7 +3686,7 @@ function buildStaticLayer() {
   const dpr = window.devicePixelRatio || 1;
   const w = oCanvas.width, h = oCanvas.height;
   // Check if we can reuse
-  const themeKey = document.body.classList.contains('light') ? 'light' : 'dark';
+  const themeKey = document.documentElement.getAttribute('data-theme') || 'dark';
   if (_staticValid && _staticCanvas && _staticW === w && _staticH === h &&
       _staticThemeKey === themeKey && _staticOriginX === _isoOriginX && _staticOriginY === _isoOriginY) return;
 
