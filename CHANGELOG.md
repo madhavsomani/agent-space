@@ -4,6 +4,20 @@ All notable changes to Agent Space are documented here.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-03-19
+
+### Added
+- **FPS overlay** — toggle with `F` key; color-coded health indicator (green/yellow/red)
+- **Typing sparks & coffee steam** — particle effects for working agents on canvas
+- **Idle agent wandering** — idle agents walk to water cooler, armchairs, coffee machine
+- **Office furniture** — water cooler, whiteboard, and armchairs added to canvas scene
+- **Cozy pixel-art office redesign** — warm tones, proper desk stations, windows
+
+### Fixed
+- **Blank first-frame on mobile** — eliminated flash when toggling to Office mode
+- **375px mobile framing** — improved canvas sizing on narrow viewports
+- **Canvas height cap** — capped at 900px to prevent oversized office on tall screens
+
 ## [1.2.0] — 2026-03-19
 
 ### Changed
