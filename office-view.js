@@ -103,8 +103,12 @@ async function switchOfficeView(view) {
     invalidateStaticCache();
     // Force canvas visible flag (IntersectionObserver may not fire yet)
     if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
-    // Defer resize to allow DOM reflow after display:block
-    requestAnimationFrame(() => { resizeCanvas(); invalidateStaticCache(); });
+    // Defer resize to allow DOM reflow after display:block, then force first frame
+    requestAnimationFrame(() => {
+      resizeCanvas(); invalidateStaticCache();
+      // Draw immediately so the user never sees a blank fill-color frame
+      if (typeof drawOffice === 'function') drawOffice(performance.now());
+    });
   } else {
     // grid (default) — show card content
     cardElements.forEach(id => {
