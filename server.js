@@ -2541,7 +2541,7 @@ const server = http.createServer((req, res) => {
     return json(res, {
       ok: true,
       uptime: Math.round(process.uptime()),
-      version: '1.1.0',
+      version: require('./package.json').version,
       agents: { total, working },
       memory: { rssKB: Math.round(mem.rss / 1024), heapUsedKB: Math.round(mem.heapUsed / 1024) },
       qdrant: qdrantOk ? 'online' : 'offline',
