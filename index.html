@@ -3314,13 +3314,16 @@ function _drawOfficeInner(rafNow) {
     oCtx.font = '9px system-ui';
     const tw = oCtx.measureText(msg).width;
     const bw = tw + 16, bh = 18;
+    // Clamp bubble to canvas bounds
+    const canvasW = oCanvas.width / (window.devicePixelRatio || 1);
+    const clampedBx = Math.max(bw/2 + 4, Math.min(canvasW - bw/2 - 4, bx));
     // Bubble background
     oCtx.fillStyle = 'rgba(15,23,42,0.9)';
-    roundRect(oCtx, bx - bw/2, by - bh/2, bw, bh, 6);
+    roundRect(oCtx, clampedBx - bw/2, by - bh/2, bw, bh, 6);
     oCtx.fill();
     oCtx.strokeStyle = a.color || '#4ade80';
     oCtx.lineWidth = 1;
-    roundRect(oCtx, bx - bw/2, by - bh/2, bw, bh, 6);
+    roundRect(oCtx, clampedBx - bw/2, by - bh/2, bw, bh, 6);
     oCtx.stroke();
     // Tail triangle
     oCtx.fillStyle = 'rgba(15,23,42,0.9)';
@@ -3332,7 +3335,7 @@ function _drawOfficeInner(rafNow) {
     // Text
     oCtx.fillStyle = '#e2e8f0';
     oCtx.textAlign = 'center'; oCtx.textBaseline = 'middle';
-    oCtx.fillText(msg, bx, by);
+    oCtx.fillText(msg, clampedBx, by);
     oCtx.restore();
   });
 
@@ -3744,8 +3747,8 @@ function buildStaticLayer() {
   // Team labels (zone headers — big, bold, clearly above their section)
   oCtx.save();
   const isMobileCanvas = (oCanvas.style.width ? parseInt(oCanvas.style.width) : oCanvas.width) < 500;
-  oCtx.globalAlpha = isMobileCanvas ? 0.5 : 0.7;
-  oCtx.font = isMobileCanvas ? 'bold 14px system-ui' : 'bold 18px system-ui'; oCtx.textAlign = 'center';
+  oCtx.globalAlpha = isMobileCanvas ? 0.25 : 0.35;
+  oCtx.font = isMobileCanvas ? 'bold 10px system-ui' : 'bold 12px system-ui'; oCtx.textAlign = 'center';
   const ctP = isoToScreen(4, 1); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + 8);
   const enP = isoToScreen(12, 1); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + 8);
   const ldP = isoToScreen(4, 7); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y - 6);
