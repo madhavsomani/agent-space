@@ -4,12 +4,21 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
 
-![Agent Space Dashboard](screenshot.jpg)
+### Isometric Office View (Dark)
+![Agent Space — Office View](screenshot-dark-office.jpg)
+
+### Cards Dashboard View (Dark)
+![Agent Space — Cards View](screenshot-dark-cards.jpg)
+
+### Office View (Light)
+![Agent Space — Light Mode](screenshot-light-office.jpg)
 
 ## Features
 
 - **Isometric pixel-art office** — 2D canvas office with zone-based layout, pixel-art agent sprites, and desk animations
-- **Day/night cycle** — ambient lighting synced to real time (dawn, day, dusk, night)
+- **Cards dashboard** — professional card-based view with KPI stats, activity timeline, uptime charts, and live logs
+- **View toggle** — switch between Office (isometric canvas) and Cards view with `V` key or buttons
+- **Light/dark theme** — full palette support for both canvas and card views
 - **Live agent status** — agents visually reflect their state (working → typing at desk, idle → off-desk, sleeping → desk sleep pose)
 - **Zone-based floor textures** — distinct tinted areas for Engineering, Content, Leadership, Support zones
 - **Click-to-inspect** — click any agent in the office to open a detail panel
