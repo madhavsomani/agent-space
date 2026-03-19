@@ -6,6 +6,8 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Deploy on Fly.io](https://img.shields.io/badge/Deploy-Fly.io-blueviolet)](https://fly.io/launch?source=https://github.com/madhavsomani/agent-space)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template?referralCode=agent-space&template=https://github.com/madhavsomani/agent-space)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/madhavsomani/agent-space)
 
 ### Isometric Office View (Dark)
 ![Agent Space — Office View](screenshot-dark-office.jpg)

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: agent-space
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 18790
+      - key: BIND_HOST
+        value: 0.0.0.0

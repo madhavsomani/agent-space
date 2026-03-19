@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY server.js index.html style.css app.js mobile-nav.js office-view.js sprites.js ./
+COPY *.js *.html *.css ./
 COPY config.example.json LICENSE README.md CONTRIBUTING.md CHANGELOG.md ARCHITECTURE.md ./
 COPY test/ ./test/
 ENV BIND_HOST=0.0.0.0
