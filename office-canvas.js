@@ -8,8 +8,10 @@ let oCtx = oCanvas ? oCanvas.getContext('2d', { willReadFrequently: true }) : nu
 // ── PALETTE ──
 const PAL = {
   // Warm wood floor
-  floorA: '#c4a882', floorB: '#b89b74',
-  floorLine: '#a08a68',
+  floorA: '#caa982', floorB: '#bb986f',
+  floorLine: '#9c7d5c',
+  backdropTop: '#efe3d0', backdropBottom: '#d8c1a2',
+  vignette: 'rgba(92,62,32,0.16)',
   // Walls
   wallTop: '#8faa8f', wallSide: '#7a9a7a', wallTrim: '#6a886a',
   // Desks
@@ -450,24 +452,25 @@ function drawAgent(x, y, agent, time) {
 
 // ── NAME LABEL ──
 function drawNameLabel(x, y, agent) {
-  const name = agent.name || 'Unknown';
-  oCtx.font = 'bold 10px -apple-system, system-ui, sans-serif';
+  const rawName = agent.name || 'Unknown';
+  const name = rawName.length > 16 ? rawName.slice(0, 15) + '…' : rawName;
+  oCtx.font = '600 9px -apple-system, system-ui, sans-serif';
   oCtx.textAlign = 'center';
   const tw = oCtx.measureText(name).width;
-  const padX = 6, padY = 3;
+  const padX = 7, padY = 3;
   const lx = x - tw / 2 - padX;
   const ly = y - padY;
-  const lw = tw + padX * 2;
-  const lh = 14 + padY;
+  const lw = tw + padX * 2 + 8;
+  const lh = 15;
 
   // Badge background
-  oCtx.fillStyle = PAL.labelBg;
+  oCtx.fillStyle = 'rgba(43,30,18,0.82)';
   oCtx.beginPath();
-  oCtx.roundRect(lx, ly, lw, lh, 4);
+  oCtx.roundRect(lx, ly, lw, lh, 5);
   oCtx.fill();
 
   // Status dot
-  const dotR = 3;
+  const dotR = 2.5;
   const dotX = lx + 8;
   const dotY = ly + lh / 2;
   oCtx.fillStyle = agent.status === 'working' ? PAL.statusWorking
@@ -486,8 +489,8 @@ function drawNameLabel(x, y, agent) {
   }
 
   // Name text
-  oCtx.fillStyle = PAL.labelText;
-  oCtx.fillText(name, x + 4, y + 8);
+  oCtx.fillStyle = '#fffaf2';
+  oCtx.fillText(name, x + 5, y + 7.5);
 }
 
 // ── SHARED FURNITURE ──
@@ -882,8 +885,18 @@ function _drawOfficeInner(rafNow) {
   const cw = oCanvas.width / dpr;
   const ch = oCanvas.height / dpr;
 
-  // Clear with warm background
-  oCtx.fillStyle = '#d4c4a8';
+  // Warm studio backdrop instead of a flat beige slab
+  const bgGrad = oCtx.createLinearGradient(0, 0, 0, ch);
+  bgGrad.addColorStop(0, PAL.backdropTop);
+  bgGrad.addColorStop(1, PAL.backdropBottom);
+  oCtx.fillStyle = bgGrad;
+  oCtx.fillRect(0, 0, cw, ch);
+
+  // Soft vignette so empty canvas edges feel intentional, not broken
+  const vignette = oCtx.createRadialGradient(cw / 2, ch * 0.42, Math.min(cw, ch) * 0.18, cw / 2, ch * 0.46, Math.max(cw, ch) * 0.78);
+  vignette.addColorStop(0, 'rgba(255,245,230,0)');
+  vignette.addColorStop(1, PAL.vignette);
+  oCtx.fillStyle = vignette;
   oCtx.fillRect(0, 0, cw, ch);
 
   // Apply zoom + pan
@@ -896,7 +909,21 @@ function _drawOfficeInner(rafNow) {
   const gridPixelW = (ROOM.cols + ROOM.rows) * ISO.tileW / 2;
   const gridPixelH = (ROOM.cols + ROOM.rows) * ISO.tileH / 2;
   _originX = cw / 2 + (ROOM.rows * ISO.tileW / 4) - (ROOM.cols * ISO.tileW / 4);
-  _originY = (ch - gridPixelH) / 2 + 40; // 40px down for wall space
+  _originY = (ch - gridPixelH) / 2 + 64; // bias downward so the office fills the viewport more naturally
+
+  // Grounding shadow under the whole office so it feels like a placed scene, not floating geometry
+  oCtx.save();
+  oCtx.globalAlpha = 0.22;
+  const shadowCx = cw / 2;
+  const shadowCy = _originY + gridPixelH * 0.58;
+  const shadow = oCtx.createRadialGradient(shadowCx, shadowCy, 40, shadowCx, shadowCy, Math.max(gridPixelW * 0.42, 220));
+  shadow.addColorStop(0, 'rgba(80,48,20,0.24)');
+  shadow.addColorStop(1, 'rgba(80,48,20,0)');
+  oCtx.fillStyle = shadow;
+  oCtx.beginPath();
+  oCtx.ellipse(shadowCx, shadowCy, gridPixelW * 0.38, gridPixelH * 0.24, 0, 0, Math.PI * 2);
+  oCtx.fill();
+  oCtx.restore();
 
   // Draw layers back-to-front
   drawWalls();
@@ -1056,10 +1083,11 @@ function resizeCanvas() {
   const fitW = internalW / gridPixelW;
   const fitH = internalH / gridPixelH;
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 1.5 : fitBase * 1.2;
+  const fit = isMobile ? fitBase * 1.68 : fitBase * 1.34;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
+    camPanY = isMobile ? 16 : 10;
   }
 
   invalidateStaticCache();
