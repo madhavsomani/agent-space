@@ -260,7 +260,7 @@ function demoActivity() {
   for (let i = 0; i < actions.length; i++) {
     events.push({ ...actions[i], ts: now - i * 900000 + Math.random()*60000, time: new Date(now - i*900000).toISOString() });
   }
-  return { events };
+  return { activity: events };
 }
 
 function demoQueue() {
