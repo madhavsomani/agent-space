@@ -1750,6 +1750,27 @@ let _isoOriginX = 404, _isoOriginY = 40;
 // Pool of reusable point objects to reduce GC pressure
 const _ptPool = Array.from({length:64}, ()=>({x:0,y:0}));
 let _ptIdx = 0;
+
+// Label deconfliction: prevent name tag overlap in dense scenes
+const _frameLabelRects = [];
+function _deconflictLabel(x, y, w, h) {
+  // Nudge label down until it doesn't overlap any existing label
+  let ny = y;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    let overlap = false;
+    for (let i = 0; i < _frameLabelRects.length; i++) {
+      const r = _frameLabelRects[i];
+      if (x < r.x + r.w && x + w > r.x && ny < r.y + r.h && ny + h > r.y) {
+        ny = r.y + r.h + 1;
+        overlap = true;
+        break;
+      }
+    }
+    if (!overlap) break;
+  }
+  _frameLabelRects.push({ x, y: ny, w, h });
+  return ny;
+}
 function isoToScreen(gx, gy) {
   const p = _ptPool[_ptIdx]; _ptIdx = (_ptIdx + 1) & 63;
   p.x = _isoOriginX + (gx-gy)*ISO.tileW/2;
@@ -1990,22 +2011,24 @@ function _drawAgentSprite(agent, gx, gy, time) {
     oCtx.globalAlpha = 1;
   }
   
-  // Name label (below sprite)
+  // Name label (below sprite) with deconfliction
   oCtx.font = 'bold 9px system-ui';
   oCtx.textAlign = 'center';
-  // Name with background pill for readability
   const nameW = oCtx.measureText(agent.name).width + 8;
+  const labelX = px - nameW/2;
+  const labelBaseY = baseP.y + 8;
+  const labelY = _deconflictLabel(labelX, labelBaseY, nameW + 20, 14);
   oCtx.fillStyle = 'rgba(0,0,0,0.5)';
   oCtx.beginPath();
-  oCtx.roundRect(px - nameW/2, baseP.y + 8, nameW, 14, 4);
+  oCtx.roundRect(labelX, labelY, nameW, 14, 4);
   oCtx.fill();
   oCtx.fillStyle = agent.color || '#94a3b8';
-  oCtx.fillText(agent.name, px, baseP.y + 18);
+  oCtx.fillText(agent.name, px, labelY + 10);
   
   // Status emoji (compact — no speech bubbles to avoid overlap)
   const statusEmoji = isWorking ? '⚡' : isSleeping ? '💤' : '☕';
   oCtx.font = '10px system-ui';
-  oCtx.fillText(statusEmoji, px + nameW/2 + 6, baseP.y + 18);
+  oCtx.fillText(statusEmoji, px + nameW/2 + 6, labelY + 10);
   
   // Typing dots for working agents
   if (isWorking) {
@@ -3131,6 +3154,7 @@ function _drawParticles(time, agents) {
 
 function _drawOfficeInner(rafNow) {
   _ptIdx = 0; // reset point pool each frame
+  _frameLabelRects.length = 0; // reset label deconfliction each frame
 
   const dpr = window.devicePixelRatio || 1;
 
