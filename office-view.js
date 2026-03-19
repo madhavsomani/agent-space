@@ -1,4 +1,4 @@
-let _officeView = 'grid'; // Professional card grid — canvas removed
+let _officeView = localStorage.getItem('office-view') || '2d'; // Default to cozy office view
 
 // ── Grid View Renderer ──
 function renderGridView() {
@@ -101,6 +101,8 @@ async function switchOfficeView(view) {
     // Hide card-based content
     cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
     invalidateStaticCache();
+    // Force canvas visible flag (IntersectionObserver may not fire yet)
+    if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
     // Defer resize to allow DOM reflow after display:block
     requestAnimationFrame(() => { resizeCanvas(); invalidateStaticCache(); });
   } else {
