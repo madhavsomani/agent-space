@@ -417,6 +417,30 @@ function drawAgent(x, y, agent, time) {
     oCtx.fillStyle = color;
     oCtx.fillRect(x - 8, y + 0 + armL, 3, 4);
     oCtx.fillRect(x + 5, y + 0 + armR, 3, 4);
+
+    // Typing sparks — small bright dots near hands
+    const sparkPhase = (time / 120) | 0;
+    if (sparkPhase % 3 === 0) {
+      oCtx.fillStyle = '#ffa300';
+      oCtx.fillRect(x - 6 + (sparkPhase % 5), y + 5, 1, 1);
+    }
+    if ((sparkPhase + 1) % 4 === 0) {
+      oCtx.fillStyle = '#ffec27';
+      oCtx.fillRect(x + 6 - (sparkPhase % 4), y + 4, 1, 1);
+    }
+
+    // Coffee mug steam — wispy lines rising from desk edge
+    const steamT = time / 600;
+    oCtx.strokeStyle = 'rgba(200,200,200,0.3)';
+    oCtx.lineWidth = 0.8;
+    for (let i = 0; i < 2; i++) {
+      const sx = x + 12 + i * 3;
+      const sy = y + 6;
+      oCtx.beginPath();
+      oCtx.moveTo(sx, sy);
+      oCtx.quadraticCurveTo(sx + Math.sin(steamT + i) * 2, sy - 5, sx + Math.sin(steamT + i + 1) * 1.5, sy - 10);
+      oCtx.stroke();
+    }
   } else {
     oCtx.fillStyle = color;
     oCtx.fillRect(x - 8, y + 1, 3, 4);
@@ -984,7 +1008,7 @@ function resizeCanvas() {
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
   const mobileH = Math.min(Math.max(340, window.innerHeight * 0.58), 520);
-  const desktopH = Math.min(availH, Math.max(450, window.innerHeight * 0.70));
+  const desktopH = Math.min(availH, Math.max(450, window.innerHeight * 0.70), 900);
   const canvasH = isMobile ? Math.min(availH, mobileH) : desktopH;
 
   const dpr = window.devicePixelRatio || 1;
