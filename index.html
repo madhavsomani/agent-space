@@ -505,11 +505,12 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 <div class="tab active" id="tab-office">
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
-    <!-- Office view is now card-only (canvas removed per directive) -->
+    <button id="view-grid-btn" onclick="switchOfficeView('grid')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Card Grid View">▦ Cards</button>
+    <button id="view-2d-btn" onclick="switchOfficeView('2d')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="Isometric Office View">🏢 Office</button>
   </div>
-  <canvas id="office-canvas" style="display:none !important;width:0;height:0"></canvas>
-  <div id="office-2d-flat" style="display:none !important"></div>
-  <div id="office-3d-container" style="display:none !important;width:0;height:0"></div>
+  <canvas id="office-canvas" style="display:none"></canvas>
+  <div id="office-2d-flat" style="display:none"></div>
+  <div id="office-3d-container" style="display:none"></div>
   <div class="office-legend" id="office-legend"></div>
   <div id="office-ticker" style="max-width:100%;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
     <span style="flex-shrink:0;font-size:13px">📡</span>
@@ -3741,8 +3742,9 @@ function buildStaticLayer() {
 
   // Team labels (zone headers — big, bold, clearly above their section)
   oCtx.save();
-  oCtx.globalAlpha = 0.7;
-  oCtx.font = 'bold 18px system-ui'; oCtx.textAlign = 'center';
+  const isMobileCanvas = (oCanvas.style.width ? parseInt(oCanvas.style.width) : oCanvas.width) < 500;
+  oCtx.globalAlpha = isMobileCanvas ? 0.5 : 0.7;
+  oCtx.font = isMobileCanvas ? 'bold 14px system-ui' : 'bold 18px system-ui'; oCtx.textAlign = 'center';
   const ctP = isoToScreen(4, 1); oCtx.fillStyle = '#FF6B6B'; oCtx.fillText('✏️ CONTENT', ctP.x, ctP.y + 8);
   const enP = isoToScreen(12, 1); oCtx.fillStyle = '#00D4FF'; oCtx.fillText('⚡ ENGINEERING', enP.x, enP.y + 8);
   const ldP = isoToScreen(4, 7); oCtx.fillStyle = '#FFD700'; oCtx.fillText('👑 LEADERSHIP', ldP.x, ldP.y - 6);
@@ -3787,9 +3789,9 @@ if (typeof IntersectionObserver !== 'undefined') {
   if (_cvEl) _cvObs.observe(_cvEl);
 }
 function officeLoop(now) {
-  // Canvas office disabled — card grid is the primary view
-  if (_officeView === 'grid') return;
   requestAnimationFrame(officeLoop);
+  // Skip rendering when in card grid view
+  if (_officeView === 'grid') return;
   if (document.hidden) { _wasHidden = true; return; }
   if (_currentTab !== 'office') return;
   if (!_canvasVisible) return;
@@ -5817,7 +5819,7 @@ function resizeCanvas() {
   const availH = Math.max(300, window.innerHeight - usedH);
   const isMobile = window.innerWidth <= 480;
   // On phones, avoid a giant empty blue slab: cap office height and bias toward a shorter, denser viewport.
-  const mobilePreferredH = Math.min(Math.max(260, window.innerHeight * 0.36), 360);
+  const mobilePreferredH = Math.min(Math.max(320, window.innerHeight * 0.55), 500);
   const canvasW = w;
   // Cap desktop at ~70% viewport so the office fills the view as primary content
   const desktopPreferredH = Math.min(availH, Math.max(450, window.innerHeight * 0.70));
@@ -5841,12 +5843,12 @@ function resizeCanvas() {
   camPivotX = _isoOriginX + (_gridCenterGx - _gridCenterGy) * ISO.tileW / 2;
   camPivotY = _isoOriginY + (_gridCenterGx + _gridCenterGy) * ISO.tileH / 2;
   // Auto-fit zoom: scale iso grid to fill canvas with minimal margins
-  const gridPixelW = (GRID.cols + GRID.rows) * ISO.tileW / 2;
-  const gridPixelH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 80; // 80 for agent sprites
+  const gridPixelW = (GRID.cols + GRID.rows) * ISO.tileW / 2 + 120; // +120 for agent sprites overflowing edges
+  const gridPixelH = (GRID.cols + GRID.rows) * ISO.tileH / 2 + 100; // +100 for agent sprites + name labels
   const fitZoomW = internalW / gridPixelW;
   const fitZoomH = internalH / gridPixelH;
   const fitZoomBase = Math.min(fitZoomW, fitZoomH);
-  const fitZoom = isMobile ? fitZoomBase * 1.2 : fitZoomBase * 1.6; // fill the viewport — tight framing
+  const fitZoom = isMobile ? fitZoomBase * 1.35 : fitZoomBase * 1.45; // fill viewport with margin to prevent edge clipping
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
@@ -7373,8 +7375,7 @@ function renderGridView() {
             (ageText ? '<span style="margin-left:auto;font-size:9px;color:var(--dim);flex-shrink:0">' + esc(ageText) + '</span>' : '') +
           '</div>' +
           '<div class="agent-role">' + esc(a.role||'Agent') + '</div>' +
-          (a.lastMessage ? '<div class="agent-activity">' + esc((a.lastMessage||'').replace(/
-/g,' ').slice(0,60)) + '</div>' : '') +
+          (a.lastMessage ? '<div class="agent-activity">' + esc((a.lastMessage||'').replace(/\n/g,' ').slice(0,60)) + '</div>' : '') +
           '<div class="agent-meta">' +
             '<span>↗ ' + tokIn + '</span><span>↙ ' + tokOut + '</span>' +
             (cost ? '<span style="color:var(--green)">' + cost + '</span>' : '') +
@@ -7395,7 +7396,10 @@ async function switchOfficeView(view) {
   const btnGrid = document.getElementById('view-grid-btn');
   window.scrollTo({ top: 0, behavior: 'instant' });
 
-  // Hide all
+  // Card-based elements to hide in canvas view
+  const cardElements = ['office-quickstats','agent-search-bar','agent-search-results-count','agent-status-cards','agent-timeline','agent-uptime','heatmap-calendar','live-logs-panel','office-ticker'];
+
+  // Hide all canvas views
   canvas2d.style.display = 'none';
   flat2d.style.display = 'none';
   container3d.style.display = 'none';
@@ -7405,10 +7409,16 @@ async function switchOfficeView(view) {
   if (view === '2d') {
     canvas2d.style.display = 'block';
     btn2d.style.opacity = '1';
+    // Hide card-based content
+    cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+    invalidateStaticCache();
     resizeCanvas();
   } else {
-    // grid (default)
-    flat2d.style.display = 'grid';
+    // grid (default) — show card content
+    cardElements.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = '';
+    });
     btnGrid.style.opacity = '1';
     renderGridView();
   }
