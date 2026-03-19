@@ -39,7 +39,7 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ```bash
 # Clone
-git clone https://github.com/openclaw/agent-space.git
+git clone https://github.com/madhavsomani/agent-space.git
 cd agent-space
 
 # Try it instantly with demo data (no OpenClaw needed!)

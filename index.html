@@ -526,15 +526,15 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   </div>
   <div id="agent-search-bar" style="max-width:100%;margin:12px auto 0;display:flex;align-items:center;gap:8px">
     <div style="position:relative;flex:1">
-      <input id="agent-search-input" type="text" placeholder="🔍 Search agents by name, role, or status..." style="width:100%;padding:8px 12px 8px 32px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="filterAgents(this.value)">
+      <input id="agent-search-input" type="text" placeholder="🔍 Search agents by name, role, or status..." aria-label="Search agents by name, role, or status" role="searchbox" style="width:100%;padding:8px 12px 8px 32px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="filterAgents(this.value)">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:0.5">🔍</span>
-      <button id="agent-search-clear" onclick="document.getElementById('agent-search-input').value='';filterAgents('');" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;display:none;padding:0 4px" title="Clear search">✕</button>
+      <button id="agent-search-clear" onclick="document.getElementById('agent-search-input').value='';filterAgents('');" aria-label="Clear search" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;display:none;padding:0 4px" title="Clear search">✕</button>
     </div>
-    <div id="agent-filter-buttons" style="display:flex;gap:4px;flex-shrink:0">
-      <button class="agent-status-filter active" data-status="all" onclick="setStatusFilter('all')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--accent);color:#fff;font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">All</button>
-      <button class="agent-status-filter" data-status="working" onclick="setStatusFilter('working')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--green);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">🟢 Working</button>
-      <button class="agent-status-filter" data-status="idle" onclick="setStatusFilter('idle')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--orange);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">🟡 Idle</button>
-      <button class="agent-status-filter" data-status="sleeping" onclick="setStatusFilter('sleeping')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">💤 Sleep</button>
+    <div id="agent-filter-buttons" role="group" aria-label="Filter agents by status" style="display:flex;gap:4px;flex-shrink:0">
+      <button class="agent-status-filter active" data-status="all" onclick="setStatusFilter('all')" aria-pressed="true" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--accent);color:#fff;font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">All</button>
+      <button class="agent-status-filter" data-status="working" onclick="setStatusFilter('working')" aria-pressed="false" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--green);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">🟢 Working</button>
+      <button class="agent-status-filter" data-status="idle" onclick="setStatusFilter('idle')" aria-pressed="false" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--orange);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">🟡 Idle</button>
+      <button class="agent-status-filter" data-status="sleeping" onclick="setStatusFilter('sleeping')" aria-pressed="false" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s">💤 Sleep</button>
     </div>
   </div>
   <div id="agent-search-results-count" style="max-width:100%;margin:4px auto 0;font-size:10px;color:var(--dim);display:none"></div>
@@ -4098,6 +4098,7 @@ function setStatusFilter(status) {
     btn.classList.toggle('active', isActive);
     btn.style.background = isActive ? 'var(--accent)' : 'var(--card)';
     btn.style.color = isActive ? '#fff' : (btn.dataset.status === 'working' ? 'var(--green)' : btn.dataset.status === 'idle' ? 'var(--orange)' : btn.dataset.status === 'sleeping' ? 'var(--dim)' : 'var(--text)');
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
   });
   applyAgentFilter();
 }
