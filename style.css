@@ -296,7 +296,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 @media(max-width:768px) {
   .mobile-nav { display:block; }
-  .view-toggle-bar { display:none !important; }
+  .view-toggle-bar { display:flex !important; justify-content:flex-end; margin-bottom:6px; gap:6px; }
+  .view-toggle-bar button { font-size:9px; padding:3px 8px; }
   nav#tabs-nav { display:none; }
   body { padding-bottom:64px; }
   .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }

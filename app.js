@@ -5127,7 +5127,7 @@ function resizeCanvas() {
   const availH = Math.max(300, window.innerHeight - usedH);
   const isMobile = window.innerWidth <= 480;
   // On phones, avoid a giant empty blue slab: cap office height and bias toward a shorter, denser viewport.
-  const mobilePreferredH = Math.min(Math.max(320, window.innerHeight * 0.55), 500);
+  const mobilePreferredH = Math.min(Math.max(260, window.innerHeight * 0.42), 400);
   const canvasW = w;
   // Cap desktop at ~70% viewport so the office fills the view as primary content
   const desktopPreferredH = Math.min(availH, Math.max(450, window.innerHeight * 0.70));
