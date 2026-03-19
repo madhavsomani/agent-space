@@ -2,7 +2,9 @@
 
 A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI agent team — presented as an isometric pixel-art virtual office.
 
+[![CI](https://github.com/madhavsomani/agent-space/actions/workflows/ci.yml/badge.svg)](https://github.com/madhavsomani/agent-space/actions/workflows/ci.yml)
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ### Isometric Office View (Dark)
 ![Agent Space — Office View](screenshot-dark-office.jpg)
