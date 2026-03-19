@@ -960,6 +960,33 @@ function _drawOfficeInner(rafNow) {
   oCtx.fillText('Scroll to zoom · Drag to pan', 8, ch - 8);
 }
 
+// ── FPS OVERLAY (toggle with F key) ──
+let _showFPS = false;
+let _fpsFrameTimes = [];
+function drawFPSOverlay() {
+  if (!_showFPS || !oCtx) return;
+  const now = performance.now();
+  _fpsFrameTimes.push(now);
+  while (_fpsFrameTimes.length > 0 && now - _fpsFrameTimes[0] > 1000) _fpsFrameTimes.shift();
+  const fps = _fpsFrameTimes.length;
+  const frameMs = _fpsFrameTimes.length > 1 ? (now - _fpsFrameTimes[_fpsFrameTimes.length - 2]).toFixed(1) : '—';
+  const dpr = window.devicePixelRatio || 1;
+  oCtx.save();
+  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  oCtx.fillStyle = 'rgba(0,0,0,0.7)';
+  oCtx.fillRect(4, 4, 110, 38);
+  oCtx.font = '11px SF Mono, Menlo, monospace';
+  oCtx.fillStyle = fps >= 12 ? '#4ade80' : fps >= 8 ? '#fbbf24' : '#f87171';
+  oCtx.textAlign = 'left';
+  oCtx.fillText(fps + ' FPS', 10, 20);
+  oCtx.fillStyle = '#94a3b8';
+  oCtx.fillText(frameMs + ' ms/frame', 10, 35);
+  oCtx.restore();
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement?.tagName !== 'INPUT') _showFPS = !_showFPS;
+});
+
 // ── ANIMATION LOOP ──
 const FRAME_INTERVAL = 1000 / 15; // 15fps
 let _lastFrameTime = 0;
@@ -988,6 +1015,7 @@ function officeLoop(now) {
   if (!oCanvas.width || !oCanvas.height || oCanvas.width < 10) { resizeCanvas(); return; }
   if (_wasHidden) { _wasHidden = false; invalidateStaticCache(); }
   drawOffice(now);
+  drawFPSOverlay();
 }
 
 // ── RESIZE ──
