@@ -4,6 +4,15 @@ All notable changes to Agent Space are documented here.
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-03-19
+
+### Changed
+- **Modularized frontend** — `app.js` split from 6,440 lines to 764 lines across 10 focused modules (`alerts.js`, `live-logs.js`, `tab-performance.js`, `tab-timeline.js`, `tab-system.js`, `sounds.js`, `office-view.js`, `mobile-nav.js`, `sprites.js`)
+- **Version bump** — server reports `1.1.0` → `1.2.0`
+
+### Fixed
+- **Demo mode `/api/activity`** — returns `{activity:[...]}` matching prod API shape (was `{events:[...]}`)
+
 ## [1.1.0] — 2026-03-19
 
 ### Added
