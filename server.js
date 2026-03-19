@@ -8,7 +8,8 @@ process.on('unhandledRejection', (err) => { console.error('Unhandled rejection:'
 const { execSync, exec: execAsync } = require('child_process');
 
 const DEMO_MODE = process.argv.includes('--demo');
-const PORT = parseInt(process.env.PORT, 10) || 18790;
+const _portArgIdx = process.argv.indexOf('--port');
+const PORT = (_portArgIdx !== -1 && process.argv[_portArgIdx + 1]) ? parseInt(process.argv[_portArgIdx + 1], 10) : (parseInt(process.env.PORT, 10) || 18790);
 const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
 const WR_DIR = path.join(__dirname, '..', 'work_requests');
 
