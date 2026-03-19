@@ -809,7 +809,9 @@ function resizeCanvas() {
   const isMobile = window.innerWidth <= 480;
 
   const canvasW = w;
-  const mobileH = Math.min(Math.max(280, window.innerHeight * 0.45), 420);
+  // Mobile should feel scene-first: let the office claim more vertical space
+  // so short pages don't leave a large dead band below the canvas.
+  const mobileH = Math.min(Math.max(340, window.innerHeight * 0.58), 520);
   const desktopH = Math.min(availH, Math.max(450, window.innerHeight * 0.70));
   const canvasH = isMobile ? Math.min(availH, mobileH) : desktopH;
 
