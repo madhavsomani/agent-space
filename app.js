@@ -563,13 +563,6 @@ function fmtUptime(sec) {
   if(sec < 86400) return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
   return Math.floor(sec/86400) + 'd ' + Math.floor((sec%86400)/3600) + 'h';
 }
-async function refreshProcessUptime() {
-  try {
-    const r = await fetch(API.replace('/api','') + '/healthz');
-    const d = await r.json();
-    if(d.uptime) document.getElementById('ss-uptime').textContent = fmtUptime(d.uptime);
-  } catch {}
-}
 function markUpdated() {
   const el = document.getElementById('ss-updated');
   el.textContent = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
