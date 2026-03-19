@@ -76,8 +76,11 @@ header .live.offline .pulse { background:var(--red); }
 #heatmap-agent-filter button { padding:4px 10px !important; font-size:10px !important; }
 
 /* Nav */
+nav#tabs-nav { display:none; }
 nav { display:flex; gap:2px; padding:6px 16px; background:var(--glass); border-bottom:1px solid var(--border); overflow-x:auto; }
 nav button { background:transparent; border:1px solid transparent; color:var(--dim); padding:7px 14px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:500; border-radius:8px; white-space:nowrap; transition:all .2s cubic-bezier(.4,0,.2,1); position:relative; }
+
+.tab-select { margin-left:12px; background:var(--card); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:8px; font-size:11px; }
 nav button:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.05); transform:translateY(-1px); }
 nav button:active:not(.active) { transform:translateY(0) scale(0.97); }
 nav button:hover { color:var(--text); background:rgba(255,255,255,0.04); }
@@ -429,6 +432,16 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <h1>Agent Space</h1>
   <span class="clock" id="clock"></span>
   <span class="live online" id="live-status"><span class="pulse"></span>LIVE</span>
+  <select id="tab-select" class="tab-select" onchange="switchTab(this.value)">
+    <option value="office">🏢 Office</option>
+    <option value="activity">📡 Activity</option>
+    <option value="queue">📋 Queue</option>
+    <option value="memory">🧠 Memory</option>
+    <option value="tokens">💰 Tokens</option>
+    <option value="performance">📊 Performance</option>
+    <option value="comm-graph">🔗 Comm Graph</option>
+    <option value="system">⚙️ System</option>
+  </select>
   <button class="refresh-btn" id="refresh-btn" title="Refresh all data (R)"><span class="icon">⟳</span> Refresh</button>
   <button class="refresh-btn" id="pause-btn" title="Pause/resume auto-refresh (P)" style="gap:4px"><span class="icon" id="pause-icon">⏸</span> <span id="pause-label">Auto</span></button>
   <button class="refresh-btn" id="theme-btn" title="Toggle dark/light theme (T)" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
@@ -824,6 +837,8 @@ function switchTab(tabName) {
   const btn = document.querySelector(`#tabs-nav [data-tab="${tabName}"]`);
   const tabEl = document.getElementById('tab-' + tabName);
   if(btn) btn.classList.add('active');
+  const sel = document.getElementById('tab-select');
+  if(sel) sel.value = tabName;
   if(tabEl) {
     tabEl.classList.add('active', direction === 'right' ? 'slide-in-right' : 'slide-in-left');
   }
