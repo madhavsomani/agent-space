@@ -8,6 +8,8 @@ process.on('unhandledRejection', (err) => { console.error('Unhandled rejection:'
 const { execSync, exec: execAsync } = require('child_process');
 
 const DEMO_MODE = process.argv.includes('--demo');
+const PORT = parseInt(process.env.PORT, 10) || 18790;
+const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
 const WR_DIR = path.join(__dirname, '..', 'work_requests');
 
 // ===== PERSISTENT STORAGE (node:sqlite, zero deps) =====
@@ -919,7 +921,7 @@ let _systemCache = null, _systemCacheTime = 0;
 const SYSTEM_CACHE_TTL = 15000; // 15s — background refresh, never blocks request handlers
 function getSystem() {
   // Always return cache — never block. Background refresh keeps it fresh.
-  return _systemCache || { cpu: { user: 0, sys: 0, idle: 100 }, memory: { total: 0, used: 0, free: 0, pctUsed: 0, totalGB: '0', usedGB: '0' }, disk: { total: '–', used: '–', available: '–', percent: '–' }, services: [{ name: 'Agent Space', status: 'running', port: 18790 }], uptime: '', network: null, timestamp: Date.now() };
+  return _systemCache || { cpu: { user: 0, sys: 0, idle: 100 }, memory: { total: 0, used: 0, free: 0, pctUsed: 0, totalGB: '0', usedGB: '0' }, disk: { total: '–', used: '–', available: '–', percent: '–' }, services: [{ name: 'Agent Space', status: 'running', port: PORT }], uptime: '', network: null, timestamp: Date.now() };
 }
 // === BACKGROUND SYSTEM CACHE — ZERO execSync in request path ===
 // All shell commands run on a timer via exec (async), never in request handlers.
@@ -966,7 +968,7 @@ async function _refreshSystemCache() {
     if (qdrantCheck.trim()) services.push({ name: 'Qdrant', status: 'running', port: 6333 });
     if (gwCheck.trim()) services.push({ name: 'Gateway', status: 'running', port: 18789 });
     else services.push({ name: 'Gateway', status: 'stopped', port: 18789 });
-    services.push({ name: 'Agent Space', status: 'running', port: 18790 });
+    services.push({ name: 'Agent Space', status: 'running', port: PORT });
 
     // Network
     let network = null;
@@ -1580,11 +1582,11 @@ setInterval(() => {
   _sseBusy = true;
 
   try {
-    const agents = getAgents();
+    const agents = DEMO_MODE ? demoAgents() : getAgents();
     const ah = simpleHash(agents);
     if (ah !== _lastAgentHash) { _lastAgentHash = ah; broadcastSSE('agents', agents); }
 
-    const activity = getActivity();
+    const activity = DEMO_MODE ? demoActivity() : getActivity();
     const ach = simpleHash(activity);
     if (ach !== _lastActivityHash) { _lastActivityHash = ach; broadcastSSE('activity', activity); }
 
@@ -2433,9 +2435,9 @@ const server = http.createServer((req, res) => {
     res.write(`event: connected\ndata: {"ok":true}\n\n`);
     // Send initial state burst so reconnecting clients don't miss anything
     try {
-      const agents = getAgents();
+      const agents = DEMO_MODE ? demoAgents() : getAgents();
       res.write(`event: agents\ndata: ${JSON.stringify(agents)}\n\n`);
-      const activity = getActivity();
+      const activity = DEMO_MODE ? demoActivity() : getActivity();
       res.write(`event: activity\ndata: ${JSON.stringify(activity)}\n\n`);
     } catch {}
     sseClients.add(res);
@@ -2649,9 +2651,8 @@ function warmHeavyCaches() {
   setTimeout(() => { setImmediate(() => { try { getHeatmapCalendar(); } catch {} }); }, 2000);
 }
 
-const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
-server.listen(18790, BIND_HOST, () => {
-  console.log(`Agent Space running on ${BIND_HOST}:18790 (${DEMO_MODE ? 'DEMO' : 'live'})`);
+server.listen(PORT, BIND_HOST, () => {
+  console.log(`Agent Space running on ${BIND_HOST}:${PORT} (${DEMO_MODE ? 'DEMO' : 'live'})`);
   // Warm agents cache IMMEDIATELY (synchronous) so first request is fast
   try { getAgents(); } catch {}
   // Background system stats refresh (ZERO execSync in request path)
