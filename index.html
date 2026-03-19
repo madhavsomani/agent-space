@@ -50,27 +50,30 @@ header .live.offline .pulse { background:var(--red); }
 .status-strip { display:none; }
 
 /* Agent cards (professional, low color noise) */
-.agent-card { background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; gap:14px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
+.agent-card { background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:20px; display:flex; gap:16px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
 .agent-card:hover { transform:translateY(-1px); border-color:#3b3b46; }
+.agent-card.compact { padding:10px 14px; align-items:center; }
 .agent-avatar { width:48px; height:48px; border-radius:12px; background:var(--card); border:2px solid var(--border); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.agent-name { font-weight:700; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-avatar.compact { width:30px; height:30px; border-radius:8px; }
+.agent-name { font-weight:800; font-size:14px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .agent-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 .agent-status-label { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
-.agent-role, .agent-meta { font-size:10px; color:var(--dim); }
-.agent-activity { font-size:10px; color:var(--text); opacity:0.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.agent-meta { margin-top:4px; display:flex; gap:8px; opacity:0; max-height:0; transition:all .2s; }
+.agent-role, .agent-meta { font-size:9px; color:var(--dim); }
+.agent-activity { font-size:10px; color:var(--text); opacity:0.8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-meta { margin-top:6px; display:flex; gap:8px; opacity:0; max-height:0; transition:all .2s; }
 .agent-card:hover .agent-meta { opacity:1; max-height:20px; }
-.zone-header { grid-column:1/-1; display:flex; align-items:center; gap:8px; margin:16px 0 6px; padding:0 4px; }
+.zone-header { grid-column:1/-1; display:flex; align-items:center; gap:8px; margin:32px 0 12px !important; padding:0 4px; }
 .zone-header .count { font-size:10px; color:var(--dim); background:var(--card); padding:2px 8px; border-radius:10px; }
 
 /* KPI hero cards */
-#office-quickstats { grid-template-columns:repeat(4,1fr); gap:10px; }
-#office-quickstats .card { padding:16px 18px !important; border-radius:12px; }
+#office-quickstats { grid-template-columns:repeat(4,1fr); gap:14px; }
+#office-quickstats .card { padding:18px 20px !important; border-radius:12px; }
 #office-quickstats .card div:nth-child(2) { font-size:22px !important; }
 #office-legend, #office-ticker { display:none; }
-#agent-search-bar { margin-top:12px !important; }
-#agent-status-cards { gap:18px !important; }
-.zone-header { margin:28px 0 10px !important; }
+#agent-search-bar { margin-top:16px !important; }
+#agent-status-cards { gap:22px !important; }
+.zone-header { margin:36px 0 14px !important; }
+#heatmap-agent-filter button { padding:4px 10px !important; font-size:10px !important; }
 
 /* Nav */
 nav { display:flex; gap:2px; padding:6px 16px; background:var(--glass); border-bottom:1px solid var(--border); overflow-x:auto; }
@@ -7310,7 +7313,7 @@ function renderGridView() {
     if (!zoneAgents.length) continue;
     const activeCount = zoneAgents.filter(a => a.status === 'working').length;
     html += '<div class="zone-header">' +
-      '<span style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:1px">' + esc(zoneName) + '</span>' +
+      '<span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:1px">' + esc(zoneName) + '</span>' +
       '<span class="count">' + activeCount + '/' + zoneAgents.length + ' active</span>' +
       '<div style="flex:1;height:1px;background:var(--border)"></div>' +
     '</div>';
@@ -7321,12 +7324,27 @@ function renderGridView() {
       const statusColor = isWorking ? '#22c55e' : isIdle ? '#9ca3af' : '#6b7280';
       const statusLabel = isWorking ? 'Working' : isIdle ? 'Idle' : 'Sleeping';
       const ageText = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin/60) + 'h ago';
+      const inactive = !isWorking && (!a.lastMessage || a.lastMessage.length < 2) && (a.ageMin || 0) > 60;
       const avatarSeed = encodeURIComponent(a.name);
       const avatarUrl = 'https://api.dicebear.com/9.x/adventurer/svg?seed=' + avatarSeed + '&backgroundColor=transparent';
-      // Token stats (hidden by default; reveal on hover)
       const tokIn = a.tokensIn ? (a.tokensIn > 1000 ? (a.tokensIn/1000).toFixed(0) + 'K' : a.tokensIn) : '0';
       const tokOut = a.tokensOut ? (a.tokensOut > 1000 ? (a.tokensOut/1000).toFixed(0) + 'K' : a.tokensOut) : '0';
       const cost = a.costUSD ? '$' + a.costUSD.toFixed(2) : '';
+
+      if (inactive) {
+        html += '<div class="agent-card compact" onclick="openAgentDetail(\'' + a.name.replace(/'/g,"\\'") + '\')">' +
+          '<div class="agent-avatar compact" style="border-color:' + statusColor + '">' +
+            '<img src="' + avatarUrl + '" alt="" style="width:28px;height:28px" loading="lazy">' +
+          '</div>' +
+          '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">' +
+            '<span class="agent-name" style="font-size:12px">' + esc(a.name) + '</span>' +
+            '<span class="agent-status-dot" style="background:' + statusColor + '"></span>' +
+            '<span class="agent-status-label" style="color:' + statusColor + '">' + statusLabel + '</span>' +
+            (ageText ? '<span style="margin-left:auto;font-size:10px;color:var(--dim);flex-shrink:0">inactive ' + esc(ageText) + '</span>' : '') +
+          '</div>' +
+        '</div>';
+        return;
+      }
       
       html += '<div class="agent-card" onclick="openAgentDetail(\'' + a.name.replace(/'/g,"\\'") + '\')">' +
         '<div class="agent-avatar" style="border-color:' + statusColor + '">' +
@@ -7340,7 +7358,8 @@ function renderGridView() {
             (ageText ? '<span style="margin-left:auto;font-size:9px;color:var(--dim);flex-shrink:0">' + esc(ageText) + '</span>' : '') +
           '</div>' +
           '<div class="agent-role">' + esc(a.role||'Agent') + '</div>' +
-          (a.lastMessage ? '<div class="agent-activity">' + esc((a.lastMessage||'').slice(0,80)) + '</div>' : '') +
+          (a.lastMessage ? '<div class="agent-activity">' + esc((a.lastMessage||'').replace(/
+/g,' ').slice(0,60)) + '</div>' : '') +
           '<div class="agent-meta">' +
             '<span>↗ ' + tokIn + '</span><span>↙ ' + tokOut + '</span>' +
             (cost ? '<span style="color:var(--green)">' + cost + '</span>' : '') +
