@@ -364,7 +364,7 @@ function demoProcesses() { return { processes: [{user:'agent',pid:'1234',cpu:'2.
 function demoMemoryHistory() { const pts = []; for(let i=29;i>=0;i--) pts.push({ts:Date.now()-i*3600000, total:1200+i*20+Math.random()*50}); return {history:pts}; }
 
 const DEMO_HANDLERS = {
-  '/api/health': () => ({ok:true}),
+  '/api/health': () => ({ok:true, version: require('./package.json').version}),
   '/api/health-score': demoHealthScore,
   '/api/system': demoSystem,
   '/api/processes': demoProcesses,
