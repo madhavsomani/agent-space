@@ -46,14 +46,31 @@ header .live.offline .pulse { background:var(--red); }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 @keyframes refreshBlink { 0%{opacity:1} 50%{opacity:0.3} 100%{opacity:1} }
 
-/* Status strip */
-.status-strip { display:flex; gap:16px; padding:8px 20px; border-bottom:1px solid var(--border); background:rgba(15,17,23,0.6); backdrop-filter:blur(10px); font-size:12px; overflow-x:auto; align-items:center; }
-.status-strip .stat { display:flex; align-items:center; gap:6px; white-space:nowrap; }
-.status-strip .stat .val { font-weight:700; font-variant-numeric:tabular-nums; }
-.status-strip .stat.stat-link { cursor:pointer; padding:2px 6px; border-radius:6px; transition:background .15s,color .15s; }
-.status-strip .stat.stat-link:hover { background:rgba(255,255,255,0.06); color:var(--accent); }
-.status-strip .sep { width:1px; height:16px; background:var(--border); }
-.stat .mini-dot { width:6px; height:6px; border-radius:50%; }
+/* Status strip (collapsed to reduce chrome) */
+.status-strip { display:none; }
+
+/* Agent cards (professional, low color noise) */
+.agent-card { background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:14px; display:flex; gap:12px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
+.agent-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.18); border-color:#3b3b46; }
+.agent-avatar { width:48px; height:48px; border-radius:12px; background:var(--card); border:2px solid var(--border); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.agent-name { font-weight:700; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.agent-status-label { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+.agent-role, .agent-meta { font-size:10px; color:var(--dim); }
+.agent-activity { font-size:10px; color:var(--text); opacity:0.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-meta { margin-top:4px; display:flex; gap:8px; opacity:0; max-height:0; transition:all .2s; }
+.agent-card:hover .agent-meta { opacity:1; max-height:20px; }
+.zone-header { grid-column:1/-1; display:flex; align-items:center; gap:8px; margin:16px 0 6px; padding:0 4px; }
+.zone-header .count { font-size:10px; color:var(--dim); background:var(--card); padding:2px 8px; border-radius:10px; }
+
+/* KPI hero cards */
+#office-quickstats { grid-template-columns:repeat(4,1fr); gap:10px; }
+#office-quickstats .card { padding:14px 16px !important; border-radius:12px; background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0)); }
+#office-quickstats .card div:nth-child(2) { font-size:22px !important; }
+#office-legend, #office-ticker { display:none; }
+#agent-search-bar { margin-top:8px !important; }
+#agent-status-cards { gap:12px !important; }
+.zone-header { margin:22px 0 8px !important; }
 
 /* Nav */
 nav { display:flex; gap:2px; padding:6px 16px; background:var(--glass); border-bottom:1px solid var(--border); overflow-x:auto; }
@@ -61,8 +78,8 @@ nav button { background:transparent; border:1px solid transparent; color:var(--d
 nav button:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.05); transform:translateY(-1px); }
 nav button:active:not(.active) { transform:translateY(0) scale(0.97); }
 nav button:hover { color:var(--text); background:rgba(255,255,255,0.04); }
-nav button.active { background:linear-gradient(135deg,#3b82f6,#8b5cf6); color:#fff; font-weight:600; box-shadow:0 2px 12px rgba(59,130,246,0.35),0 0 20px rgba(139,92,246,0.15); animation:activeTabPulse 3s ease-in-out infinite; }
-@keyframes activeTabPulse { 0%,100%{box-shadow:0 2px 12px rgba(59,130,246,0.35),0 0 20px rgba(139,92,246,0.15)} 50%{box-shadow:0 2px 16px rgba(59,130,246,0.5),0 0 28px rgba(139,92,246,0.25)} }
+nav button.active { background:var(--accent); color:#fff; font-weight:600; box-shadow:0 2px 10px var(--accent-glow); }
+
 nav button .badge { display:inline-block; background:var(--red); color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:4px; min-width:14px; text-align:center; }
 
 /* Tabs */
@@ -7292,44 +7309,39 @@ function renderGridView() {
   for (const [zoneName, zoneAgents] of Object.entries(zones)) {
     if (!zoneAgents.length) continue;
     const activeCount = zoneAgents.filter(a => a.status === 'working').length;
-    html += '<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:0 4px">' +
+    html += '<div class="zone-header">' +
       '<span style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:1px">' + esc(zoneName) + '</span>' +
-      '<span style="font-size:10px;color:var(--dim);background:var(--card);padding:2px 8px;border-radius:10px">' + activeCount + '/' + zoneAgents.length + ' active</span>' +
+      '<span class="count">' + activeCount + '/' + zoneAgents.length + ' active</span>' +
       '<div style="flex:1;height:1px;background:var(--border)"></div>' +
     '</div>';
     
     zoneAgents.forEach(a => {
       const isWorking = a.status === 'working';
       const isIdle = a.status === 'idle';
-      const statusColor = isWorking ? '#22c55e' : isIdle ? '#eab308' : '#6b7280';
+      const statusColor = isWorking ? '#22c55e' : isIdle ? '#9ca3af' : '#6b7280';
       const statusLabel = isWorking ? 'Working' : isIdle ? 'Idle' : 'Sleeping';
       const ageText = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin/60) + 'h ago';
       const avatarSeed = encodeURIComponent(a.name);
       const avatarUrl = 'https://api.dicebear.com/9.x/adventurer/svg?seed=' + avatarSeed + '&backgroundColor=transparent';
-      // Token stats
+      // Token stats (hidden by default; reveal on hover)
       const tokIn = a.tokensIn ? (a.tokensIn > 1000 ? (a.tokensIn/1000).toFixed(0) + 'K' : a.tokensIn) : '0';
       const tokOut = a.tokensOut ? (a.tokensOut > 1000 ? (a.tokensOut/1000).toFixed(0) + 'K' : a.tokensOut) : '0';
       const cost = a.costUSD ? '$' + a.costUSD.toFixed(2) : '';
       
-      html += '<div style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;gap:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" ' +
-        'onclick="openAgentDetail(\'' + a.name.replace(/'/g,"\\'") + '\')" ' +
-        'onmouseenter="this.style.borderColor=\'' + (a.color||'#475569') + '\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.2)\'" ' +
-        'onmouseleave="this.style.borderColor=\'var(--border)\';this.style.transform=\'\';this.style.boxShadow=\'\'">' +
-        // Avatar
-        '<div style="flex-shrink:0;width:48px;height:48px;border-radius:12px;background:var(--card);border:2px solid ' + (a.color||'#475569') + ';overflow:hidden;display:flex;align-items:center;justify-content:center">' +
+      html += '<div class="agent-card" onclick="openAgentDetail(\'' + a.name.replace(/'/g,"\\'") + '\')">' +
+        '<div class="agent-avatar" style="border-color:' + statusColor + '">' +
           '<img src="' + avatarUrl + '" alt="" style="width:44px;height:44px" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<span style=font-size:24px>' + (isWorking?'👨‍💻':isIdle?'☕':'😴') + '</span>\'">' +
         '</div>' +
-        // Info
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
           '<div style="display:flex;align-items:center;gap:6px">' +
-            '<span style="font-weight:700;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.name) + '</span>' +
-            '<span style="width:8px;height:8px;border-radius:50%;background:' + statusColor + ';flex-shrink:0"></span>' +
-            '<span style="font-size:9px;color:' + statusColor + ';font-weight:600;text-transform:uppercase;letter-spacing:0.5px">' + statusLabel + '</span>' +
+            '<span class="agent-name">' + esc(a.name) + '</span>' +
+            '<span class="agent-status-dot" style="background:' + statusColor + ';box-shadow:0 0 6px ' + statusColor + '"></span>' +
+            '<span class="agent-status-label" style="color:' + statusColor + '">' + statusLabel + '</span>' +
             (ageText ? '<span style="margin-left:auto;font-size:9px;color:var(--dim);flex-shrink:0">' + esc(ageText) + '</span>' : '') +
           '</div>' +
-          '<div style="font-size:10px;color:var(--dim)">' + esc(a.role||'Agent') + '</div>' +
-          (a.lastMessage ? '<div style="font-size:10px;color:var(--text);opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">' + esc((a.lastMessage||'').slice(0,80)) + '</div>' : '') +
-          '<div style="display:flex;gap:8px;font-size:9px;color:var(--dim);margin-top:1px">' +
+          '<div class="agent-role">' + esc(a.role||'Agent') + '</div>' +
+          (a.lastMessage ? '<div class="agent-activity">' + esc((a.lastMessage||'').slice(0,80)) + '</div>' : '') +
+          '<div class="agent-meta">' +
             '<span>↗ ' + tokIn + '</span><span>↙ ' + tokOut + '</span>' +
             (cost ? '<span style="color:var(--green)">' + cost + '</span>' : '') +
           '</div>' +
@@ -7339,7 +7351,6 @@ function renderGridView() {
   }
   el.innerHTML = html;
 }
-
 async function switchOfficeView(view) {
   _officeView = view;
   localStorage.setItem('office-view', view);
