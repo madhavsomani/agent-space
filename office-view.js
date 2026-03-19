@@ -115,6 +115,15 @@ async function switchOfficeView(view) {
       const el = document.getElementById(id);
       if(el) el.style.display = '';
     });
+    // Restore display types that get cleared
+    const qs = document.getElementById('office-quickstats');
+    if (qs) qs.style.display = 'grid';
+    const sb = document.getElementById('agent-search-bar');
+    if (sb) sb.style.display = 'flex';
+    const sc = document.getElementById('agent-status-cards');
+    if (sc) sc.style.display = 'grid';
+    const tk = document.getElementById('office-ticker');
+    if (tk) tk.style.display = 'flex';
     btnGrid.style.opacity = '1';
     renderGridView();
   }
