@@ -2660,6 +2660,11 @@ const server = http.createServer((req, res) => {
   try {
     const content = fs.readFileSync(filePath);
     const headers = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' };
+    // Prevent stale JS/CSS caches during development
+    if (ext === '.js' || ext === '.css') {
+      headers['Cache-Control'] = 'no-cache';
+      headers['ETag'] = '"' + Buffer.byteLength(content).toString(36) + '-' + require('crypto').createHash('md5').update(content).digest('hex').slice(0,8) + '"';
+    }
     if (ext === '.html') {
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
       headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://api.dicebear.com; connect-src 'self'; font-src 'self'; frame-ancestors 'none'";

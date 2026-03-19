@@ -1,4 +1,5 @@
 // Theme
+let _tabLoaded = {};
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function getTheme() { return localStorage.getItem('hq-theme') || 'dark'; }
 function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️'; invalidateStaticCache(); }
@@ -67,7 +68,6 @@ function switchTab(tabName) {
   history.replaceState(null, '', '#' + tabName);
   _currentTab = tabName;
   // Lazy-load heavy tabs on first visit
-  if (!_tabLoaded) _tabLoaded = {};
   if (!_tabLoaded[tabName]) {
     _tabLoaded[tabName] = true;
     if (tabName === 'comm-graph') refreshCommGraph();
