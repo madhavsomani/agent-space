@@ -5848,7 +5848,7 @@ function resizeCanvas() {
   const fitZoomW = internalW / gridPixelW;
   const fitZoomH = internalH / gridPixelH;
   const fitZoomBase = Math.min(fitZoomW, fitZoomH);
-  const fitZoom = isMobile ? fitZoomBase * 1.35 : fitZoomBase * 1.45; // fill viewport with margin to prevent edge clipping
+  const fitZoom = isMobile ? fitZoomBase * 1.35 : fitZoomBase * 1.45; // fill viewport
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
