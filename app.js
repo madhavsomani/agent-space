@@ -71,7 +71,7 @@ function switchTab(tabName) {
   if (!_tabLoaded[tabName]) {
     _tabLoaded[tabName] = true;
     if (tabName === 'comm-graph') refreshCommGraph();
-    else if (tabName === 'system') { refreshSystem(); refreshDiskBreakdown(); }
+    else if (tabName === 'system') { refreshSystem(); refreshDiskBreakdown(); refreshLatency(); }
   }
 }
 document.querySelectorAll('#tabs-nav button').forEach(btn => {
@@ -4972,6 +4972,28 @@ async function refreshDiskBreakdown() {
       </div>`;
     });
     html += `</div>`;
+    body.innerHTML = html;
+  } catch {}
+}
+
+async function refreshLatency() {
+  try {
+    const r = await fetchWithTimeout(API + '/latency', {}, 5000);
+    const d = await r.json();
+    const body = document.getElementById('latency-body');
+    if (!d.endpoints || !Object.keys(d.endpoints).length) { body.innerHTML = '<span style="color:var(--dim)">No latency data yet</span>'; return; }
+    const entries = Object.entries(d.endpoints).sort((a,b) => b[1].p95Ms - a[1].p95Ms);
+    let html = '<div style="display:grid;grid-template-columns:1fr repeat(4,auto);gap:4px 12px;font-size:11px;align-items:center">';
+    html += '<div style="font-weight:700;color:var(--dim)">Endpoint</div><div style="font-weight:700;color:var(--dim);text-align:right">Calls</div><div style="font-weight:700;color:var(--dim);text-align:right">p50</div><div style="font-weight:700;color:var(--dim);text-align:right">p95</div><div style="font-weight:700;color:var(--dim);text-align:right">p99</div>';
+    entries.forEach(([ep, s]) => {
+      const p95c = s.p95Ms > 500 ? 'var(--red)' : s.p95Ms > 100 ? 'var(--orange)' : 'var(--green)';
+      html += `<div style="font-family:'SF Mono',Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ep}">${ep}</div>`;
+      html += `<div style="text-align:right;color:var(--dim)">${s.count}</div>`;
+      html += `<div style="text-align:right;font-variant-numeric:tabular-nums">${s.p50Ms}ms</div>`;
+      html += `<div style="text-align:right;font-variant-numeric:tabular-nums;color:${p95c};font-weight:600">${s.p95Ms}ms</div>`;
+      html += `<div style="text-align:right;font-variant-numeric:tabular-nums">${s.p99Ms}ms</div>`;
+    });
+    html += '</div>';
     body.innerHTML = html;
   } catch {}
 }
