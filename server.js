@@ -366,6 +366,7 @@ function demoMemoryHistory() { const pts = []; for(let i=29;i>=0;i--) pts.push({
 const DEMO_HANDLERS = {
   '/api/health': () => ({ok:true, version: require('./package.json').version}),
   '/api/health-score': demoHealthScore,
+  '/api/latency': () => ({ endpoints: {}, timestamp: Date.now() }),
   '/api/system': demoSystem,
   '/api/processes': demoProcesses,
   '/api/agents': demoAgents,
@@ -2395,7 +2396,41 @@ setInterval(() => {
 }, 300000);
 
 const STATIC_DIR = __dirname;
+// --- API response time tracking ---
+const _apiMetrics = {}; // { endpoint: { count, totalMs, samples: [] } }
+const API_SAMPLE_MAX = 100; // keep last N samples per endpoint for percentile calc
+
+function recordApiMetric(endpoint, durationMs) {
+  if (!_apiMetrics[endpoint]) _apiMetrics[endpoint] = { count: 0, totalMs: 0, samples: [] };
+  const m = _apiMetrics[endpoint];
+  m.count++;
+  m.totalMs += durationMs;
+  m.samples.push(durationMs);
+  if (m.samples.length > API_SAMPLE_MAX) m.samples.shift();
+}
+
+function getApiMetrics() {
+  const result = {};
+  for (const [ep, m] of Object.entries(_apiMetrics)) {
+    const sorted = [...m.samples].sort((a, b) => a - b);
+    const pct = (p) => sorted[Math.min(Math.floor(sorted.length * p), sorted.length - 1)] || 0;
+    result[ep] = {
+      count: m.count,
+      avgMs: Math.round(m.totalMs / m.count),
+      p50Ms: Math.round(pct(0.5)),
+      p95Ms: Math.round(pct(0.95)),
+      p99Ms: Math.round(pct(0.99)),
+    };
+  }
+  return result;
+}
+
 const server = http.createServer((req, res) => {
+  const _reqStart = Date.now();
+  const _reqUrl = (req.url || '/').split('?')[0];
+  res.on('finish', () => {
+    if (_reqUrl.startsWith('/api/')) recordApiMetric(_reqUrl, Date.now() - _reqStart);
+  });
   if (req.method === 'OPTIONS') { json(res, {}); return; }
 
   // API versioning: support /api/v1/ prefix (maps to /api/)
@@ -2550,6 +2585,7 @@ const server = http.createServer((req, res) => {
     });
   }
   if (url === '/api/health-score') return json(res, getHealthScore());
+  if (url === '/api/latency') return json(res, { endpoints: getApiMetrics(), timestamp: Date.now() });
   if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
   if (url === '/api/processes') { return json(res, _processesCache); }
   if (url === '/api/agents') { setImmediate(() => { try { json(res, getAgents()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }

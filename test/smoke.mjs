@@ -44,6 +44,7 @@ await check('performance', '/api/performance');
 await check('uptime', '/api/uptime');
 await check('comm-graph', '/api/comm-graph');
 await check('heatmap', '/api/heatmap-calendar');
+await check('latency', '/api/latency', async r => { const d = await json(r); if (d.endpoints === undefined) throw new Error('no endpoints key'); });
 
 // SSE endpoint (check content-type, don't consume body)
 await check('SSE stream', '/api/events', async r => {
