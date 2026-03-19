@@ -90,6 +90,83 @@ const SHARED_FURNITURE = [
   { type: 'armchair', gx: 9, gy: 5 },
 ];
 
+// ── IDLE AGENT WANDERING ──
+// Idle agents occasionally leave desks to visit POIs (water cooler, armchairs, coffee)
+const WANDER_POIS = [
+  { gx: 15, gy: 6, label: 'water cooler' },
+  { gx: 7, gy: 5, label: 'lounge' },
+  { gx: 9, gy: 5, label: 'lounge' },
+  { gx: 15, gy: 1, label: 'coffee' },
+];
+const WANDER_MIN_INTERVAL = 12000; // min 12s between wander decisions
+const WANDER_TRIP_DURATION = 3000; // 3s to walk to POI
+const WANDER_STAY_DURATION = 6000; // 6s at POI
+const _wanderState = {}; // agentName -> { phase:'desk'|'walking'|'atPOI'|'returning', startTime, poi, deskGx, deskGy }
+
+function getWanderPos(agentName, deskGx, deskGy, status, time) {
+  // Only idle agents wander
+  if (status !== 'idle') {
+    delete _wanderState[agentName];
+    return { gx: deskGx, gy: deskGy };
+  }
+
+  let ws = _wanderState[agentName];
+  if (!ws) {
+    // Start at desk, schedule first wander
+    ws = { phase: 'desk', startTime: time + WANDER_MIN_INTERVAL * (0.5 + Math.random()), deskGx, deskGy };
+    _wanderState[agentName] = ws;
+  }
+  ws.deskGx = deskGx;
+  ws.deskGy = deskGy;
+
+  const elapsed = time - ws.startTime;
+
+  switch (ws.phase) {
+    case 'desk':
+      if (elapsed > 0) {
+        // Time to wander — pick a random POI
+        ws.phase = 'walking';
+        ws.poi = WANDER_POIS[Math.floor(Math.random() * WANDER_POIS.length)];
+        ws.startTime = time;
+      }
+      return { gx: deskGx, gy: deskGy };
+
+    case 'walking': {
+      const t = Math.min(1, elapsed / WANDER_TRIP_DURATION);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOutQuad
+      if (t >= 1) {
+        ws.phase = 'atPOI';
+        ws.startTime = time;
+      }
+      return {
+        gx: deskGx + (ws.poi.gx - deskGx) * ease,
+        gy: deskGy + (ws.poi.gy - deskGy) * ease
+      };
+    }
+
+    case 'atPOI':
+      if (elapsed > WANDER_STAY_DURATION) {
+        ws.phase = 'returning';
+        ws.startTime = time;
+      }
+      return { gx: ws.poi.gx, gy: ws.poi.gy };
+
+    case 'returning': {
+      const t = Math.min(1, elapsed / WANDER_TRIP_DURATION);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      if (t >= 1) {
+        ws.phase = 'desk';
+        ws.startTime = time + WANDER_MIN_INTERVAL * (0.5 + Math.random());
+      }
+      return {
+        gx: ws.poi.gx + (deskGx - ws.poi.gx) * ease,
+        gy: ws.poi.gy + (deskGy - ws.poi.gy) * ease
+      };
+    }
+  }
+  return { gx: deskGx, gy: deskGy };
+}
+
 // ── ISO PROJECTION ──
 let _originX = 0, _originY = 0;
 
@@ -818,7 +895,17 @@ function _drawOfficeInner(rafNow) {
     .sort((a, b) => (a.gy + a.gx) - (b.gy + b.gx));
 
   for (const slot of sortedSlots) {
-    drawDeskStation(slot.gx, slot.gy, slot.agent, time);
+    // Get wander position for idle agents
+    const wpos = slot.agent ? getWanderPos(slot.agent.name, slot.gx, slot.gy, slot.agent.status, time) : null;
+    const isWandering = wpos && (Math.abs(wpos.gx - slot.gx) > 0.1 || Math.abs(wpos.gy - slot.gy) > 0.1);
+    // Always draw desk at desk slot; pass null agent if wandering (so agent draws separately)
+    drawDeskStation(slot.gx, slot.gy, isWandering ? null : slot.agent, time);
+    // Draw wandering agent at their current position
+    if (isWandering && slot.agent) {
+      const wp = iso(wpos.gx, wpos.gy);
+      drawAgent(wp.x, wp.y - ISO.tileH / 2 - 10, slot.agent, time);
+      drawNameLabel(wp.x, wp.y + 4, slot.agent);
+    }
   }
 
   // Speech bubble for active agents (rotate every 6s)
