@@ -50,8 +50,8 @@ header .live.offline .pulse { background:var(--red); }
 .status-strip { display:none; }
 
 /* Agent cards (professional, low color noise) */
-.agent-card { background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:14px; display:flex; gap:12px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
-.agent-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.18); border-color:#3b3b46; }
+.agent-card { background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; gap:14px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
+.agent-card:hover { transform:translateY(-1px); border-color:#3b3b46; }
 .agent-avatar { width:48px; height:48px; border-radius:12px; background:var(--card); border:2px solid var(--border); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .agent-name { font-weight:700; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .agent-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
@@ -65,12 +65,12 @@ header .live.offline .pulse { background:var(--red); }
 
 /* KPI hero cards */
 #office-quickstats { grid-template-columns:repeat(4,1fr); gap:10px; }
-#office-quickstats .card { padding:14px 16px !important; border-radius:12px; background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0)); }
+#office-quickstats .card { padding:16px 18px !important; border-radius:12px; }
 #office-quickstats .card div:nth-child(2) { font-size:22px !important; }
 #office-legend, #office-ticker { display:none; }
-#agent-search-bar { margin-top:8px !important; }
-#agent-status-cards { gap:12px !important; }
-.zone-header { margin:22px 0 8px !important; }
+#agent-search-bar { margin-top:12px !important; }
+#agent-status-cards { gap:18px !important; }
+.zone-header { margin:28px 0 10px !important; }
 
 /* Nav */
 nav { display:flex; gap:2px; padding:6px 16px; background:var(--glass); border-bottom:1px solid var(--border); overflow-x:auto; }
@@ -78,12 +78,12 @@ nav button { background:transparent; border:1px solid transparent; color:var(--d
 nav button:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.05); transform:translateY(-1px); }
 nav button:active:not(.active) { transform:translateY(0) scale(0.97); }
 nav button:hover { color:var(--text); background:rgba(255,255,255,0.04); }
-nav button.active { background:var(--accent); color:#fff; font-weight:600; box-shadow:0 2px 10px var(--accent-glow); }
+nav button.active { background:var(--accent); color:#fff; font-weight:600; }
 
 nav button .badge { display:inline-block; background:var(--red); color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:4px; min-width:14px; text-align:center; }
 
 /* Tabs */
-.tab { display:none; padding:16px 20px; position:relative; z-index:1; max-width:1400px; margin-left:auto; margin-right:auto; }
+.tab { display:none; padding:22px 24px; position:relative; z-index:1; max-width:1400px; margin-left:auto; margin-right:auto; }
 .tab.active { display:block; animation:fadeIn .25s cubic-bezier(.4,0,.2,1); }
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px) scale(0.995)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes slideInRight { from{opacity:0;transform:translateX(60px) scale(0.98)} to{opacity:1;transform:translateX(0) scale(1)} }
@@ -142,8 +142,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .service-list li:last-child { border:none; }
 .service-list li:nth-child(even) { background:rgba(255,255,255,0.015); border-radius:6px; padding-left:10px; padding-right:10px; }
 .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.dot.running { background:var(--green); box-shadow:0 0 6px rgba(34,197,94,0.4); }
-.dot.stopped { background:var(--red); box-shadow:0 0 6px rgba(239,68,68,0.4); }
+.dot.running { background:var(--green); }
+.dot.stopped { background:var(--red); }
 
 /* Kanban */
 .kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
@@ -222,7 +222,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .timeline-slots { display:flex; gap:2px; flex:1; }
 .timeline-slot { height:14px; flex:1; border-radius:3px; transition:background .3s,transform .15s; cursor:default; position:relative; }
 .timeline-slot:hover { transform:scaleY(1.4); z-index:1; cursor:pointer; }
-.timeline-slot.active:hover { box-shadow:0 0 6px currentColor; }
+.timeline-slot.active:hover { }
 .timeline-filter-bar { display:none; align-items:center; gap:8px; padding:6px 12px; margin:8px 0 4px; background:var(--accent-glow); border:1px solid var(--accent); border-radius:8px; font-size:11px; color:var(--accent); }
 .timeline-filter-bar.visible { display:flex; }
 .timeline-filter-bar .clear-btn { background:transparent; border:1px solid var(--accent); color:var(--accent); padding:2px 8px; border-radius:6px; cursor:pointer; font-size:10px; font-family:inherit; margin-left:auto; }
@@ -470,7 +470,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   <div class="stat" style="font-size:10px;color:var(--dim)" id="ss-countdown" title="Next auto-refresh">⏱ <span class="val" id="ss-next">8s</span></div>
 </div>
 
-<div id="alerts-banner" style="display:none;padding:6px 20px;background:var(--red-dim);border-bottom:1px solid rgba(255,51,102,0.3);font-size:12px;overflow-x:auto;white-space:nowrap">
+<div id="alerts-banner" style="display:none;padding:6px 20px;background:var(--red-dim);border-bottom:1px solid rgba(255,51,102,0.3);font-size:12px;overflow:hidden;white-space:nowrap">
   <div id="alerts-content" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap"></div>
 </div>
 
@@ -500,7 +500,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
     <span id="office-ticker-text">Waiting for activity...</span>
     <span id="office-ticker-time" style="margin-left:auto;font-family:'SF Mono',Menlo,monospace;font-size:10px;flex-shrink:0"></span>
   </div>
-  <div id="office-quickstats" style="max-width:100%;margin:8px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+  <div id="office-quickstats" style="max-width:100%;margin:12px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=tokens]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--accent)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Tokens</div><div style="font-size:18px;font-weight:800;color:var(--accent)" id="qs-tokens">--</div></div>
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=memory]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--purple)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Memories</div><div style="font-size:18px;font-weight:800;color:var(--purple)" id="qs-memories">--</div></div>
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=queue]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--green)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Active WRs</div><div style="font-size:18px;font-weight:800;color:var(--green)" id="qs-wrs">0</div></div>
@@ -6221,17 +6221,17 @@ function refreshAlerts() {
   const content = document.getElementById('alerts-content');
 
   if (active.length) {
-    // Color banner based on max severity
+    // Color banner based on max severity (collapsed view)
     const hasCritical = active.some(a => a.severity === 'critical');
     banner.style.background = hasCritical ? 'var(--red-dim)' : 'rgba(245,158,11,0.08)';
     banner.style.borderBottomColor = hasCritical ? 'rgba(255,51,102,0.3)' : 'rgba(245,158,11,0.3)';
 
-    content.innerHTML = `<span style="font-size:10px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0">${active.length} Alert${active.length>1?'s':''}</span>` +
-      active.map(a => {
-        const actionBtn = a.action ? `<button onclick="event.stopPropagation();(${a.action.fn.toString()})()" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid ${a.color};background:transparent;color:${a.color};cursor:pointer;font-weight:600;margin-left:2px;transition:background .15s" onmouseenter="this.style.background=this.style.borderColor+'22'" onmouseleave="this.style.background='transparent'">${a.action.label}</button>` : '';
-        const dismissBtn = `<button onclick="event.stopPropagation();dismissAlert('${a.id}')" style="font-size:9px;padding:0 3px;border:none;background:transparent;color:var(--dim);cursor:pointer;opacity:0.5;transition:opacity .15s" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.5'" title="Dismiss for 30min">✕</button>`;
-        return `<span style="display:inline-flex;align-items:center;gap:4px;color:${a.color};font-weight:600;flex-shrink:0">${a.icon} ${a.text}${actionBtn}${dismissBtn}</span>`;
-      }).join('<span style="color:var(--border)">│</span>');
+    const first = active[0];
+    const extra = active.length > 1 ? ` +${active.length - 1} more` : '';
+    const actionBtn = first.action ? `<button onclick="event.stopPropagation();(${first.action.fn.toString()})()" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid ${first.color};background:transparent;color:${first.color};cursor:pointer;font-weight:600;margin-left:6px;transition:background .15s" onmouseenter="this.style.background=this.style.borderColor+'22'" onmouseleave="this.style.background='transparent'">${first.action.label}</button>` : '';
+    const dismissBtn = `<button onclick="event.stopPropagation();dismissAlert('${first.id}')" style="font-size:9px;padding:0 3px;border:none;background:transparent;color:var(--dim);cursor:pointer;opacity:0.6;transition:opacity .15s" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.6'" title="Dismiss for 30min">✕</button>`;
+    content.innerHTML = `<span style="font-size:10px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0">Alerts</span>` +
+      `<span style="display:inline-flex;align-items:center;gap:6px;color:${first.color};font-weight:600;flex-shrink:0">${first.icon} ${first.text}<span style=\"color:var(--dim)\">${extra}</span>${actionBtn}${dismissBtn}</span>`;
     banner.style.display = 'block';
 
     // Push critical alerts to notification center + browser notification (once per alert)
@@ -7335,7 +7335,7 @@ function renderGridView() {
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
           '<div style="display:flex;align-items:center;gap:6px">' +
             '<span class="agent-name">' + esc(a.name) + '</span>' +
-            '<span class="agent-status-dot" style="background:' + statusColor + ';box-shadow:0 0 6px ' + statusColor + '"></span>' +
+            '<span class="agent-status-dot" style="background:' + statusColor + '"></span>' +
             '<span class="agent-status-label" style="color:' + statusColor + '">' + statusLabel + '</span>' +
             (ageText ? '<span style="margin-left:auto;font-size:9px;color:var(--dim);flex-shrink:0">' + esc(ageText) + '</span>' : '') +
           '</div>' +
