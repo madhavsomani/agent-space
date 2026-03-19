@@ -846,6 +846,13 @@ function switchTab(tabName) {
   }
   history.replaceState(null, '', '#' + tabName);
   _currentTab = tabName;
+  // Lazy-load heavy tabs on first visit
+  if (!_tabLoaded) _tabLoaded = {};
+  if (!_tabLoaded[tabName]) {
+    _tabLoaded[tabName] = true;
+    if (tabName === 'comm-graph') refreshCommGraph();
+    else if (tabName === 'system') { refreshSystem(); refreshDiskBreakdown(); }
+  }
 }
 document.querySelectorAll('#tabs-nav button').forEach(btn => {
   btn.onclick = () => switchTab(btn.dataset.tab);
@@ -898,7 +905,7 @@ document.addEventListener('keydown', e => {
 async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spinning');
-  await Promise.allSettled([refreshAgents(), refreshSystem(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshCommGraph(), refreshDepGraph(), refreshHeatmapCalendar(), refreshDiskBreakdown(), refreshLiveLogs()]);
+  await Promise.allSettled([refreshAgents(), refreshHealthScore(), refreshQueue(), refreshMemory(), refreshTokens(), refreshDailyCost(), refreshActivity(), refreshTimeline(), refreshPerformance(), refreshUptime(), refreshCompletionStats(), refreshHeatmapCalendar(), refreshLiveLogs()]);
   if (typeof loadDeskLayout === 'function') loadDeskLayout();
   buildLegend(); renderAgentCards(); markUpdated();
   setTimeout(() => btn.classList.remove('spinning'), 600);
