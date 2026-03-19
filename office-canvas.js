@@ -84,6 +84,10 @@ const SHARED_FURNITURE = [
   { type: 'window', gx: 6, gy: 0 },
   { type: 'window', gx: 10, gy: 0 },
   { type: 'window', gx: 13, gy: 0 },
+  { type: 'waterCooler', gx: 15, gy: 6 },
+  { type: 'whiteboard', gx: 5, gy: 0 },
+  { type: 'armchair', gx: 7, gy: 5 },
+  { type: 'armchair', gx: 9, gy: 5 },
 ];
 
 // ── ISO PROJECTION ──
@@ -592,6 +596,9 @@ function drawSharedFurniture(time) {
       case 'clock': drawClock(f.gx, f.gy); break;
       case 'poster': drawPoster(f.gx, f.gy, f.hue || 0); break;
       case 'window': drawWindow(f.gx, f.gy); break;
+      case 'waterCooler': drawWaterCooler(f.gx, f.gy); break;
+      case 'whiteboard': drawWhiteboard(f.gx, f.gy); break;
+      case 'armchair': drawArmchair(f.gx, f.gy); break;
     }
   }
 }
@@ -627,6 +634,84 @@ function drawWindow(gx, gy) {
   oCtx.fillStyle = '#ffe8a0';
   oCtx.fill();
   oCtx.restore();
+}
+
+function drawWaterCooler(gx, gy) {
+  const p = iso(gx, gy);
+  const by = p.y - ISO.tileH / 2;
+  // Base/stand
+  oCtx.fillStyle = '#888';
+  oCtx.fillRect(p.x - 5, by - 16, 10, 20);
+  // Bottle
+  oCtx.fillStyle = 'rgba(120,200,255,0.6)';
+  oCtx.fillRect(p.x - 6, by - 30, 12, 16);
+  // Cap
+  oCtx.fillStyle = '#5a9abf';
+  oCtx.fillRect(p.x - 4, by - 32, 8, 3);
+  // Water level shimmer
+  const t = performance.now() / 2000;
+  oCtx.globalAlpha = 0.3 + Math.sin(t) * 0.1;
+  oCtx.fillStyle = '#4db8e8';
+  oCtx.fillRect(p.x - 4, by - 24, 8, 8);
+  oCtx.globalAlpha = 1;
+  // Spigot
+  oCtx.fillStyle = '#666';
+  oCtx.fillRect(p.x + 5, by - 14, 3, 3);
+}
+
+function drawWhiteboard(gx, gy) {
+  const p = iso(gx, gy);
+  const wy = p.y - ISO.tileH / 2 - 36;
+  // Board
+  oCtx.fillStyle = '#f0f0f0';
+  oCtx.fillRect(p.x - 22, wy, 44, 30);
+  oCtx.strokeStyle = '#999';
+  oCtx.lineWidth = 1.5;
+  oCtx.strokeRect(p.x - 22, wy, 44, 30);
+  // Scribble lines
+  oCtx.strokeStyle = '#3b82f6';
+  oCtx.lineWidth = 1;
+  oCtx.beginPath();
+  oCtx.moveTo(p.x - 16, wy + 8); oCtx.lineTo(p.x + 10, wy + 8);
+  oCtx.moveTo(p.x - 16, wy + 13); oCtx.lineTo(p.x + 6, wy + 13);
+  oCtx.stroke();
+  oCtx.strokeStyle = '#ef4444';
+  oCtx.beginPath();
+  oCtx.moveTo(p.x - 16, wy + 18); oCtx.lineTo(p.x + 14, wy + 18);
+  oCtx.stroke();
+  // Checkmark
+  oCtx.strokeStyle = '#22c55e';
+  oCtx.lineWidth = 1.5;
+  oCtx.beginPath();
+  oCtx.moveTo(p.x + 12, wy + 6); oCtx.lineTo(p.x + 14, wy + 9); oCtx.lineTo(p.x + 18, wy + 4);
+  oCtx.stroke();
+  // Tray
+  oCtx.fillStyle = '#ccc';
+  oCtx.fillRect(p.x - 18, wy + 30, 36, 3);
+  // Marker dots
+  oCtx.fillStyle = '#3b82f6'; oCtx.fillRect(p.x - 12, wy + 31, 4, 1.5);
+  oCtx.fillStyle = '#ef4444'; oCtx.fillRect(p.x - 6, wy + 31, 4, 1.5);
+  oCtx.fillStyle = '#22c55e'; oCtx.fillRect(p.x, wy + 31, 4, 1.5);
+}
+
+function drawArmchair(gx, gy) {
+  const p = iso(gx, gy);
+  const by = p.y - ISO.tileH / 2;
+  // Seat cushion
+  oCtx.fillStyle = '#6b4c3b';
+  oCtx.fillRect(p.x - 8, by - 6, 16, 10);
+  // Back
+  oCtx.fillStyle = '#5a3d2e';
+  oCtx.fillRect(p.x - 9, by - 16, 18, 12);
+  // Arms
+  oCtx.fillStyle = '#7a5a45';
+  oCtx.fillRect(p.x - 11, by - 14, 3, 16);
+  oCtx.fillRect(p.x + 8, by - 14, 3, 16);
+  // Cushion highlight
+  oCtx.globalAlpha = 0.15;
+  oCtx.fillStyle = '#fff';
+  oCtx.fillRect(p.x - 5, by - 4, 10, 4);
+  oCtx.globalAlpha = 1;
 }
 
 // ── SPEECH BUBBLES ──
