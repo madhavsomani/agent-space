@@ -304,6 +304,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 @media(max-width:768px) {
   .mobile-nav { display:block; }
+  .view-toggle-bar { display:none !important; }
   nav#tabs-nav { display:none; }
   body { padding-bottom:64px; }
   .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }
@@ -504,7 +505,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 </nav>
 
 <div class="tab active" id="tab-office">
-  <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px" class="view-toggle-bar">
     <button id="view-grid-btn" onclick="switchOfficeView('grid')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Card Grid View">▦ Cards</button>
     <button id="view-2d-btn" onclick="switchOfficeView('2d')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="Isometric Office View">🏢 Office</button>
   </div>
@@ -5848,7 +5849,7 @@ function resizeCanvas() {
   const fitZoomW = internalW / gridPixelW;
   const fitZoomH = internalH / gridPixelH;
   const fitZoomBase = Math.min(fitZoomW, fitZoomH);
-  const fitZoom = isMobile ? fitZoomBase * 1.35 : fitZoomBase * 1.45; // fill viewport
+  const fitZoom = isMobile ? fitZoomBase * 1.65 : fitZoomBase * 1.45; // fill viewport (mobile gets tighter framing)
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
   }
@@ -7412,7 +7413,8 @@ async function switchOfficeView(view) {
     // Hide card-based content
     cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
     invalidateStaticCache();
-    resizeCanvas();
+    // Defer resize to allow DOM reflow after display:block
+    requestAnimationFrame(() => { resizeCanvas(); invalidateStaticCache(); });
   } else {
     // grid (default) — show card content
     cardElements.forEach(id => {
@@ -7428,6 +7430,8 @@ async function switchOfficeView(view) {
 setTimeout(() => {
   // Migrate old preferences — 3d/pixel/old 2d → new 2d
   if (_officeView === '3d' || _officeView === 'pixel') _officeView = '2d';
+  // Force cards on mobile — canvas office has rendering issues on small viewports
+  if (window.innerWidth <= 768) _officeView = 'grid';
   switchOfficeView(_officeView);
 }, 500);
 </script>
