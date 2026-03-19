@@ -5,6 +5,7 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 [![CI](https://github.com/madhavsomani/agent-space/actions/workflows/ci.yml/badge.svg)](https://github.com/madhavsomani/agent-space/actions/workflows/ci.yml)
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Deploy on Fly.io](https://img.shields.io/badge/Deploy-Fly.io-blueviolet)](https://fly.io/launch?source=https://github.com/madhavsomani/agent-space)
 
 ### Isometric Office View (Dark)
 ![Agent Space — Office View](screenshot-dark-office.jpg)
@@ -102,6 +103,16 @@ cp config.example.json config.json  # customize agents
 docker compose up -d
 # → http://localhost:18790
 ```
+
+### Deploy to Fly.io
+
+```bash
+fly launch --copy-config --no-deploy
+fly secrets set DASHBOARD_PASSWORD=yourpassword  # optional
+fly deploy
+```
+
+Or use the deploy button at the top of this README.
 
 ## Architecture
 
