@@ -755,3 +755,160 @@ setInterval(() => {
 })();
 
 // ===== LIVE LOGS (extracted to live-logs.js) =====
+function getTeamGroups() {
+  const groups = {};
+  const teamMap = {
+    ceo: '🏢 Leadership', director: '🏢 Leadership',
+    writer: '🎨 Content Team', designer: '🎨 Content Team', producer: '🎨 Content Team', publisher: '🎨 Content Team',
+    dev: '💻 Engineering',
+    mail: '📬 Support', qa: '📬 Support',
+  };
+  for (const a of agentData) {
+    const r = (a.role || '').toLowerCase();
+    let cat = 'default';
+    if (r.includes('ceo') || r.includes('mc') || r.includes('owner')) cat = 'ceo';
+    else if (r.includes('director') || r.includes('lead')) cat = 'director';
+    else if (r.includes('write') || r.includes('content') || r.includes('research')) cat = 'writer';
+    else if (r.includes('design') || r.includes('art')) cat = 'designer';
+    else if (r.includes('produce') || r.includes('video') || r.includes('media')) cat = 'producer';
+    else if (r.includes('publish') || r.includes('deploy') || r.includes('social')) cat = 'publisher';
+    else if (r.includes('code') || r.includes('dev') || r.includes('engineer')) cat = 'dev';
+    else if (r.includes('mail') || r.includes('email')) cat = 'mail';
+    else if (r.includes('qa') || r.includes('test') || r.includes('quality')) cat = 'qa';
+    const team = teamMap[cat] || '🔮 Other Agents';
+    if (!groups[team]) groups[team] = [];
+    groups[team].push(a);
+  }
+  return groups;
+}
+
+let _renderCardsTimer = null;
+function scheduleRenderAgentCards() { if (_renderCardsTimer) return; _renderCardsTimer = setTimeout(() => { _renderCardsTimer = null; renderAgentCards(); }, 200); }
+function renderAgentCards() {
+  const container = document.getElementById('agent-status-cards');
+  if (!container || !agentData.length) return;
+
+  // Group agents by team — fully dynamic from role, no hardcoded names
+  const grouped = getTeamGroups();
+
+  // Collapsed state persisted in localStorage
+  const collapsed = JSON.parse(localStorage.getItem('hq-collapsed-teams') || '{}');
+
+  let html = '';
+  for (const [team, agents] of Object.entries(grouped)) {
+    const working = agents.filter(a => a.status === 'working').length;
+    const total = agents.length;
+    const isCollapsed = collapsed[team] === true;
+    const teamId = team.replace(/[^a-zA-Z]/g,'');
+    html += `<div class="team-group" style="grid-column:1/-1;margin:4px 0 0">
+      <div class="team-group-header" onclick="toggleTeamGroup('${teamId}','${team.replace(/'/g,'\\\'')}')" style="display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-radius:6px;transition:background .15s;font-size:11px;color:var(--dim);user-select:none" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background=''">
+        <span style="font-size:10px;transition:transform .2s;display:inline-block;transform:rotate(${isCollapsed?'-90':'0'}deg)" id="team-arrow-${teamId}">▼</span>
+        <span style="font-weight:700;font-size:12px;color:var(--text)">${team}</span>
+        <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${working>0?'var(--green-dim)':'rgba(100,100,100,0.1)'};color:${working>0?'var(--green)':'var(--dim)'};font-weight:600">${working}/${total} active</span>
+      </div>
+      <div id="team-body-${teamId}" style="display:${isCollapsed?'none':'grid'};grid-template-columns:repeat(2,1fr);gap:8px;margin-top:4px">`;
+    html += agents.map(a => {
+    const moodEmoji = a.mood === 'happy' ? '😊' : a.mood === 'stressed' ? '😰' : a.mood === 'tired' ? '😴' : '';
+    const icon = a.status === 'working' ? '🟢' : a.status === 'idle' ? '🟡' : '💤';
+    const age = !a.ageMin ? '' : a.ageMin < 1 ? 'just now' : a.ageMin < 60 ? a.ageMin + 'm ago' : Math.round(a.ageMin / 60) + 'h ago';
+    // Elapsed status timer data
+    const sinceTs = a.lastActivity || (Date.now() - (a.ageMin||0)*60000);
+    const statusVerb = a.status === 'working' ? 'Working' : a.status === 'idle' ? 'Idle' : 'Sleeping';
+    const statusTimerColor = a.status === 'working' ? 'var(--green)' : a.status === 'idle' ? 'var(--orange)' : 'var(--dim)';
+    const hasMsg = a.lastMessage && a.lastMessage !== 'ANNOUNCE_SKIP' && a.lastMessage !== 'NO_REPLY' && a.lastMessage.length >= 5;
+    const msg = hasMsg
+      ? a.lastMessage.slice(0, 120) + (a.lastMessage.length > 120 ? '…' : '')
+      : (a.status === 'working' ? '<span style="color:var(--green);font-style:italic">Active — processing...</span>' : '<span style="color:var(--dim);font-style:italic">No recent activity</span>');
+    const borderL = a.status === 'working' ? a.color : a.status === 'idle' ? 'var(--orange)' : 'transparent';
+    const cronInfo = a.cronStatus ? `<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.05);color:var(--dim);margin-left:4px">${a.cronStatus}</span>` : '';
+    const durInfo = a.durationMs ? `<span style="font-size:9px;color:var(--dim);margin-left:4px" title="Last run duration">⏱${(a.durationMs/1000).toFixed(0)}s</span>` : '';
+    // Live countdown for cron agents
+    const nextRunHtml = a.nextRunAtMs ? (() => {
+      const d = a.nextRunAtMs - Date.now();
+      if (d <= 0) return '<div style="font-size:9px;color:var(--green);margin-top:3px;font-weight:600">⚡ Running now or imminent</div>';
+      const sec = Math.ceil(d / 1000);
+      const mm = Math.floor(sec / 60);
+      const ss = sec % 60;
+      return `<div style="font-size:9px;color:var(--dim);margin-top:3px;display:flex;align-items:center;gap:4px"><span>Next run:</span><span class="next-run-countdown" data-next="${a.nextRunAtMs}" style="font-family:'SF Mono',Menlo,monospace;font-weight:600;color:var(--accent)">${mm}:${String(ss).padStart(2,'0')}</span></div>`;
+    })() : '';
+    // Activity bar for working agents
+    const activityBar = a.status === 'working' ? `<div style="margin-top:4px;height:2px;border-radius:1px;background:var(--border);overflow:hidden"><div style="height:100%;width:60%;background:${a.color};border-radius:1px;animation:activityPulse 1.5s ease-in-out infinite"></div></div>` : '';
+    // Activity sparkline + uptime badge from timeline heatmap data
+    let sparkHtml = '';
+    let uptimeBadge = '';
+    if (timelineData && timelineData.agents) {
+      const ta = timelineData.agents.find(t => t.name === a.name);
+      if (ta) {
+        const activeSlots = ta.slots.filter(s => s > 0).length;
+        const totalSlots = ta.slots.length;
+        const uptimePct = Math.round((activeSlots / totalSlots) * 100);
+        const uptimeColor = uptimePct >= 50 ? 'var(--green)' : uptimePct >= 20 ? 'var(--orange)' : 'var(--dim)';
+        const uptimeBg = uptimePct >= 50 ? 'var(--green-dim)' : uptimePct >= 20 ? 'var(--orange-dim)' : 'rgba(100,100,100,0.1)';
+        uptimeBadge = `<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${uptimeBg};color:${uptimeColor};font-weight:700;margin-left:4px;font-variant-numeric:tabular-nums" title="Active ${activeSlots}/${totalSlots} slots (last 6h)">${uptimePct}% ⬆</span>`;
+        if (ta.slots.some(s => s > 0)) {
+          sparkHtml = `<div style="margin-top:5px;display:flex;gap:1px;align-items:end;height:12px" title="Activity last 6h (15-min buckets)">${ta.slots.map(s => `<div style="flex:1;height:${s > 0 ? '100%' : '2px'};background:${s > 0 ? a.color : 'var(--border)'};border-radius:1px;opacity:${s > 0 ? '0.7' : '0.3'};transition:height .3s"></div>`).join('')}</div>`;
+        }
+      }
+    }
+    return `<div class="agent-card-item" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${borderL};border-radius:10px;padding:12px 14px;font-size:11px;transition:border-color .2s,background .2s,transform .15s;cursor:pointer" onclick="openAgentDetail('${a.name.replace(/'/g,String.fromCharCode(92)+String.fromCharCode(39))}')" onmouseenter="this.style.borderColor='${a.color}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseleave="this.style.borderColor='var(--border)';this.style.borderLeftColor='${borderL}';this.style.transform='';this.style.boxShadow=''">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="position:relative;flex-shrink:0">
+          <img src="https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(a.name)}&backgroundColor=transparent" alt="${a.name}" style="width:40px;height:40px;border-radius:50%;border:2px solid ${a.status === 'working' ? a.color : a.status === 'idle' ? 'var(--orange)' : 'var(--border)'};background:rgba(255,255,255,0.05)" loading="lazy" onerror="this.style.display='none'">
+          <span style="position:absolute;bottom:-1px;right:-1px;font-size:11px;line-height:1">${icon}</span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-weight:700;font-size:13px;color:${a.color}">${a.name}</span>${moodEmoji ? `<span style="font-size:11px" title="Mood: ${a.mood}">${moodEmoji}</span>` : ''}${uptimeBadge}${cronInfo}${durInfo}
+            ${a.cronJobId && a.status !== 'working' ? `<button onclick="event.stopPropagation();wakeAgentCard(this,'${a.cronJobId}','${a.name.replace(/'/g,String.fromCharCode(92)+String.fromCharCode(39))}')" style="background:var(--green-dim,rgba(34,197,94,0.15));border:1px solid var(--green,#22c55e);color:var(--green,#22c55e);padding:1px 8px;border-radius:6px;cursor:pointer;font-size:9px;font-weight:700;font-family:inherit;margin-left:4px;transition:all .15s;white-space:nowrap" onmouseenter="this.style.background='var(--green,#22c55e)';this.style.color='#fff'" onmouseleave="this.style.background='var(--green-dim,rgba(34,197,94,0.15))';this.style.color='var(--green,#22c55e)'" title="Wake agent now">⚡</button>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+            <span class="status-timer" data-since="${sinceTs}" data-verb="${statusVerb}" style="color:${statusTimerColor};font-size:10px;font-family:'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums">${statusVerb} ${age}</span>
+          </div>
+        </div>
+      </div>
+      <div style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>${nextRunHtml ? `<div style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div style="padding-left:50px">${sparkHtml}</div>` : ''}${activityBar}
+    </div>`;
+  }).join('');
+    html += `</div></div>`;
+  }
+  container.innerHTML = html;
+}
+
+function toggleTeamGroup(teamId, teamName) {
+  const body = document.getElementById('team-body-' + teamId);
+  const arrow = document.getElementById('team-arrow-' + teamId);
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? 'grid' : 'none';
+  if (arrow) arrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+  const collapsed = JSON.parse(localStorage.getItem('hq-collapsed-teams') || '{}');
+  collapsed[teamName] = !isHidden;
+  localStorage.setItem('hq-collapsed-teams', JSON.stringify(collapsed));
+}
+
+// Live elapsed status timers + cron countdown (combined 1s interval)
+setInterval(() => {
+  if (document.hidden) return; // skip when tab not visible
+  document.querySelectorAll('.status-timer').forEach(el => {
+    const since = parseInt(el.dataset.since);
+    const verb = el.dataset.verb || '';
+    if (!since) return;
+    const elapsed = Math.max(0, Math.floor((Date.now() - since) / 1000));
+    let label;
+    if (elapsed < 60) label = elapsed + 's';
+    else if (elapsed < 3600) label = Math.floor(elapsed/60) + 'm ' + (elapsed%60) + 's';
+    else if (elapsed < 86400) label = Math.floor(elapsed/3600) + 'h ' + Math.floor((elapsed%3600)/60) + 'm';
+    else label = Math.floor(elapsed/86400) + 'd ' + Math.floor((elapsed%86400)/3600) + 'h';
+    el.textContent = verb + ' ' + label;
+  });
+  document.querySelectorAll('.next-run-countdown').forEach(el => {
+    const next = parseInt(el.dataset.next);
+    if (!next) return;
+    const d = next - Date.now();
+    if (d <= 0) { el.textContent = 'now!'; el.style.color = 'var(--green)'; return; }
+    const sec = Math.ceil(d / 1000);
+    const mm = Math.floor(sec / 60);
+    const ss = sec % 60;
+    el.textContent = `${mm}:${String(ss).padStart(2, '0')}`;
+  });
+}, 1000);
