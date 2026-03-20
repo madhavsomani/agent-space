@@ -172,11 +172,39 @@ function getWanderPos(agentName, deskGx, deskGy, status, time) {
 // ── ISO PROJECTION ──
 let _originX = 0, _originY = 0;
 
-function iso(gx, gy) {
+function projectIso(gx, gy) {
   return {
-    x: _originX + (gx - gy) * ISO.tileW / 2,
-    y: _originY + (gx + gy) * ISO.tileH / 2
+    x: (gx - gy) * ISO.tileW / 2,
+    y: (gx + gy) * ISO.tileH / 2
   };
+}
+
+function iso(gx, gy) {
+  const p = projectIso(gx, gy);
+  return {
+    x: _originX + p.x,
+    y: _originY + p.y
+  };
+}
+
+function getSceneBounds() {
+  const wallH = 40;
+  const pts = [
+    projectIso(0, 0),
+    projectIso(ROOM.cols - 1, 0),
+    projectIso(0, ROOM.rows - 1),
+    projectIso(ROOM.cols - 1, ROOM.rows - 1),
+    projectIso(ROOM.cols, 0),
+    projectIso(0, ROOM.rows)
+  ];
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  pts.forEach(p => {
+    minX = Math.min(minX, p.x - ISO.tileW / 2 - 28);
+    maxX = Math.max(maxX, p.x + ISO.tileW / 2 + 28);
+    minY = Math.min(minY, p.y - ISO.tileH / 2 - wallH - 40);
+    maxY = Math.max(maxY, p.y + ISO.tileH / 2 + 46);
+  });
+  return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
 }
 
 // ── ZOOM / PAN ──
@@ -905,23 +933,22 @@ function _drawOfficeInner(rafNow) {
   oCtx.scale(camZoom, camZoom);
   oCtx.translate(-cw / 2 + camPanX, -ch / 2 + camPanY);
 
-  // Calculate origin to center room
-  const gridPixelW = (ROOM.cols + ROOM.rows) * ISO.tileW / 2;
-  const gridPixelH = (ROOM.cols + ROOM.rows) * ISO.tileH / 2;
-  _originX = cw / 2 + (ROOM.rows * ISO.tileW / 4) - (ROOM.cols * ISO.tileW / 4);
-  _originY = (ch - gridPixelH) / 2 + 64; // bias downward so the office fills the viewport more naturally
+  // Center the real scene bounds, not just the raw tile grid, so the office fills the viewport cleanly.
+  const scene = getSceneBounds();
+  _originX = cw / 2 - (scene.minX + scene.maxX) / 2;
+  _originY = ch * 0.53 - (scene.minY + scene.maxY) / 2;
 
   // Grounding shadow under the whole office so it feels like a placed scene, not floating geometry
   oCtx.save();
   oCtx.globalAlpha = 0.22;
   const shadowCx = cw / 2;
-  const shadowCy = _originY + gridPixelH * 0.58;
-  const shadow = oCtx.createRadialGradient(shadowCx, shadowCy, 40, shadowCx, shadowCy, Math.max(gridPixelW * 0.42, 220));
+  const shadowCy = _originY + scene.height * 0.62;
+  const shadow = oCtx.createRadialGradient(shadowCx, shadowCy, 40, shadowCx, shadowCy, Math.max(scene.width * 0.38, 220));
   shadow.addColorStop(0, 'rgba(80,48,20,0.24)');
   shadow.addColorStop(1, 'rgba(80,48,20,0)');
   oCtx.fillStyle = shadow;
   oCtx.beginPath();
-  oCtx.ellipse(shadowCx, shadowCy, gridPixelW * 0.38, gridPixelH * 0.24, 0, 0, Math.PI * 2);
+  oCtx.ellipse(shadowCx, shadowCy, scene.width * 0.38, scene.height * 0.22, 0, 0, Math.PI * 2);
   oCtx.fill();
   oCtx.restore();
 
@@ -1063,7 +1090,7 @@ function resizeCanvas() {
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
   const mobileH = Math.min(Math.max(340, window.innerHeight * 0.58), 520);
-  const desktopH = Math.min(availH, Math.max(450, window.innerHeight * 0.70), 900);
+  const desktopH = Math.min(availH, Math.max(450, window.innerHeight * 0.74), 920);
   const canvasH = isMobile ? Math.min(availH, mobileH) : desktopH;
 
   const dpr = window.devicePixelRatio || 1;
@@ -1077,17 +1104,19 @@ function resizeCanvas() {
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   oCtx.imageSmoothingEnabled = false;
 
-  // Auto-fit zoom
-  const gridPixelW = (ROOM.cols + ROOM.rows) * ISO.tileW / 2 + 80;
-  const gridPixelH = (ROOM.cols + ROOM.rows) * ISO.tileH / 2 + 120;
-  const fitW = internalW / gridPixelW;
-  const fitH = internalH / gridPixelH;
+  // Auto-fit zoom using the real rendered scene bounds so the office fills the viewport cleanly.
+  const scene = getSceneBounds();
+  const padX = isMobile ? 30 : 54;
+  const padTop = isMobile ? 26 : 40;
+  const padBottom = isMobile ? 34 : 48;
+  const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
+  const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 1.68 : fitBase * 1.34;
+  const fit = isMobile ? fitBase * 1.06 : fitBase * 1.02;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
-    camPanY = isMobile ? 16 : 10;
+    camPanY = isMobile ? 10 : 0;
   }
 
   invalidateStaticCache();
