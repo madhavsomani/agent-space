@@ -2340,7 +2340,7 @@ function resizeCanvas() {
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use width-fit to fill the narrow viewport, desktop: balanced fit
-  const fit = isMobile ? fitW * 0.95 : Math.min(fitW, fitH) * 0.95;
+  const fit = isMobile ? fitH * 1.1 : Math.min(fitW, fitH) * 0.95;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
@@ -2348,7 +2348,7 @@ function resizeCanvas() {
     const sceneCenterX = (scene.minX + scene.maxX) / 2;
     const sceneCenterY = (scene.minY + scene.maxY) / 2;
     camPanX = sceneCenterX;
-    camPanY = sceneCenterY + (isMobile ? -80 : 0);
+    camPanY = sceneCenterY + (isMobile ? -300 : 0);
   }
 
   invalidateStaticCache();
