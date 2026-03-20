@@ -147,8 +147,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .dot.stopped { background:var(--red); }
 
 /* Kanban */
-.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-.wr-card { background:linear-gradient(180deg,color-mix(in srgb, var(--bg) 84%, var(--card) 16%), var(--bg)); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; font-size:12px; transition:border-color .2s, transform .2s, box-shadow .2s; }
+.kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; align-items:start; }
+.wr-card { background:linear-gradient(180deg,color-mix(in srgb, var(--bg) 84%, var(--card) 16%), var(--bg)); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; transition:border-color .2s, transform .2s, box-shadow .2s; }
 .wr-card:hover { border-color:color-mix(in srgb, var(--accent) 30%, var(--border) 70%); transform:translateY(-1px); box-shadow:0 8px 18px rgba(0,0,0,0.10); }
 .wr-card .title { font-weight:700; margin-bottom:4px; font-size:12px; color:var(--text); }
 .wr-card .meta { color:var(--dim); font-size:10px; }
