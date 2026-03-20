@@ -408,7 +408,7 @@ let _pointerDownAt = 0;
 // ── ZOOM / PAN ──
 let camZoom = 1, camPanX = 0, camPanY = 0;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3.0, ZOOM_STEP = 0.15;
-let _dragging = false, _dragStartX = 0, _dragStartY = 0, _dragPanStartX = 0, _dragPanStartY = 0;
+let _dragging = false, _userPanned = false, _dragStartX = 0, _dragStartY = 0, _dragPanStartX = 0, _dragPanStartY = 0;
 
 // ── DRAWING HELPERS ──
 function drawIsoDiamond(gx, gy, fillA, fillB, stroke) {
@@ -2168,10 +2168,13 @@ function resizeCanvas() {
   // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
   const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH);
 
-  if (!_dragging && camPanX === 0 && camPanY <= 0) {
+  if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
-    camPanX = 0;
-    camPanY = 0;
+    // Center camera on the scene's center point, not on (0,0)
+    const sceneCenterX = (scene.minX + scene.maxX) / 2;
+    const sceneCenterY = (scene.minY + scene.maxY) / 2;
+    camPanX = sceneCenterX;
+    camPanY = sceneCenterY;
   }
 
   invalidateStaticCache();
@@ -2211,6 +2214,7 @@ if (oCanvas) {
     if (!_dragging) return;
     camPanX = _dragPanStartX + (e.clientX - _dragStartX) / camZoom;
     camPanY = _dragPanStartY + (e.clientY - _dragStartY) / camZoom;
+    _userPanned = true;
   });
   window.addEventListener('mouseup', (e) => {
     const moved = Math.hypot(e.clientX - _dragStartX, e.clientY - _dragStartY);
