@@ -3,7 +3,7 @@
 // Replaces the old cold-blue scattered layout.
 
 const oCanvas = document.getElementById('office-canvas');
-let oCtx = oCanvas ? oCanvas.getContext('2d', { willReadFrequently: true }) : null;
+let oCtx = oCanvas ? oCanvas.getContext('2d', { willReadFrequently: false }) : null;
 const KENNEY_ISO_ROOT = 'assets/office-source/kenney-furniture/unpacked/Isometric';
 const OFFICE_ASSETS = {};
 
