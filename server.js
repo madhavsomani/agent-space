@@ -2495,7 +2495,7 @@ const server = http.createServer((req, res) => {
 
   if (url === '/healthz') return json(res, { ok: true, uptime: process.uptime() });
   // ===== DATA EXPORT =====
-  if (url.startsWith('/api/export/')) { console.log('[export]', url); }
+  // export logging removed — too noisy
   if (url === '/api/export/agents') {
     const fmt = (req.url.split('?')[1] || '').includes('format=csv') ? 'csv' : 'json';
     const data = getAgents();

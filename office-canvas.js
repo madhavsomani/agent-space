@@ -1075,18 +1075,26 @@ function drawNameLabel(x, y, agent) {
   const isMobileOffice = window.innerWidth <= 480;
   const isRightRoom = x > (_originX + ISO.tileW * 4.5);
   const rawName = agent.name || 'Unknown';
-  const name = isMobileOffice
-    ? (rawName.length > 12 ? rawName.slice(0, 11) + '…' : rawName)
-    : (rawName.length > (isRightRoom ? 9 : 11) ? rawName.slice(0, isRightRoom ? 8 : 10) + '…' : rawName);
+  const maxLen = isMobileOffice ? 12 : 14;
+  const name = rawName.length > maxLen ? rawName.slice(0, maxLen - 1) + '…' : rawName;
   oCtx.font = isMobileOffice ? '600 8px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 8 : 9}px -apple-system, system-ui, sans-serif`;
   oCtx.textAlign = 'center';
   const tw = oCtx.measureText(name).width;
   const padX = isMobileOffice ? 5 : (isRightRoom ? 6 : 7);
   const padY = isMobileOffice ? 2 : 3;
-  const lx = x - tw / 2 - padX;
-  const ly = y - padY - (isRightRoom ? 3 : 0);
   const lw = tw + padX * 2 + (isMobileOffice ? 6 : 8);
   const lh = isMobileOffice ? 12 : (isRightRoom ? 14 : 15);
+
+  // Clamp label position to canvas bounds so it never clips off-screen
+  const cw = oCanvas.width / (window.devicePixelRatio || 1);
+  const ch = oCanvas.height / (window.devicePixelRatio || 1);
+  const clampedX = Math.max(lw / 2 + 2, Math.min(x, cw - lw / 2 - 2));
+  const clampedY = Math.max(lh + 4, Math.min(y, ch - lh - 4));
+  x = clampedX;
+  y = clampedY;
+
+  const lx = x - tw / 2 - padX;
+  const ly = y - padY - (isRightRoom ? 3 : 0);
 
   // Badge background
   oCtx.fillStyle = isMobileOffice ? 'rgba(43,30,18,0.85)' : 'rgba(43,30,18,0.82)';
