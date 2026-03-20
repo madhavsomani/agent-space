@@ -2126,7 +2126,7 @@ function resizeCanvas() {
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
   // On mobile, size canvas to fit the isometric scene tightly (scene is landscape-oriented)
-  const mobileAvailH = Math.max(280, Math.min(window.innerHeight * 0.52, 460));
+  const mobileAvailH = Math.max(280, Math.min(window.innerHeight * 0.78, 700));
   const canvasH = isMobile ? mobileAvailH : Math.max(500, availH);
 
   const dpr = window.devicePixelRatio || 1;

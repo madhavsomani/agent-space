@@ -85,7 +85,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 /* Tabs */
 .tab { display:none; padding:22px 24px; position:relative; z-index:1; max-width:1400px; margin-left:auto; margin-right:auto; }
-.tab.active { display:block; animation:fadeIn .25s cubic-bezier(.4,0,.2,1); }
+.tab.active { display:block; animation:fadeIn .25s cubic-bezier(.4,0,.2,1); min-height:calc(100vh - 160px); }
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px) scale(0.995)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes slideInRight { from{opacity:0;transform:translateX(60px) scale(0.98)} to{opacity:1;transform:translateX(0) scale(1)} }
 @keyframes slideInLeft { from{opacity:0;transform:translateX(-60px) scale(0.98)} to{opacity:1;transform:translateX(0) scale(1)} }
