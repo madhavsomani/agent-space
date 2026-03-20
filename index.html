@@ -21,7 +21,7 @@
     <div class="help-row"><span>Zoom in / out office</span><span><span class="help-key">+</span> / <span class="help-key">-</span></span></div>
     <div class="help-row"><span>Reset zoom</span><span class="help-key">`</span></div>
     <div class="help-row"><span>Pan office</span><span class="help-key">Click + Drag</span></div>
-    <div class="help-row"><span>Toggle 2D / 3D office view</span><span class="help-key">V</span></div>
+    <div class="help-row"><span>Toggle Cards / Isometric view</span><span class="help-key">V</span></div>
     <div class="help-row"><span>Toggle FPS overlay (office)</span><span class="help-key">F</span></div>
     <div class="help-row"><span>Show this help</span><span class="help-key">?</span></div>
     <div class="help-row"><span>Close overlay</span><span class="help-key">Esc</span></div>
@@ -112,7 +112,7 @@
 <div class="tab active" role="tabpanel" id="tab-office">
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px" class="view-toggle-bar">
     <button id="view-grid-btn" onclick="switchOfficeView('grid',{explicit:true})" role="tab" aria-selected="true" aria-label="Cards View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Cards View">🃏 Cards</button>
-    <button id="view-2d-btn" onclick="switchOfficeView('2d',{explicit:true})" role="tab" aria-selected="false" aria-label="3D Office View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="3D Office View">🏢 3D Office</button>
+    <button id="view-2d-btn" onclick="switchOfficeView('2d',{explicit:true})" role="tab" aria-selected="false" aria-label="Isometric Office View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="Isometric Office View">🏢 Isometric</button>
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
   <div id="office-2d-flat" style="display:none"></div>
@@ -419,8 +419,8 @@
 </div>
 <script src="mobile-nav.js?v=20260319c"></script>
 <!-- 2D canvas office -->
-<script src="office-canvas.js?v=20260320w"></script>
+<script src="office-canvas.js?v=20260320z6"></script>
 <script src="sprites.js?v=20260319c"></script>
-<script src="office-view.js?v=20260320b"></script>
+<script src="office-view.js?v=20260320c"></script>
 </body>
 </html>

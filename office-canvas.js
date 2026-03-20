@@ -157,14 +157,14 @@ const DESK_SLOTS = [
   { gx: 14, gy: 8, zone: 'content' },
   { gx: 12, gy: 13, zone: 'content' },
   // Leadership cluster
-  { gx: 16, gy: 3, zone: 'leadership' },
-  { gx: 20, gy: 3, zone: 'leadership' },
-  { gx: 18, gy: 6, zone: 'leadership' },
+  { gx: 15, gy: 3, zone: 'leadership' },
+  { gx: 17, gy: 3, zone: 'leadership' },
+  { gx: 16, gy: 6, zone: 'leadership' },
   // Support cluster
-  { gx: 16, gy: 9, zone: 'support' },
-  { gx: 20, gy: 9, zone: 'support' },
-  { gx: 16, gy: 13, zone: 'support' },
-  { gx: 20, gy: 13, zone: 'support' },
+  { gx: 15, gy: 9, zone: 'support' },
+  { gx: 17, gy: 9, zone: 'support' },
+  { gx: 15, gy: 13, zone: 'support' },
+  { gx: 17, gy: 13, zone: 'support' },
 ];
 
 // Mobile desk slots — must stay within ROOM bounds (22×16)
@@ -182,14 +182,14 @@ const MOBILE_DESK_SLOTS = [
   { gx: 12, gy: 7, zone: 'content' },
   { gx: 10, gy: 11, zone: 'content' },
   // Leadership cluster (right-top)
-  { gx: 16, gy: 3, zone: 'leadership' },
-  { gx: 19, gy: 3, zone: 'leadership' },
-  { gx: 17, gy: 7, zone: 'leadership' },
+  { gx: 15, gy: 3, zone: 'leadership' },
+  { gx: 17, gy: 3, zone: 'leadership' },
+  { gx: 16, gy: 7, zone: 'leadership' },
   // Support cluster (right-bottom)
-  { gx: 16, gy: 10, zone: 'support' },
-  { gx: 19, gy: 10, zone: 'support' },
-  { gx: 16, gy: 13, zone: 'support' },
-  { gx: 19, gy: 13, zone: 'support' },
+  { gx: 15, gy: 10, zone: 'support' },
+  { gx: 17, gy: 10, zone: 'support' },
+  { gx: 15, gy: 13, zone: 'support' },
+  { gx: 17, gy: 13, zone: 'support' },
 ];
 
 function getActiveDeskSlots() {
@@ -209,7 +209,7 @@ const SHARED_FURNITURE = [
   { type: 'plant', gx: 21, gy: 14 },
   { type: 'lamp', gx: 2, gy: 0 },
   { type: 'lamp', gx: 10, gy: 0 },
-  { type: 'lamp', gx: 18, gy: 0 },
+  { type: 'lamp', gx: 17, gy: 0 },
   { type: 'clock', gx: 11, gy: 0 },
   { type: 'window', gx: 3, gy: 0 },
   { type: 'window', gx: 6, gy: 0 },
@@ -249,7 +249,7 @@ const SHARED_FURNITURE = [
   { type: 'plant', gx: 6, gy: 10 },
   // Leadership zone
   { type: 'armchair', gx: 19, gy: 7 },
-  { type: 'poster', gx: 18, gy: 0, hue: 290 },
+  { type: 'poster', gx: 17, gy: 0, hue: 290 },
   { type: 'plant', gx: 21, gy: 4 },
   { type: 'sideTable', gx: 19, gy: 6 },
   { type: 'lampProp', gx: 21, gy: 6 },
@@ -257,9 +257,9 @@ const SHARED_FURNITURE = [
   // Support zone
   { type: 'bookshelfClosed', gx: 21, gy: 12 },
   { type: 'plant', gx: 15, gy: 12 },
-  { type: 'poster', gx: 18, gy: 8, hue: 145 },
+  { type: 'poster', gx: 17, gy: 8, hue: 145 },
   { type: 'boxProp', gx: 19, gy: 12 },
-  { type: 'sideTable', gx: 18, gy: 12 },
+  { type: 'sideTable', gx: 17, gy: 12 },
 ];
 
 // ── IDLE AGENT WANDERING ──
@@ -1085,15 +1085,13 @@ function drawNameLabel(x, y, agent) {
   const lw = tw + padX * 2 + (isMobileOffice ? 6 : 8);
   const lh = isMobileOffice ? 12 : (isRightRoom ? 14 : 15);
 
-  // Clamp label position to canvas bounds so it never clips off-screen
-  const cw = oCanvas.width / (window.devicePixelRatio || 1);
-  const ch = oCanvas.height / (window.devicePixelRatio || 1);
-  const clampedX = Math.max(lw / 2 + 2, Math.min(x, cw - lw / 2 - 2));
-  const clampedY = Math.max(lh + 4, Math.min(y, ch - lh - 4));
-  x = clampedX;
-  y = clampedY;
-
-  const lx = x - tw / 2 - padX;
+  let lx = x - tw / 2 - padX;
+  // Clamp to visible world-space bounds (accounting for camera pan + zoom)
+  const _dprN = window.devicePixelRatio || 1;
+  const _cwN = oCanvas.width / _dprN;
+  const worldLeftN = (_cwN / 2 - _cwN / 2 / camZoom) - camPanX;
+  const worldRightN = (_cwN / 2 + _cwN / 2 / camZoom) - camPanX;
+  lx = Math.max(worldLeftN + 4, Math.min(lx, worldRightN - lw - 4));
   const ly = y - padY - (isRightRoom ? 3 : 0);
 
   // Badge background
@@ -1120,9 +1118,10 @@ function drawNameLabel(x, y, agent) {
     oCtx.globalAlpha = 1;
   }
 
-  // Name text
+  // Name text — draw relative to (possibly clamped) badge center
+  const textX = lx + lw / 2 + (isMobileOffice ? 1.5 : 2);
   oCtx.fillStyle = '#fffaf2';
-  oCtx.fillText(name, x + (isMobileOffice ? 3.5 : 5), y + (isMobileOffice ? 5.8 : (isRightRoom ? 4.8 : 7.5)));
+  oCtx.fillText(name, textX, y + (isMobileOffice ? 5.8 : (isRightRoom ? 4.8 : 7.5)));
 }
 
 // ── SHARED FURNITURE ──
@@ -1666,8 +1665,12 @@ function drawSpeechBubble(x, y, text) {
   const bx = x - bw / 2;
   const by = y - 38;
 
-  // Clamp to canvas bounds
-  const clampedBx = Math.max(4, Math.min(bx, oCanvas.width / (window.devicePixelRatio || 1) / camZoom - bw - 4));
+  // Clamp to visible world-space bounds (accounting for camera pan + zoom)
+  const _dprB = window.devicePixelRatio || 1;
+  const _cwB = oCanvas.width / _dprB;
+  const worldLeft = (_cwB / 2 - _cwB / 2 / camZoom) - camPanX;
+  const worldRight = (_cwB / 2 + _cwB / 2 / camZoom) - camPanX;
+  const clampedBx = Math.max(worldLeft + 4, Math.min(bx, worldRight - bw - 4));
 
   // Bubble
   oCtx.fillStyle = 'rgba(255,255,255,0.95)';
@@ -2089,7 +2092,7 @@ document.addEventListener('keydown', function(e) {
 const FRAME_INTERVAL = 1000 / 15; // 15fps
 let _lastFrameTime = 0;
 let _wasHidden = false;
-let _canvasVisible = true;
+var _canvasVisible = true;
 
 // IntersectionObserver to skip rendering when scrolled out of view
 try {
@@ -2150,13 +2153,13 @@ function resizeCanvas() {
 
   // Auto-fit zoom using the real rendered scene bounds so the office fills the viewport cleanly.
   const scene = getSceneBounds();
-  const padX = isMobile ? 18 : 28;
+  const padX = isMobile ? 18 : 64;
   const padTop = isMobile ? 18 : 24;
-  const padBottom = isMobile ? 26 : 28;
+  const padBottom = isMobile ? 26 : 36;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 2.8 : fitBase * 2.35;
+  const fit = isMobile ? fitBase * 2.8 : fitBase * 1.9;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));

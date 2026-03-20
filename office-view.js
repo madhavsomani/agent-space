@@ -102,14 +102,17 @@ async function switchOfficeView(view, opts = {}) {
     canvas2d.style.display = 'block';
     invalidateStaticCache();
     if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
+    if (typeof window._canvasVisible !== 'undefined') window._canvasVisible = true;
     requestAnimationFrame(() => {
       resizeCanvas();
       invalidateStaticCache();
       if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
+      if (typeof window._canvasVisible !== 'undefined') window._canvasVisible = true;
       if (typeof drawOffice === 'function') {
         drawOffice(performance.now());
-        setTimeout(() => drawOffice(performance.now()), 40);
-        setTimeout(() => drawOffice(performance.now()), 140);
+        setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 40);
+        setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 140);
+        setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 500);
       }
       if (typeof officeLoop === 'function') requestAnimationFrame(officeLoop);
     });
