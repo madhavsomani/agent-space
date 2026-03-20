@@ -126,6 +126,8 @@ async function switchOfficeView(view, opts = {}) {
         setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 40);
         setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 140);
         setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 500);
+        setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 1000);
+        setTimeout(() => { invalidateStaticCache(); drawOffice(performance.now()); }, 2000);
       }
       if (typeof officeLoop === 'function') requestAnimationFrame(officeLoop);
     });
