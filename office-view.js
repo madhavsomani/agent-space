@@ -76,6 +76,7 @@ function renderGridView() {
   el.innerHTML = html;
 }
 async function switchOfficeView(view) {
+  if (window.innerWidth <= 768 && view === '2d') view = 'grid';
   _officeView = view;
   localStorage.setItem('office-view', view);
   const canvas2d = document.getElementById('office-canvas');
@@ -133,7 +134,10 @@ async function switchOfficeView(view) {
 setTimeout(() => {
   // Migrate old preferences — 3d/pixel/old 2d → new 2d
   if (_officeView === '3d' || _officeView === 'pixel') _officeView = '2d';
-  // Force cards on mobile — canvas office has rendering issues on small viewports
   if (window.innerWidth <= 768) _officeView = 'grid';
   switchOfficeView(_officeView);
 }, 500);
+
+window.addEventListener('resize', () => {
+  if (window.innerWidth <= 768 && _officeView === '2d') switchOfficeView('grid');
+});

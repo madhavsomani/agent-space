@@ -21,7 +21,7 @@ const PAL = {
   // Chair
   chairSeat: '#444', chairBack: '#333', chairLeg: '#555',
   // Labels
-  labelBg: 'rgba(30,30,30,0.85)', labelText: '#fff',
+  labelBg: 'rgba(58,39,24,0.88)', labelText: '#fff6ea', labelBorder: 'rgba(255,228,190,0.28)',
   // Status dots
   statusWorking: '#22c55e', statusIdle: '#eab308', statusSleeping: '#6b7280',
   // Furniture
@@ -1106,17 +1106,17 @@ function resizeCanvas() {
 
   // Auto-fit zoom using the real rendered scene bounds so the office fills the viewport cleanly.
   const scene = getSceneBounds();
-  const padX = isMobile ? 30 : 54;
-  const padTop = isMobile ? 26 : 40;
-  const padBottom = isMobile ? 34 : 48;
+  const padX = isMobile ? 18 : 28;
+  const padTop = isMobile ? 18 : 24;
+  const padBottom = isMobile ? 26 : 28;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 1.06 : fitBase * 1.02;
+  const fit = isMobile ? fitBase * 1.28 : fitBase * 1.26;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
-    camPanY = isMobile ? 10 : 0;
+    camPanY = isMobile ? 18 : 14;
   }
 
   invalidateStaticCache();
