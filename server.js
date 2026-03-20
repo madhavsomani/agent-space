@@ -114,7 +114,7 @@ const INTERACTION_QUEUE_MAX = 50;
 const INTERACTION_SCAN_WINDOW = 10 * 60 * 1000; // 10 min
 let _interactionQueue = []; // { ts, from, to, topic, type }
 let _interactionScanTime = 0;
-const INTERACTION_SCAN_TTL = 15000; // rescan every 15s
+const INTERACTION_SCAN_TTL = 60000; // rescan every 60s
 
 function scanInteractions() {
   const now = Date.now();
@@ -1565,7 +1565,10 @@ function simpleHash(obj) {
 function broadcastSSE(event, data) {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
-    try { client.write(msg); } catch { sseClients.delete(client); }
+    try {
+      if (client.destroyed || client.writableEnded) { sseClients.delete(client); continue; }
+      client.write(msg);
+    } catch { sseClients.delete(client); }
   }
 }
 
@@ -2478,6 +2481,8 @@ const server = http.createServer((req, res) => {
     } catch {}
     sseClients.add(res);
     req.on('close', () => sseClients.delete(res));
+    req.on('error', () => sseClients.delete(res));
+    res.on('error', () => sseClients.delete(res));
     return;
   }
 

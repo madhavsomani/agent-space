@@ -4,6 +4,97 @@
 
 const oCanvas = document.getElementById('office-canvas');
 let oCtx = oCanvas ? oCanvas.getContext('2d', { willReadFrequently: true }) : null;
+const KENNEY_ISO_ROOT = 'assets/office-source/kenney-furniture/unpacked/Isometric';
+const OFFICE_ASSETS = {};
+
+function loadOfficeAsset(key, file) {
+  const img = new Image();
+  img.src = `${KENNEY_ISO_ROOT}/${file}`;
+  img.decoding = 'async';
+  img.loading = 'eager';
+  img.onload = () => { if (typeof invalidateStaticCache === 'function') invalidateStaticCache(); };
+  OFFICE_ASSETS[key] = img;
+  return img;
+}
+
+function officeAssetReady(key) {
+  const img = OFFICE_ASSETS[key];
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+function drawOfficeAsset(key, x, y, scale = 1, alpha = 1) {
+  const img = OFFICE_ASSETS[key];
+  if (!officeAssetReady(key)) return false;
+  oCtx.save();
+  oCtx.globalAlpha = alpha;
+  const w = img.naturalWidth * scale;
+  const h = img.naturalHeight * scale;
+  oCtx.drawImage(img, x - w / 2, y - h, w, h);
+  oCtx.restore();
+  return true;
+}
+
+function pickOfficeAsset(keys) {
+  for (const key of keys) if (officeAssetReady(key)) return key;
+  return keys[0];
+}
+
+loadOfficeAsset('desk', 'desk_SW.png');
+loadOfficeAsset('deskNE', 'desk_NE.png');
+loadOfficeAsset('deskCorner', 'deskCorner_SW.png');
+loadOfficeAsset('deskCornerNE', 'deskCorner_NE.png');
+loadOfficeAsset('chairDesk', 'chairDesk_SW.png');
+loadOfficeAsset('chairDeskNE', 'chairDesk_NE.png');
+loadOfficeAsset('chairRounded', 'chairRounded_SW.png');
+loadOfficeAsset('chairRoundedNE', 'chairRounded_NE.png');
+loadOfficeAsset('chairCushionNE', 'chairCushion_NE.png');
+loadOfficeAsset('monitor', 'computerScreen_SW.png');
+loadOfficeAsset('monitorNE', 'computerScreen_NE.png');
+loadOfficeAsset('keyboard', 'computerKeyboard_SW.png');
+loadOfficeAsset('laptop', 'laptop_SW.png');
+loadOfficeAsset('laptopNE', 'laptop_NE.png');
+loadOfficeAsset('bookshelf', 'bookcaseOpen_SW.png');
+loadOfficeAsset('bookshelfNE', 'bookcaseOpen_NE.png');
+loadOfficeAsset('bookshelfClosed', 'bookcaseClosedWide_SW.png');
+loadOfficeAsset('bookshelfClosedNE', 'bookcaseClosedWide_NE.png');
+loadOfficeAsset('bookshelfLow', 'bookcaseOpenLow_SW.png');
+loadOfficeAsset('bookshelfLowNE', 'bookcaseOpenLow_NE.png');
+loadOfficeAsset('plant', 'pottedPlant_SW.png');
+loadOfficeAsset('plantSmall1', 'plantSmall1_SW.png');
+loadOfficeAsset('plantSmall2', 'plantSmall2_SW.png');
+loadOfficeAsset('plantSmall3', 'plantSmall3_SW.png');
+loadOfficeAsset('coffeeMachine', 'kitchenCoffeeMachine_SW.png');
+loadOfficeAsset('armchair', 'loungeChair_SW.png');
+loadOfficeAsset('armchairAlt', 'loungeChairRelax_SW.png');
+loadOfficeAsset('waterCooler', 'kitchenFridgeSmall_SW.png');
+loadOfficeAsset('floorTile', 'floorFull_SW.png');
+loadOfficeAsset('floorTileSE', 'floorFull_SE.png');
+loadOfficeAsset('floorHalf', 'floorHalf_SW.png');
+loadOfficeAsset('rugRound', 'rugRound_SW.png');
+loadOfficeAsset('rugRect', 'rugRectangle_SW.png');
+loadOfficeAsset('books', 'books_SW.png');
+loadOfficeAsset('booksNE', 'books_NE.png');
+loadOfficeAsset('mouse', 'computerMouse_SW.png');
+loadOfficeAsset('sideTable', 'sideTable_SW.png');
+loadOfficeAsset('sideTableNE', 'sideTable_NE.png');
+loadOfficeAsset('sideTableDrawers', 'sideTableDrawers_SW.png');
+loadOfficeAsset('coffeeTable', 'tableCoffee_SW.png');
+loadOfficeAsset('coffeeTableNE', 'tableCoffee_NE.png');
+loadOfficeAsset('coffeeTableGlass', 'tableCoffeeGlass_SW.png');
+loadOfficeAsset('bench', 'bench_SW.png');
+loadOfficeAsset('benchNE', 'bench_NE.png');
+loadOfficeAsset('box', 'cardboardBoxClosed_SW.png');
+loadOfficeAsset('speaker', 'speaker_SW.png');
+loadOfficeAsset('lampFloor', 'lampSquareFloor_SW.png');
+loadOfficeAsset('lampFloorNE', 'lampSquareFloor_NE.png');
+loadOfficeAsset('wallBack', 'wallWindow_SW.png');
+loadOfficeAsset('wallBackNE', 'wallWindow_NE.png');
+loadOfficeAsset('wallLeft', 'wall_SW.png');
+loadOfficeAsset('wallRight', 'wall_SE.png');
+loadOfficeAsset('wallCorner', 'wallCorner_SW.png');
+loadOfficeAsset('wallCornerNE', 'wallCorner_NE.png');
+loadOfficeAsset('doorway', 'doorwayOpen_SW.png');
+loadOfficeAsset('doorwayNE', 'doorwayOpen_NE.png');
 
 // ── PALETTE ──
 const PAL = {
@@ -42,63 +133,142 @@ const PAL = {
 const ISO = { tileW: 64, tileH: 32 };
 
 // Room dimensions
-const ROOM = { cols: 16, rows: 12 };
+const ROOM = { cols: 22, rows: 16 };
 
-// Fixed desk positions — 3-cell spacing for breathing room
-const DESK_SLOTS = [
-  { gx: 2, gy: 3 },
-  { gx: 5, gy: 3 },
-  { gx: 8, gy: 3 },
-  { gx: 11, gy: 3 },
-  { gx: 14, gy: 3 },
-  { gx: 3, gy: 6 },
-  { gx: 6, gy: 6 },
-  { gx: 9, gy: 6 },
-  { gx: 12, gy: 6 },
-  { gx: 2, gy: 9 },
-  { gx: 5, gy: 9 },
-  { gx: 8, gy: 9 },
-  { gx: 11, gy: 9 },
-  { gx: 14, gy: 9 },
-  { gx: 4, gy: 11 },
-  { gx: 10, gy: 11 },
+const ZONES = [
+  { key: 'engineering', name: 'ENGINEERING', x0: 1, x1: 7, y0: 1, y1: 14, color: 'rgba(93, 126, 201, 0.12)', line: '#6888d8' },
+  { key: 'content', name: 'CONTENT', x0: 8, x1: 14, y0: 1, y1: 14, color: 'rgba(207, 153, 94, 0.12)', line: '#c58a4d' },
+  { key: 'leadership', name: 'LEADERSHIP', x0: 15, x1: 20, y0: 1, y1: 6, color: 'rgba(151, 116, 204, 0.13)', line: '#9a72d5' },
+  { key: 'support', name: 'SUPPORT', x0: 15, x1: 20, y0: 7, y1: 14, color: 'rgba(91, 176, 137, 0.13)', line: '#4aa97e' },
 ];
+
+// Fixed desk positions — spread across the full floor with corridor gaps
+const DESK_SLOTS = [
+  // Engineering cluster
+  { gx: 3, gy: 4, zone: 'engineering' },
+  { gx: 6, gy: 4, zone: 'engineering' },
+  { gx: 3, gy: 9, zone: 'engineering' },
+  { gx: 6, gy: 9, zone: 'engineering' },
+  { gx: 4, gy: 13, zone: 'engineering' },
+  // Content cluster
+  { gx: 10, gy: 3, zone: 'content' },
+  { gx: 14, gy: 3, zone: 'content' },
+  { gx: 10, gy: 8, zone: 'content' },
+  { gx: 14, gy: 8, zone: 'content' },
+  { gx: 12, gy: 13, zone: 'content' },
+  // Leadership cluster
+  { gx: 16, gy: 3, zone: 'leadership' },
+  { gx: 20, gy: 3, zone: 'leadership' },
+  { gx: 18, gy: 6, zone: 'leadership' },
+  // Support cluster
+  { gx: 16, gy: 9, zone: 'support' },
+  { gx: 20, gy: 9, zone: 'support' },
+  { gx: 16, gy: 13, zone: 'support' },
+  { gx: 20, gy: 13, zone: 'support' },
+];
+
+// Mobile desk slots — must stay within ROOM bounds (22×16)
+const MOBILE_DESK_SLOTS = [
+  // Engineering cluster (left side)
+  { gx: 2, gy: 3, zone: 'engineering' },
+  { gx: 5, gy: 3, zone: 'engineering' },
+  { gx: 2, gy: 7, zone: 'engineering' },
+  { gx: 5, gy: 7, zone: 'engineering' },
+  { gx: 3, gy: 11, zone: 'engineering' },
+  // Content cluster (center)
+  { gx: 9, gy: 3, zone: 'content' },
+  { gx: 12, gy: 3, zone: 'content' },
+  { gx: 9, gy: 7, zone: 'content' },
+  { gx: 12, gy: 7, zone: 'content' },
+  { gx: 10, gy: 11, zone: 'content' },
+  // Leadership cluster (right-top)
+  { gx: 16, gy: 3, zone: 'leadership' },
+  { gx: 19, gy: 3, zone: 'leadership' },
+  { gx: 17, gy: 7, zone: 'leadership' },
+  // Support cluster (right-bottom)
+  { gx: 16, gy: 10, zone: 'support' },
+  { gx: 19, gy: 10, zone: 'support' },
+  { gx: 16, gy: 13, zone: 'support' },
+  { gx: 19, gy: 13, zone: 'support' },
+];
+
+function getActiveDeskSlots() {
+  return window.innerWidth <= 768 ? MOBILE_DESK_SLOTS : DESK_SLOTS;
+}
 
 // Shared furniture
 const SHARED_FURNITURE = [
-  { type: 'bookshelf', gx: 0, gy: 1 },
-  { type: 'bookshelf', gx: 0, gy: 4 },
-  { type: 'bookshelf', gx: 0, gy: 7 },
-  { type: 'plant', gx: 0, gy: 10 },
-  { type: 'coffeeMachine', gx: 15, gy: 1 },
-  { type: 'plant', gx: 15, gy: 4 },
-  { type: 'plant', gx: 15, gy: 7 },
-  { type: 'plant', gx: 15, gy: 10 },
-  { type: 'lamp', gx: 1, gy: 0 },
-  { type: 'lamp', gx: 7, gy: 0 },
-  { type: 'lamp', gx: 13, gy: 0 },
-  { type: 'cat', gx: 7, gy: 11 },
-  { type: 'rug', gx: 8, gy: 6 },
-  { type: 'clock', gx: 8, gy: 0 },
-  { type: 'poster', gx: 4, gy: 0, hue: 200 },
-  { type: 'poster', gx: 11, gy: 0, hue: 30 },
+  // Outer shell / perimeter
+  { type: 'bookshelf', gx: 0, gy: 2 },
+  { type: 'bookshelfClosed', gx: 0, gy: 6 },
+  { type: 'bookshelf', gx: 0, gy: 10 },
+  { type: 'plant', gx: 0, gy: 14 },
+  { type: 'coffeeMachine', gx: 21, gy: 2 },
+  { type: 'plant', gx: 21, gy: 5 },
+  { type: 'plant', gx: 21, gy: 10 },
+  { type: 'plant', gx: 21, gy: 14 },
+  { type: 'lamp', gx: 2, gy: 0 },
+  { type: 'lamp', gx: 10, gy: 0 },
+  { type: 'lamp', gx: 18, gy: 0 },
+  { type: 'clock', gx: 11, gy: 0 },
   { type: 'window', gx: 3, gy: 0 },
   { type: 'window', gx: 6, gy: 0 },
   { type: 'window', gx: 10, gy: 0 },
   { type: 'window', gx: 13, gy: 0 },
-  { type: 'waterCooler', gx: 15, gy: 6 },
-  { type: 'whiteboard', gx: 5, gy: 0 },
-  { type: 'armchair', gx: 7, gy: 5 },
-  { type: 'armchair', gx: 9, gy: 5 },
+  { type: 'window', gx: 17, gy: 0 },
+  { type: 'window', gx: 20, gy: 0 },
+  // Zone separators / room feel
+  { type: 'doorway', gx: 7, gy: 3 },
+  { type: 'doorway', gx: 14, gy: 3 },
+  { type: 'doorway', gx: 15, gy: 7 },
+  // Shared lounge / social space — placed off the main desk lanes
+  { type: 'cat', gx: 10, gy: 15 },
+  { type: 'rug', gx: 10, gy: 15 },
+  { type: 'armchair', gx: 9, gy: 15 },
+  { type: 'armchair', gx: 11, gy: 15 },
+  { type: 'coffeeTable', gx: 10, gy: 14 },
+  { type: 'sideTable', gx: 8, gy: 15 },
+  { type: 'lampProp', gx: 12, gy: 15 },
+  { type: 'benchProp', gx: 9, gy: 13 },
+  { type: 'waterCooler', gx: 21, gy: 8 },
+  // Engineering zone
+  { type: 'whiteboard', gx: 2, gy: 0 },
+  { type: 'poster', gx: 4, gy: 0, hue: 210 },
+  { type: 'bookshelf', gx: 1, gy: 8 },
+  { type: 'plant', gx: 1, gy: 2 },
+  { type: 'boxProp', gx: 2, gy: 9 },
+  { type: 'speakerProp', gx: 3, gy: 1 },
+  { type: 'photoFrame', gx: 5, gy: 1 },
+  // Content zone
+  { type: 'bookshelfClosed', gx: 6, gy: 1 },
+  { type: 'poster', gx: 8, gy: 0, hue: 28 },
+  { type: 'coffeeCorner', gx: 12, gy: 1 },
+  { type: 'plant', gx: 10, gy: 2 },
+  { type: 'rug', gx: 8, gy: 9 },
+  { type: 'sideTable', gx: 9, gy: 9 },
+  { type: 'plant', gx: 6, gy: 10 },
+  // Leadership zone
+  { type: 'armchair', gx: 19, gy: 7 },
+  { type: 'poster', gx: 18, gy: 0, hue: 290 },
+  { type: 'plant', gx: 21, gy: 4 },
+  { type: 'sideTable', gx: 19, gy: 6 },
+  { type: 'lampProp', gx: 21, gy: 6 },
+  { type: 'serverRack', gx: 20, gy: 2 },
+  // Support zone
+  { type: 'bookshelfClosed', gx: 21, gy: 12 },
+  { type: 'plant', gx: 15, gy: 12 },
+  { type: 'poster', gx: 18, gy: 8, hue: 145 },
+  { type: 'boxProp', gx: 19, gy: 12 },
+  { type: 'sideTable', gx: 18, gy: 12 },
 ];
 
 // ── IDLE AGENT WANDERING ──
-// Idle agents occasionally leave desks to visit POIs (water cooler, armchairs, coffee)
+// Idle agents occasionally leave desks to visit POIs (water cooler, lounge, coffee)
 const WANDER_POIS = [
-  { gx: 15, gy: 6, label: 'water cooler' },
-  { gx: 7, gy: 5, label: 'lounge' },
-  { gx: 9, gy: 5, label: 'lounge' },
-  { gx: 15, gy: 1, label: 'coffee' },
+  { gx: 21, gy: 8, label: 'water cooler' },
+  { gx: 10, gy: 14, label: 'lounge' },
+  { gx: 12, gy: 14, label: 'lounge' },
+  { gx: 21, gy: 2, label: 'coffee' },
 ];
 const WANDER_MIN_INTERVAL = 12000; // min 12s between wander decisions
 const WANDER_TRIP_DURATION = 3000; // 3s to walk to POI
@@ -207,6 +377,34 @@ function getSceneBounds() {
   return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
 }
 
+function worldToScreen(x, y, cw, ch) {
+  return {
+    x: cw / 2 + ((x - cw / 2 + camPanX) * camZoom),
+    y: ch / 2 + ((y - ch / 2 + camPanY) * camZoom)
+  };
+}
+
+function hashAgent(str = '') {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function getZoneForAgent(agent) {
+  const role = String(agent?.role || '').toLowerCase();
+  const name = String(agent?.name || '').toLowerCase();
+  if (/engineer|developer|qa|test|android|frontend|backend|dev|coding agent/.test(role) || /coding agent|qa agent/.test(name)) return 'engineering';
+  if (/writer|content|research|design|visual|producer|publisher/.test(role) || /writer|designer|publisher|research/.test(name)) return 'content';
+  if (/ceo|main|lead|director|manager|founder/.test(role)) return 'leadership';
+  return 'support';
+}
+
+let _hoverTargets = [];
+let _hoveredAgent = null;
+let _mouseCanvasX = 0, _mouseCanvasY = 0;
+let _pointerDownAgent = null;
+let _pointerDownAt = 0;
+
 // ── ZOOM / PAN ──
 let camZoom = 1, camPanX = 0, camPanY = 0;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3.0, ZOOM_STEP = 0.15;
@@ -263,10 +461,70 @@ function drawIsoBox(gx, gy, h, topColor, leftColor, rightColor) {
 function drawFloor() {
   for (let gy = 0; gy < ROOM.rows; gy++) {
     for (let gx = 0; gx < ROOM.cols; gx++) {
-      const isCheck = (gx + gy) % 2 === 0;
-      drawIsoDiamond(gx, gy, isCheck ? PAL.floorA : PAL.floorB, null, PAL.floorLine);
+      const p = iso(gx, gy);
+      if (officeAssetReady('floorTile')) {
+        const scale = 1.0;
+        drawOfficeAsset((gx + gy) % 3 === 0 && officeAssetReady('floorHalf') ? 'floorHalf' : 'floorTile', p.x, p.y + 18, scale, (gx + gy) % 2 === 0 ? 1 : 0.98);
+      } else {
+        const isCheck = (gx + gy) % 2 === 0;
+        drawIsoDiamond(gx, gy, isCheck ? PAL.floorA : PAL.floorB, null, PAL.floorLine);
+      }
     }
   }
+}
+
+function drawZoneRect(x0, x1, y0, y1, fill, stroke) {
+  const p1 = iso(x0, y0);
+  const p2 = iso(x1 + 1, y0);
+  const p3 = iso(x1 + 1, y1 + 1);
+  const p4 = iso(x0, y1 + 1);
+  oCtx.beginPath();
+  oCtx.moveTo(p1.x, p1.y);
+  oCtx.lineTo(p2.x, p2.y);
+  oCtx.lineTo(p3.x, p3.y);
+  oCtx.lineTo(p4.x, p4.y);
+  oCtx.closePath();
+  oCtx.fillStyle = fill;
+  oCtx.fill();
+  oCtx.strokeStyle = stroke;
+  oCtx.lineWidth = 1;
+  oCtx.stroke();
+}
+
+function drawZoneBoundaries() {
+  ZONES.forEach(z => drawZoneRect(z.x0, z.x1, z.y0, z.y1, z.color, z.line));
+
+  const dividers = [
+    [[7.5, 1], [7.5, 14]],
+    [[14.5, 1], [14.5, 14]],
+    [[15, 7.5], [20, 7.5]],
+  ];
+  oCtx.strokeStyle = 'rgba(92,72,48,0.55)';
+  oCtx.lineWidth = 4;
+  dividers.forEach(([a,b]) => {
+    const p1 = iso(a[0], a[1]);
+    const p2 = iso(b[0], b[1]);
+    oCtx.beginPath();
+    oCtx.moveTo(p1.x, p1.y);
+    oCtx.lineTo(p2.x, p2.y);
+    oCtx.stroke();
+  });
+}
+
+function drawZoneLabels() {
+  ZONES.forEach(z => {
+    const cx = (z.x0 + z.x1 + 1) / 2;
+    const cy = (z.y0 + z.y1 + 1) / 2;
+    const p = iso(cx, cy);
+    oCtx.save();
+    oCtx.translate(p.x, p.y);
+    oCtx.scale(1, 0.55);
+    oCtx.fillStyle = 'rgba(255,255,255,0.14)';
+    oCtx.font = 'bold 20px -apple-system, system-ui, sans-serif';
+    oCtx.textAlign = 'center';
+    oCtx.fillText(z.name, 0, 0);
+    oCtx.restore();
+  });
 }
 
 // ── WALLS ──
@@ -276,7 +534,6 @@ function drawWalls() {
   for (let gx = 0; gx < ROOM.cols; gx++) {
     const p = iso(gx, 0);
     const p2 = iso(gx + 1, 0);
-    // Wall segment
     oCtx.fillStyle = PAL.wallTop;
     oCtx.beginPath();
     oCtx.moveTo(p.x, p.y - ISO.tileH / 2 - wallH);
@@ -285,13 +542,15 @@ function drawWalls() {
     oCtx.lineTo(p.x, p.y - ISO.tileH / 2);
     oCtx.closePath();
     oCtx.fill();
-    // Trim line
     oCtx.strokeStyle = PAL.wallTrim;
     oCtx.lineWidth = 1;
     oCtx.beginPath();
     oCtx.moveTo(p.x, p.y - ISO.tileH / 2);
     oCtx.lineTo(p2.x, p2.y - ISO.tileH / 2);
     oCtx.stroke();
+    if (officeAssetReady('wallBack') && gx > 0 && gx < ROOM.cols - 1) {
+      drawOfficeAsset('wallBack', p.x + ISO.tileW / 2, p.y + 2, 0.9, 0.92);
+    }
   }
   // Left wall
   for (let gy = 0; gy < ROOM.rows; gy++) {
@@ -311,61 +570,240 @@ function drawWalls() {
     oCtx.moveTo(p.x - ISO.tileW / 2, p.y);
     oCtx.lineTo(p2.x - ISO.tileW / 2, p2.y);
     oCtx.stroke();
+    if (officeAssetReady('wallLeft') && gy > 0 && gy < ROOM.rows - 1) {
+      drawOfficeAsset('wallLeft', p.x - 18, p.y + 14, 0.88, 0.9);
+    }
   }
+  if (officeAssetReady('wallCorner')) {
+    const c = iso(0, 0);
+    drawOfficeAsset('wallCorner', c.x - 12, c.y + 10, 0.92, 0.95);
+  }
+}
+
+function drawInteriorPartitions() {
+  const partitions = [
+    // engineering/content divide
+    { kind: 'vertical', gx: 7.5, y0: 1, y1: 13, doorwayAt: 7 },
+    // content/leadership-support divide
+    { kind: 'vertical', gx: 14.5, y0: 1, y1: 13, doorwayAt: 7 },
+    // leadership/support split
+    { kind: 'horizontal', gy: 7.5, x0: 15, x1: 20, doorwayAt: 17 },
+  ];
+
+  partitions.forEach(part => {
+    if (part.kind === 'vertical') {
+      for (let gy = part.y0; gy <= part.y1; gy++) {
+        const p = iso(part.gx, gy);
+        const isDoor = gy === part.doorwayAt;
+        oCtx.save();
+        oCtx.globalAlpha = 0.92;
+        oCtx.fillStyle = 'rgba(126,155,126,0.55)';
+        oCtx.beginPath();
+        oCtx.moveTo(p.x - 4, p.y - 34);
+        oCtx.lineTo(p.x + 14, p.y - 24);
+        oCtx.lineTo(p.x + 14, p.y + 3);
+        oCtx.lineTo(p.x - 4, p.y - 7);
+        oCtx.closePath();
+        oCtx.fill();
+        oCtx.restore();
+        if (isDoor) {
+          const key = pickOfficeAsset(['doorwayNE','doorway']);
+          if (officeAssetReady(key)) drawOfficeAsset(key, p.x + 2, p.y + 8, 0.86, 0.96);
+        } else {
+          const key = pickOfficeAsset(['wallRight','wallLeft']);
+          if (officeAssetReady(key)) drawOfficeAsset(key, p.x + 3, p.y + 11, 0.82, 0.92);
+        }
+      }
+    } else {
+      for (let gx = part.x0; gx <= part.x1; gx++) {
+        const p = iso(gx, part.gy);
+        const isDoor = gx === part.doorwayAt;
+        oCtx.save();
+        oCtx.globalAlpha = 0.92;
+        oCtx.fillStyle = 'rgba(146,171,146,0.52)';
+        oCtx.beginPath();
+        oCtx.moveTo(p.x - 18, p.y - 26);
+        oCtx.lineTo(p.x + 18, p.y - 26);
+        oCtx.lineTo(p.x + 18, p.y + 2);
+        oCtx.lineTo(p.x - 18, p.y + 2);
+        oCtx.closePath();
+        oCtx.fill();
+        oCtx.restore();
+        if (isDoor) {
+          const key = pickOfficeAsset(['doorway','doorwayNE']);
+          if (officeAssetReady(key)) drawOfficeAsset(key, p.x, p.y + 8, 0.86, 0.96);
+        } else {
+          const key = pickOfficeAsset(['wallBack','wallBackNE']);
+          if (officeAssetReady(key)) drawOfficeAsset(key, p.x, p.y + 4, 0.82, 0.92);
+        }
+      }
+    }
+  });
 }
 
 // ── DESK STATION ──
 function drawDeskStation(gx, gy, agent, time) {
   const p = iso(gx, gy);
+  const seed = hashAgent(agent?.name || `${gx},${gy}`);
+  const hour = new Date(_frameTime).getHours();
+  const nightMode = hour < 7 || hour >= 19;
+  const zoneKey = getZoneForAgent(agent);
+  const isEngineering = zoneKey === 'engineering';
+  const isContent = zoneKey === 'content';
+  const isLeadership = zoneKey === 'leadership';
+  const isSupport = zoneKey === 'support';
+  const deskTop = seed % 3 === 0 ? '#b08050' : seed % 3 === 1 ? '#8f6a46' : '#a77756';
+  const deskFront = seed % 3 === 0 ? '#8a6038' : seed % 3 === 1 ? '#725338' : '#855e40';
+  const deskSide = seed % 3 === 0 ? '#9a7048' : seed % 3 === 1 ? '#7d5b3e' : '#95694a';
 
-  // Desk (iso box)
-  drawIsoBox(gx, gy, 12, PAL.deskTop, PAL.deskFront, PAL.deskSide);
+  const deskKey = seed % 5 === 0 ? pickOfficeAsset(seed % 2 === 0 ? ['deskCornerNE','deskCorner'] : ['deskCorner','deskCornerNE']) : pickOfficeAsset(seed % 2 === 0 ? ['deskNE','desk'] : ['desk','deskNE']);
+  const chairKey = isLeadership ? pickOfficeAsset(seed % 2 === 0 ? ['chairCushionNE','chairCushion','chairRoundedNE','chairRounded'] : ['chairCushion','chairCushionNE','chairRounded','chairRoundedNE']) : pickOfficeAsset(seed % 2 === 0 ? ['chairDeskNE','chairDesk'] : ['chairDesk','chairDeskNE']);
+  const monitorKey = pickOfficeAsset(seed % 2 === 0 ? ['monitorNE','monitor'] : ['monitor','monitorNE']);
+  const laptopKey = pickOfficeAsset(seed % 2 === 0 ? ['laptopNE','laptop'] : ['laptop','laptopNE']);
+  const hasSpriteDesk = officeAssetReady(deskKey);
 
-  // Monitor
-  const monW = 16, monH = 12;
-  const monX = p.x - monW / 2, monY = p.y - ISO.tileH / 2 - 12 - monH;
-  oCtx.fillStyle = PAL.monFrame;
-  oCtx.fillRect(monX - 1, monY - 1, monW + 2, monH + 2);
-  // Screen color based on status
-  let screenColor = PAL.monScreen;
-  if (agent) {
-    if (agent.status === 'idle') screenColor = PAL.monScreenIdle;
-    else if (agent.status === 'sleeping') screenColor = PAL.monScreenSleep;
-    // Typing animation for working agents
-    if (agent.status === 'working') {
-      const blink = Math.sin(time / 400 + gx) > 0.3;
-      if (blink) {
-        screenColor = '#4a8ff7';
+  // Workspace boundary / cubicle cue so each desk reads as a separate area
+  oCtx.save();
+  oCtx.globalAlpha = 0.96;
+  oCtx.fillStyle = isEngineering ? 'rgba(104,136,216,0.11)' : isContent ? 'rgba(197,138,77,0.11)' : isLeadership ? 'rgba(154,114,213,0.12)' : isSupport ? 'rgba(74,169,126,0.11)' : 'rgba(255,255,255,0.06)';
+  oCtx.beginPath();
+  oCtx.moveTo(p.x, p.y - 34);
+  oCtx.lineTo(p.x + 54, p.y - 6);
+  oCtx.lineTo(p.x, p.y + 24);
+  oCtx.lineTo(p.x - 54, p.y - 6);
+  oCtx.closePath();
+  oCtx.fill();
+  oCtx.strokeStyle = isEngineering ? 'rgba(104,136,216,0.28)' : isContent ? 'rgba(197,138,77,0.28)' : isLeadership ? 'rgba(154,114,213,0.30)' : isSupport ? 'rgba(74,169,126,0.28)' : 'rgba(255,255,255,0.1)';
+  oCtx.lineWidth = 1.2;
+  oCtx.stroke();
+  // subtle cubicle divider walls on left/right edges
+  oCtx.strokeStyle = 'rgba(108,84,58,0.22)';
+  oCtx.lineWidth = 2;
+  oCtx.beginPath();
+  oCtx.moveTo(p.x - 46, p.y - 4);
+  oCtx.lineTo(p.x - 46, p.y - 28);
+  oCtx.moveTo(p.x + 46, p.y - 4);
+  oCtx.lineTo(p.x + 46, p.y - 28);
+  oCtx.stroke();
+  oCtx.restore();
+
+  // Personal desk rug / floor accent to make each station feel owned — tune by department
+  if (officeAssetReady(isLeadership ? 'rugRound' : isContent ? 'rugRounded' : isSupport ? 'rugSquare' : 'rugRect')) {
+    const rugKey = isLeadership ? 'rugRound' : isContent ? 'rugRounded' : isSupport ? 'rugSquare' : 'rugRect';
+    drawOfficeAsset(rugKey, p.x, p.y + 18, rugKey === 'rugRound' ? 0.76 : rugKey === 'rugSquare' ? 0.7 : 0.68, isLeadership ? 0.62 : 0.55);
+  }
+
+  if (hasSpriteDesk) {
+    drawOfficeAsset(deskKey, p.x, p.y + 14, isLeadership ? 0.96 : 0.9);
+    if (officeAssetReady(chairKey)) {
+      drawOfficeAsset(chairKey, p.x - 10, p.y + 18, isLeadership ? 0.92 : 0.88, 0.95);
+    }
+    if (officeAssetReady(seed % 4 === 0 ? laptopKey : monitorKey)) {
+      const compKey = seed % 4 === 0 ? laptopKey : monitorKey;
+      drawOfficeAsset(compKey, p.x + 3, p.y - 1, compKey === 'laptop' ? 0.72 : 0.68);
+      if (isEngineering && officeAssetReady('monitor') && seed % 3 === 0) drawOfficeAsset('monitor', p.x - 6, p.y + 1, 0.6);
+      if (agent && agent.status === 'working') {
+        oCtx.save();
+        oCtx.globalAlpha = nightMode ? 0.22 : 0.12;
+        oCtx.fillStyle = '#8fd3ff';
+        oCtx.beginPath();
+        oCtx.ellipse(p.x + 5, p.y + 3, 14, 8, 0, 0, Math.PI * 2);
+        oCtx.fill();
+        oCtx.restore();
       }
     }
+    if (officeAssetReady('keyboard') && seed % 4 !== 0) drawOfficeAsset('keyboard', p.x - 2, p.y + 6, 0.68);
+    if (officeAssetReady('mouse') && (seed % 2 === 0 || isEngineering)) drawOfficeAsset('mouse', p.x + 11, p.y + 6, 0.65);
+    if (officeAssetReady(isContent ? 'booksNE' : 'books') && (seed % 3 === 0 || isContent || isLeadership)) drawOfficeAsset(isContent ? 'booksNE' : 'books', p.x - 15, p.y + 6, isLeadership ? 0.68 : 0.62, 0.92);
+    // Every desk should feel lived in: mug + small plant + task lamp zone
+    if (officeAssetReady('plantSmall1')) drawOfficeAsset('plantSmall1', p.x + 18, p.y + 8, 0.56, 0.96);
+    if (officeAssetReady('lampSquareTable') && (isLeadership || seed % 2 === 0)) drawOfficeAsset('lampSquareTable', p.x - 18, p.y + 2, 0.56, 0.95);
+    // Zone personality props
+    if (isEngineering) {
+      if (officeAssetReady(seed % 2 === 0 ? 'speakerSmall' : 'speaker') && seed % 3 !== 1) drawOfficeAsset(seed % 2 === 0 ? 'speakerSmall' : 'speaker', p.x - 18, p.y + 1, seed % 2 === 0 ? 0.44 : 0.48, 0.92);
+      if (officeAssetReady('trashcan') && seed % 3 === 0) drawOfficeAsset('trashcan', p.x + 18, p.y + 12, 0.48, 0.9);
+    }
+    if (isContent) {
+      if (officeAssetReady((seed % 2 === 0) ? 'plantSmall2' : 'plantSmall3')) drawOfficeAsset((seed % 2 === 0) ? 'plantSmall2' : 'plantSmall3', p.x + 16, p.y + 7, 0.62, 0.95);
+      if (officeAssetReady(seed % 2 === 0 ? 'tableCoffeeGlass' : 'tableCoffeeSquare') && seed % 3 === 0) drawOfficeAsset(seed % 2 === 0 ? 'tableCoffeeGlass' : 'tableCoffeeSquare', p.x - 22, p.y + 14, 0.48, 0.78);
+    }
+    if (isLeadership) {
+      if (officeAssetReady('lampSquareTable')) drawOfficeAsset('lampSquareTable', p.x + 16, p.y - 2, 0.6, 0.95);
+      if (officeAssetReady(seed % 2 === 0 ? 'speaker' : 'speakerSmall')) drawOfficeAsset(seed % 2 === 0 ? 'speaker' : 'speakerSmall', p.x - 19, p.y + 1, 0.5, 0.92);
+      if (officeAssetReady('tableRound') && seed % 3 === 0) drawOfficeAsset('tableRound', p.x + 20, p.y + 14, 0.46, 0.78);
+    }
+    if (isSupport) {
+      if (officeAssetReady('kitchenCoffeeMachine') && seed % 3 !== 2) drawOfficeAsset('kitchenCoffeeMachine', p.x + 18, p.y + 2, 0.54, 0.95);
+      if (officeAssetReady('trashcan') && seed % 2 === 0) drawOfficeAsset('trashcan', p.x - 18, p.y + 11, 0.48, 0.9);
+    }
+  } else {
+    // Desk (iso box)
+    drawIsoBox(gx, gy, 12, deskTop, deskFront, deskSide);
   }
-  oCtx.fillStyle = screenColor;
-  oCtx.fillRect(monX, monY, monW, monH);
 
-  // Monitor stand
-  oCtx.fillStyle = PAL.monFrame;
-  oCtx.fillRect(p.x - 2, monY + monH + 1, 4, 4);
-  oCtx.fillRect(p.x - 5, monY + monH + 4, 10, 2);
+  if (!hasSpriteDesk) {
+    // Monitor setup varies by desk
+    const dual = seed % 5 === 0;
+    const monW = dual ? 12 : 16, monH = 12;
+    const monX = p.x - monW / 2, monY = p.y - ISO.tileH / 2 - 12 - monH;
+    oCtx.fillStyle = PAL.monFrame;
+    oCtx.fillRect(monX - 1, monY - 1, monW + 2, monH + 2);
+    if (dual) oCtx.fillRect(monX + 13, monY - 1, monW + 2, monH + 2);
+    // Screen color based on status
+    let screenColor = PAL.monScreen;
+    if (agent) {
+      if (agent.status === 'idle') screenColor = PAL.monScreenIdle;
+      else if (agent.status === 'sleeping') screenColor = PAL.monScreenSleep;
+      if (agent.status === 'working' && Math.sin(time / 400 + gx) > 0.3) screenColor = '#4a8ff7';
+    }
+    oCtx.fillStyle = screenColor;
+    oCtx.fillRect(monX, monY, monW, monH);
+    if (dual) {
+      oCtx.fillStyle = agent?.status === 'working' ? '#60a5fa' : '#5eead4';
+      oCtx.fillRect(monX + 14, monY, monW, monH);
+    }
 
-  // Keyboard
-  oCtx.fillStyle = '#555';
-  oCtx.fillRect(p.x - 8, p.y - ISO.tileH / 2 - 6, 16, 4);
-  oCtx.fillStyle = '#666';
-  for (let i = 0; i < 5; i++) {
-    oCtx.fillRect(p.x - 7 + i * 3, p.y - ISO.tileH / 2 - 5, 2, 2);
+    // Monitor stand
+    oCtx.fillStyle = PAL.monFrame;
+    oCtx.fillRect(p.x - 2, monY + monH + 1, 4, 4);
+    oCtx.fillRect(p.x - 5, monY + monH + 4, 10, 2);
+
+    // Keyboard
+    oCtx.fillStyle = '#555';
+    oCtx.fillRect(p.x - 8, p.y - ISO.tileH / 2 - 6, 16, 4);
+    oCtx.fillStyle = '#666';
+    for (let i = 0; i < 5; i++) {
+      oCtx.fillRect(p.x - 7 + i * 3, p.y - ISO.tileH / 2 - 5, 2, 2);
+    }
   }
 
-  // Coffee mug (right side of desk)
+  // Desk accessories — keep only when sprite variants are not already carrying the scene
   const mugX = p.x + 12, mugY = p.y - ISO.tileH / 2 - 10;
-  oCtx.fillStyle = PAL.mugBody;
-  oCtx.fillRect(mugX, mugY, 5, 6);
-  oCtx.fillStyle = PAL.mugCoffee;
-  oCtx.fillRect(mugX + 1, mugY + 1, 3, 4);
-  oCtx.strokeStyle = PAL.mugHandle;
-  oCtx.lineWidth = 1;
-  oCtx.beginPath();
-  oCtx.arc(mugX + 6, mugY + 3, 2, -Math.PI / 2, Math.PI / 2);
-  oCtx.stroke();
+  if (!hasSpriteDesk || seed % 3 === 2) {
+    oCtx.fillStyle = PAL.mugBody;
+    oCtx.fillRect(mugX, mugY, 5, 6);
+    oCtx.fillStyle = PAL.mugCoffee;
+    oCtx.fillRect(mugX + 1, mugY + 1, 3, 4);
+    oCtx.strokeStyle = PAL.mugHandle;
+    oCtx.lineWidth = 1;
+    oCtx.beginPath();
+    oCtx.arc(mugX + 6, mugY + 3, 2, -Math.PI / 2, Math.PI / 2);
+    oCtx.stroke();
+  }
+  if ((!hasSpriteDesk || isContent) && seed % 2 === 0) {
+    oCtx.fillStyle = '#d6c0a1';
+    oCtx.fillRect(p.x - 16, p.y - ISO.tileH / 2 - 11, 8, 5);
+    oCtx.fillStyle = '#b0825d';
+    oCtx.fillRect(p.x - 15, p.y - ISO.tileH / 2 - 10, 6, 1);
+  }
+  if ((!hasSpriteDesk || isContent) && seed % 4 === 0) {
+    oCtx.fillStyle = '#7bc96f';
+    oCtx.beginPath();
+    oCtx.arc(p.x + 2, p.y - ISO.tileH / 2 - 12, 3, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.fillStyle = '#7a5a3a';
+    oCtx.fillRect(p.x, p.y - ISO.tileH / 2 - 9, 4, 3);
+  }
   // Steam
   if (agent && agent.status === 'working') {
     oCtx.globalAlpha = 0.3;
@@ -380,19 +818,30 @@ function drawDeskStation(gx, gy, agent, time) {
     oCtx.globalAlpha = 1;
   }
 
-  // Chair (behind desk — drawn as simple iso seat)
-  const chairP = iso(gx, gy + 0.6);
-  oCtx.fillStyle = PAL.chairSeat;
-  oCtx.beginPath();
-  oCtx.ellipse(chairP.x, chairP.y - 6, 8, 4, 0, 0, Math.PI * 2);
-  oCtx.fill();
-  // Chair back
-  oCtx.fillStyle = PAL.chairBack;
-  oCtx.fillRect(chairP.x - 6, chairP.y - 16, 12, 8);
-  // Chair legs
-  oCtx.fillStyle = PAL.chairLeg;
-  oCtx.fillRect(chairP.x - 5, chairP.y - 2, 1, 4);
-  oCtx.fillRect(chairP.x + 4, chairP.y - 2, 1, 4);
+  // Small warm lamp glow / task light at active desks
+  if (agent && agent.status === 'working') {
+    oCtx.save();
+    oCtx.globalAlpha = nightMode ? 0.18 : 0.08;
+    oCtx.fillStyle = nightMode ? '#ffc977' : '#ffe5a8';
+    oCtx.beginPath();
+    oCtx.ellipse(p.x, p.y + 8, 22, 12, 0, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.restore();
+  }
+
+  // Chair fallback only when sprite chair is unavailable
+  if (!hasSpriteDesk || !officeAssetReady(chairKey)) {
+    const chairP = iso(gx, gy + 0.6);
+    oCtx.fillStyle = PAL.chairSeat;
+    oCtx.beginPath();
+    oCtx.ellipse(chairP.x, chairP.y - 6, 8, 4, 0, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.fillStyle = PAL.chairBack;
+    oCtx.fillRect(chairP.x - 6, chairP.y - 16, 12, 8);
+    oCtx.fillStyle = PAL.chairLeg;
+    oCtx.fillRect(chairP.x - 5, chairP.y - 2, 1, 4);
+    oCtx.fillRect(chairP.x + 4, chairP.y - 2, 1, 4);
+  }
 
   // Agent character (sitting at desk — drawn BEHIND the desk)
   if (agent) {
@@ -406,27 +855,96 @@ function drawDeskStation(gx, gy, agent, time) {
 // ── AGENT CHARACTER ──
 function drawAgent(x, y, agent, time) {
   const color = agent.color || '#888';
+  const role = String(agent?.role || '').toLowerCase();
   const isSleeping = agent.status === 'sleeping';
   const isWorking = agent.status === 'working';
+  const isIdle = agent.status === 'idle';
+  const hour = new Date(_frameTime).getHours();
+  const nightMode = hour < 7 || hour >= 19;
+  const seed = hashAgent(agent?.name || 'agent');
+  const hairColors = ['#2f2a24','#7c4a2b','#d0a15b','#5b6477','#8a3f54','#5c7f4f'];
+  const skinTones = ['#f1d2b0','#e3bc92','#c9966b','#8b5e3c'];
+  const hair = hairColors[seed % hairColors.length];
+  const skin = skinTones[seed % skinTones.length];
+  const accessory = seed % 6;
+  const bodyType = seed % 4;
+  const torsoW = bodyType === 0 ? 8 : bodyType === 1 ? 9 : 10;
+  const shoulderW = bodyType === 2 ? torsoW + 4 : torsoW + 2;
+  const headR = bodyType === 3 ? 5 : 6;
+  const stance = isWorking ? -2 : isIdle ? 1 : 0;
+  const poseTilt = isWorking ? Math.sin(time / 240 + seed) * 1.5 : isIdle ? Math.sin(time / 650 + seed) * 0.8 : 0;
+  const headBob = isWorking ? Math.sin(time / 300 + seed) * 1 : 0;
+  const stepSwing = Math.sin(time / 180 + seed) * 1.6;
+  const isLeader = /director|lead|ceo|manager|founder/.test(role);
+  const isEngineer = /engineer|developer|qa|test|android|frontend|backend|dev/.test(role);
+  const isContent = /writer|content|research|design|visual|producer|publisher/.test(role);
+  const isSupport = /mail|support|ops|assistant/.test(role);
+  const jacket = isLeader ? '#2b1f58' : isEngineer ? '#1f3b5c' : isContent ? '#6a3a24' : isSupport ? '#355e3b' : color;
+  const shirt = isLeader ? '#efe2b8' : isEngineer ? '#93c5fd' : isContent ? '#f5d489' : isSupport ? '#c7f0d2' : '#d8d4cf';
 
-  // Body
-  oCtx.fillStyle = color;
-  oCtx.fillRect(x - 5, y - 2, 10, 10);
+  // Soft grounding shadow so characters feel seated in the room
+  oCtx.save();
+  oCtx.globalAlpha = 0.18;
+  oCtx.fillStyle = 'rgba(40,24,14,0.6)';
+  oCtx.beginPath();
+  oCtx.ellipse(x, y + 12, 8, 4, 0, 0, Math.PI * 2);
+  oCtx.fill();
+  oCtx.restore();
+
+  // Legs / lower silhouette
+  oCtx.fillStyle = '#1f2937';
+  if (isSleeping) {
+    oCtx.fillRect(x - 6, y + 4, 12, 3);
+    oCtx.fillRect(x - 4, y + 7, 8, 2);
+  } else if (isIdle) {
+    oCtx.fillRect(x - 4, y + 7, 3, 6);
+    oCtx.fillRect(x + 1, y + 7, 3, 6);
+    oCtx.fillRect(x - 5, y + 12, 4, 2);
+    oCtx.fillRect(x + 1, y + 12, 4, 2);
+  } else {
+    oCtx.fillRect(x - 4, y + 7 + stepSwing * 0.18, 3, 6);
+    oCtx.fillRect(x + 1, y + 7 - stepSwing * 0.18, 3, 6);
+  }
+
+  // Torso outline for stronger silhouette
+  oCtx.fillStyle = '#2a1a12';
+  oCtx.fillRect(x - torsoW / 2 - 1, y, torsoW + 2, 11);
+  oCtx.fillRect(x - shoulderW / 2 - 1, y - 2, shoulderW + 2, 5);
+
+  // Torso + shoulders
+  oCtx.fillStyle = jacket;
+  oCtx.fillRect(x - torsoW / 2, y + 1, torsoW, 9);
+  oCtx.fillRect(x - shoulderW / 2, y - 1, shoulderW, 4);
+  if (bodyType === 2) oCtx.fillRect(x - torsoW / 2 - 1, y + 5, torsoW + 2, 3);
+  oCtx.fillStyle = shirt;
+  oCtx.fillRect(x - 2, y + 2, 4, 6);
+  if (isEngineer) { oCtx.fillStyle = '#0f172a'; oCtx.fillRect(x - 2, y + 4, 4, 2); }
+  if (isContent) { oCtx.fillStyle = '#f8d37c'; oCtx.fillRect(x - 1, y + 2, 2, 6); }
+  if (isLeader) { oCtx.fillStyle = '#f4e7c2'; oCtx.fillRect(x - 3, y + 1, 6, 1); }
+  if (isSupport) { oCtx.fillStyle = '#e5f3ea'; oCtx.fillRect(x - 3, y + 3, 6, 2); }
+
+  // Neck
+  oCtx.fillStyle = skin;
+  oCtx.fillRect(x - 1, y - 2, 2, 3);
 
   // Head
-  const headBob = isWorking ? Math.sin(time / 300) * 1 : 0;
-  oCtx.fillStyle = '#f0d0a0'; // skin tone
   oCtx.beginPath();
-  oCtx.arc(x, y - 8 + headBob, 6, 0, Math.PI * 2);
+  oCtx.arc(x, y - 8 + headBob, headR, 0, Math.PI * 2);
   oCtx.fill();
 
-  // Eyes
+  // Hair cap
+  oCtx.fillStyle = hair;
+  oCtx.beginPath();
+  oCtx.arc(x, y - 10 + headBob, headR, Math.PI, Math.PI * 2);
+  oCtx.fill();
+  if (seed % 3 === 1) oCtx.fillRect(x - headR, y - 10 + headBob, 2, 5);
+  if (seed % 3 === 2) oCtx.fillRect(x + headR - 2, y - 10 + headBob, 2, 5);
+
+  // Face
   if (isSleeping) {
-    // Closed eyes (Z's)
     oCtx.fillStyle = '#666';
     oCtx.fillRect(x - 3, y - 9, 3, 1);
     oCtx.fillRect(x + 1, y - 9, 3, 1);
-    // Zzz
     oCtx.font = '8px monospace';
     oCtx.fillStyle = '#999';
     oCtx.textAlign = 'left';
@@ -434,72 +952,151 @@ function drawAgent(x, y, agent, time) {
     oCtx.fillText('z', x + 7, y - 12 + zzOff);
     oCtx.fillText('Z', x + 10, y - 18 + zzOff);
   } else {
-    // Open eyes
     oCtx.fillStyle = '#333';
     oCtx.fillRect(x - 3, y - 10 + headBob, 2, 2);
     oCtx.fillRect(x + 2, y - 10 + headBob, 2, 2);
+    oCtx.fillStyle = isWorking ? '#8b3c2b' : '#6b4b3a';
+    oCtx.fillRect(x - 2, y - (isIdle ? 5 : 4) + headBob, 4, 1);
   }
 
-  // Arms (typing animation for working agents)
+  // Accessories / identity cues
+  if (accessory === 0) { oCtx.fillStyle = '#1f2937'; oCtx.fillRect(x - 6, y - 9 + headBob, 1, 2); oCtx.fillRect(x + 5, y - 9 + headBob, 1, 2); oCtx.fillRect(x - 5, y - 8 + headBob, 10, 1); }
+  if (accessory === 1) { oCtx.fillStyle = '#ef4444'; oCtx.fillRect(x - 1, y + 1, 2, 7); }
+  if (accessory === 2) { oCtx.strokeStyle = '#e5e7eb'; oCtx.lineWidth = 1; oCtx.beginPath(); oCtx.arc(x + 6, y - 12, 2.5, 0, Math.PI * 2); oCtx.stroke(); }
+  if (accessory === 3) { oCtx.fillStyle = '#f59e0b'; oCtx.fillRect(x - 5, y - 16 + headBob, 10, 2); }
+  if (accessory === 4) { oCtx.fillStyle = '#60a5fa'; oCtx.fillRect(x - 2, y + 3, 4, 2); }
+  if (accessory === 5) { oCtx.fillStyle = '#fca5a5'; oCtx.fillRect(x - 4, y + 2, 8, 1); }
+  if (isEngineer) {
+    oCtx.strokeStyle = '#38bdf8';
+    oCtx.lineWidth = 1;
+    oCtx.beginPath();
+    oCtx.arc(x - 7, y - 10 + headBob, 2.5, 0, Math.PI * 2);
+    oCtx.arc(x + 7, y - 10 + headBob, 2.5, 0, Math.PI * 2);
+    oCtx.stroke();
+    oCtx.beginPath();
+    oCtx.moveTo(x - 5, y - 10 + headBob);
+    oCtx.lineTo(x + 5, y - 10 + headBob);
+    oCtx.stroke();
+  }
+  if (isContent) {
+    oCtx.fillStyle = '#86efac';
+    oCtx.beginPath();
+    oCtx.arc(x + 7, y - 14 + headBob, 2, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.fillStyle = '#7a5a3a';
+    oCtx.fillRect(x + 6, y - 12 + headBob, 2, 3);
+  }
+  if (isLeader) {
+    oCtx.fillStyle = '#d4af37';
+    oCtx.fillRect(x - 5, y - 16 + headBob, 10, 2);
+    oCtx.fillRect(x - 3, y - 18 + headBob, 6, 2);
+  }
+  if (isSupport) {
+    oCtx.fillStyle = '#fde68a';
+    oCtx.fillRect(x + 5, y - 3, 4, 5);
+    oCtx.fillStyle = '#8b5a2b';
+    oCtx.fillRect(x + 6, y - 1, 2, 1);
+  }
+
+  // Warm halo in night mode helps the office feel alive after dark
+  if (nightMode && isWorking) {
+    oCtx.save();
+    oCtx.globalAlpha = 0.12;
+    oCtx.fillStyle = '#ffcb7d';
+    oCtx.beginPath();
+    oCtx.ellipse(x, y - 1, 14, 18, 0, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.restore();
+  }
+
+  // Arms / pose
+  oCtx.fillStyle = color;
   if (isWorking) {
     const armL = Math.sin(time / 200) * 2;
     const armR = Math.sin(time / 200 + Math.PI) * 2;
+    oCtx.fillRect(x - 8, y + stance + poseTilt + armL, 3, 5);
+    oCtx.fillRect(x + 5, y + stance - poseTilt + armR, 3, 5);
+    // slight lean toward the desk for a more intentional working pose
+    oCtx.fillStyle = 'rgba(20,12,10,0.12)';
+    oCtx.fillRect(x - torsoW / 2, y + 10, torsoW, 1);
     oCtx.fillStyle = color;
-    oCtx.fillRect(x - 8, y + 0 + armL, 3, 4);
-    oCtx.fillRect(x + 5, y + 0 + armR, 3, 4);
-
-    // Typing sparks — small bright dots near hands
     const sparkPhase = (time / 120) | 0;
-    if (sparkPhase % 3 === 0) {
-      oCtx.fillStyle = '#ffa300';
-      oCtx.fillRect(x - 6 + (sparkPhase % 5), y + 5, 1, 1);
-    }
-    if ((sparkPhase + 1) % 4 === 0) {
-      oCtx.fillStyle = '#ffec27';
-      oCtx.fillRect(x + 6 - (sparkPhase % 4), y + 4, 1, 1);
-    }
-
-    // Coffee mug steam — wispy lines rising from desk edge
-    const steamT = time / 600;
-    oCtx.strokeStyle = 'rgba(200,200,200,0.3)';
-    oCtx.lineWidth = 0.8;
-    for (let i = 0; i < 2; i++) {
-      const sx = x + 12 + i * 3;
-      const sy = y + 6;
+    if (sparkPhase % 3 === 0) { oCtx.fillStyle = '#ffa300'; oCtx.fillRect(x - 6 + (sparkPhase % 5), y + 5, 1, 1); }
+    if ((sparkPhase + 1) % 4 === 0) { oCtx.fillStyle = '#ffec27'; oCtx.fillRect(x + 6 - (sparkPhase % 4), y + 4, 1, 1); }
+    // typing dots / active thought marker
+    oCtx.fillStyle = '#93c5fd';
+    for (let i = 0; i < 3; i++) {
+      const lift = ((time / 180) + i * 0.9 + seed) % 3;
+      const alpha = Math.max(0.15, 1 - lift / 3);
+      oCtx.save();
+      oCtx.globalAlpha = alpha * 0.8;
       oCtx.beginPath();
-      oCtx.moveTo(sx, sy);
-      oCtx.quadraticCurveTo(sx + Math.sin(steamT + i) * 2, sy - 5, sx + Math.sin(steamT + i + 1) * 1.5, sy - 10);
-      oCtx.stroke();
+      oCtx.arc(x + 9 + i * 4, y - 18 - lift * 5, 1.5 + i * 0.3, 0, Math.PI * 2);
+      oCtx.fill();
+      oCtx.restore();
+    }
+  } else if (isIdle) {
+    // asymmetric casual pose so idle agents don't look cloned
+    oCtx.fillRect(x - 8, y + 3 + poseTilt, 3, 5);
+    oCtx.fillRect(x + 5, y + 0 - poseTilt, 3, 5);
+    oCtx.fillStyle = '#f5d489';
+    oCtx.beginPath();
+    oCtx.arc(x + 8, y - 18 + Math.sin(time / 400 + seed) * 2, 2.5, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.beginPath();
+    oCtx.arc(x + 12, y - 23 + Math.sin(time / 400 + seed + 0.8) * 2, 1.5, 0, Math.PI * 2);
+    oCtx.fill();
+    if (isSupport) {
+      oCtx.fillStyle = '#fcd34d';
+      oCtx.beginPath();
+      oCtx.arc(x - 10, y - 10 + Math.sin(time / 500 + seed) * 1.4, 2.2, 0, Math.PI * 2);
+      oCtx.fill();
     }
   } else {
-    oCtx.fillStyle = color;
-    oCtx.fillRect(x - 8, y + 1, 3, 4);
-    oCtx.fillRect(x + 5, y + 1, 3, 4);
+    oCtx.fillRect(x - 8, y + 3, 3, 4);
+    oCtx.fillRect(x + 5, y + 3, 3, 4);
   }
+
+  // tiny status badge above head for clearer readability on desktop
+  const badgeColor = isWorking ? '#22c55e' : isIdle ? '#f59e0b' : '#94a3b8';
+  oCtx.fillStyle = 'rgba(31,24,20,0.88)';
+  oCtx.beginPath();
+  oCtx.roundRect(x - 7, y - 24, 14, 7, 3);
+  oCtx.fill();
+  oCtx.fillStyle = badgeColor;
+  oCtx.beginPath();
+  oCtx.arc(x - 3, y - 20.5, 1.7, 0, Math.PI * 2);
+  oCtx.fill();
+  oCtx.fillRect(x, y - 22, 4, 3);
 }
 
 // ── NAME LABEL ──
 function drawNameLabel(x, y, agent) {
+  const isMobileOffice = window.innerWidth <= 480;
+  const isRightRoom = x > (_originX + ISO.tileW * 4.5);
   const rawName = agent.name || 'Unknown';
-  const name = rawName.length > 16 ? rawName.slice(0, 15) + '…' : rawName;
-  oCtx.font = '600 9px -apple-system, system-ui, sans-serif';
+  const name = isMobileOffice
+    ? (rawName.length > 7 ? rawName.slice(0, 6) + '…' : rawName)
+    : (rawName.length > (isRightRoom ? 9 : 11) ? rawName.slice(0, isRightRoom ? 8 : 10) + '…' : rawName);
+  oCtx.font = isMobileOffice ? '600 9px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 8 : 9}px -apple-system, system-ui, sans-serif`;
   oCtx.textAlign = 'center';
   const tw = oCtx.measureText(name).width;
-  const padX = 7, padY = 3;
+  const padX = isMobileOffice ? 5 : (isRightRoom ? 6 : 7);
+  const padY = isMobileOffice ? 2 : 3;
   const lx = x - tw / 2 - padX;
-  const ly = y - padY;
-  const lw = tw + padX * 2 + 8;
-  const lh = 15;
+  const ly = y - padY - (isRightRoom ? 3 : 0);
+  const lw = tw + padX * 2 + (isMobileOffice ? 6 : 8);
+  const lh = isMobileOffice ? 12 : (isRightRoom ? 14 : 15);
 
   // Badge background
-  oCtx.fillStyle = 'rgba(43,30,18,0.82)';
+  oCtx.fillStyle = isMobileOffice ? 'rgba(43,30,18,0.85)' : 'rgba(43,30,18,0.82)';
   oCtx.beginPath();
   oCtx.roundRect(lx, ly, lw, lh, 5);
   oCtx.fill();
 
   // Status dot
-  const dotR = 2.5;
-  const dotX = lx + 8;
+  const dotR = isMobileOffice ? 2 : 2.5;
+  const dotX = lx + (isMobileOffice ? 6.5 : 8);
   const dotY = ly + lh / 2;
   oCtx.fillStyle = agent.status === 'working' ? PAL.statusWorking
     : agent.status === 'idle' ? PAL.statusIdle
@@ -507,47 +1104,71 @@ function drawNameLabel(x, y, agent) {
   oCtx.beginPath();
   oCtx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
   oCtx.fill();
-  // Glow for working
   if (agent.status === 'working') {
-    oCtx.globalAlpha = 0.3;
+    oCtx.globalAlpha = isMobileOffice ? 0.22 : 0.3;
     oCtx.beginPath();
-    oCtx.arc(dotX, dotY, dotR + 2, 0, Math.PI * 2);
+    oCtx.arc(dotX, dotY, dotR + (isMobileOffice ? 1.5 : 2), 0, Math.PI * 2);
     oCtx.fill();
     oCtx.globalAlpha = 1;
   }
 
   // Name text
   oCtx.fillStyle = '#fffaf2';
-  oCtx.fillText(name, x + 5, y + 7.5);
+  oCtx.fillText(name, x + (isMobileOffice ? 3.5 : 5), y + (isMobileOffice ? 5.8 : (isRightRoom ? 4.8 : 7.5)));
 }
 
 // ── SHARED FURNITURE ──
-function drawBookshelf(gx, gy) {
+function drawBookshelf(gx, gy, closed = false) {
   const p = iso(gx, gy);
-  // Shelf frame
+  const shelfKey = closed
+    ? pickOfficeAsset((gx + gy) % 2 === 0 ? ['bookshelfClosedNE','bookshelfClosed'] : ['bookshelfClosed','bookshelfClosedNE'])
+    : ((gx + gy) % 2 === 0 ? 'bookshelf' : 'bookshelfLow');
+  if (officeAssetReady(shelfKey)) {
+    drawOfficeAsset(shelfKey, p.x, p.y + 8, shelfKey.includes('Low') ? 0.92 : 1.0);
+    return;
+  }
   drawIsoBox(gx, gy, 30, PAL.shelfWood, PAL.shelfSide, PAL.shelfWood);
-  // Books
+  oCtx.fillStyle = '#5f442a';
+  oCtx.fillRect(p.x - 14, p.y - 22, 28, 2);
+  oCtx.fillRect(p.x - 14, p.y - 13, 28, 2);
   for (let row = 0; row < 3; row++) {
-    for (let i = 0; i < 4; i++) {
-      oCtx.fillStyle = PAL.bookColors[(row * 4 + i + gx * 3) % PAL.bookColors.length];
-      const bx = p.x - 10 + i * 6;
-      const by = p.y - 28 + row * 9;
-      oCtx.fillRect(bx, by, 4, 7);
+    for (let i = 0; i < 5; i++) {
+      const bookH = 5 + ((gx + gy + row + i) % 4);
+      oCtx.fillStyle = PAL.bookColors[(row * 5 + i + gx * 3) % PAL.bookColors.length];
+      const bx = p.x - 12 + i * 5;
+      const by = p.y - 27 + row * 9 + (8 - bookH);
+      oCtx.fillRect(bx, by, 3, bookH);
+      oCtx.fillStyle = 'rgba(255,255,255,0.25)';
+      oCtx.fillRect(bx + 1, by + 1, 1, Math.max(1, bookH - 2));
+    }
+    if (row === 1) {
+      oCtx.fillStyle = '#7bc96f';
+      oCtx.beginPath();
+      oCtx.arc(p.x + 10, p.y - 18, 3, 0, Math.PI * 2);
+      oCtx.fill();
+      oCtx.fillStyle = '#8b5e3c';
+      oCtx.fillRect(p.x + 8, p.y - 15, 4, 2);
     }
   }
 }
 
 function drawPlant(gx, gy) {
   const p = iso(gx, gy);
-  // Pot
+  const big = (gx + gy) % 2 === 0;
+  if (officeAssetReady('plant')) {
+    drawOfficeAsset('plant', p.x, p.y + 6, big ? 1.15 : 0.95);
+    return;
+  }
   oCtx.fillStyle = PAL.plantPot;
-  oCtx.fillRect(p.x - 5, p.y - 4, 10, 8);
-  // Leaves
+  oCtx.fillRect(p.x - (big ? 6 : 5), p.y - 4, big ? 12 : 10, 8);
   const time = _frameTime / 1000;
-  for (let i = 0; i < 5; i++) {
-    const angle = (i / 5) * Math.PI * 2 + Math.sin(time * 0.5 + i) * 0.1;
+  const leaves = big ? 8 : 5;
+  for (let i = 0; i < leaves; i++) {
+    const angle = (i / leaves) * Math.PI * 2 + Math.sin(time * 0.5 + i) * 0.1;
+    const radius = big ? 10 : 8;
+    const leafR = big ? (i % 3 === 0 ? 5 : 4) : 4;
     oCtx.beginPath();
-    oCtx.arc(p.x + Math.cos(angle) * 8, p.y - 12 + Math.sin(angle) * 4, 4, 0, Math.PI * 2);
+    oCtx.ellipse(p.x + Math.cos(angle) * radius, p.y - (big ? 14 : 12) + Math.sin(angle) * 5, leafR + 1, leafR, angle, 0, Math.PI * 2);
     oCtx.fillStyle = i % 2 === 0 ? PAL.leafDark : PAL.leafLight;
     oCtx.fill();
   }
@@ -555,6 +1176,14 @@ function drawPlant(gx, gy) {
 
 function drawCoffeeMachine(gx, gy) {
   const p = iso(gx, gy);
+  if (officeAssetReady('coffeeMachine')) {
+    drawOfficeAsset('coffeeMachine', p.x, p.y + 4, 1.0);
+    oCtx.font = '7px system-ui';
+    oCtx.fillStyle = '#7b6852';
+    oCtx.textAlign = 'center';
+    oCtx.fillText('☕ COFFEE', p.x, p.y + ISO.tileH / 2 + 10);
+    return;
+  }
   drawIsoBox(gx, gy, 24, '#555', PAL.coffeeMachine, '#4a4a4a');
   // Light
   oCtx.fillStyle = PAL.coffeeMachineLight;
@@ -570,6 +1199,16 @@ function drawCoffeeMachine(gx, gy) {
 
 function drawLamp(gx, gy) {
   const p = iso(gx, gy);
+  const lampKey = pickOfficeAsset((gx + gy) % 2 === 0 ? ['lampFloorNE','lampFloor'] : ['lampFloor','lampFloorNE']);
+  if (officeAssetReady(lampKey)) {
+    drawOfficeAsset(lampKey, p.x, p.y + 8, 0.92, 0.96);
+    const flicker = 0.1 + Math.sin(_frameTime / 2000 + gx) * 0.04;
+    oCtx.beginPath();
+    oCtx.arc(p.x, p.y - 28, 18, 0, Math.PI * 2);
+    oCtx.fillStyle = `rgba(255,220,120,${flicker})`;
+    oCtx.fill();
+    return;
+  }
   // Pole
   oCtx.strokeStyle = PAL.lampPole;
   oCtx.lineWidth = 2;
@@ -714,12 +1353,61 @@ function drawPoster(gx, gy, hue) {
   grad.addColorStop(1, `hsl(${hue + 30},60%,50%)`);
   oCtx.fillStyle = grad;
   oCtx.fillRect(p.x - 8, py + 2, 16, 12);
+  if (hue > 250) {
+    oCtx.fillStyle = 'rgba(255,230,170,0.85)';
+    oCtx.font = 'bold 7px system-ui';
+    oCtx.textAlign = 'center';
+    oCtx.fillText('LOTR', p.x, py + 10);
+  }
+}
+
+function drawPhotoFrame(gx, gy) {
+  const p = iso(gx, gy);
+  const py = p.y - ISO.tileH / 2 - 20;
+  oCtx.fillStyle = '#6d4c38';
+  oCtx.fillRect(p.x - 10, py, 20, 12);
+  oCtx.fillStyle = '#f4e7cf';
+  oCtx.fillRect(p.x - 8, py + 2, 16, 8);
+  oCtx.fillStyle = '#7aa2d6';
+  oCtx.fillRect(p.x - 7, py + 3, 6, 6);
+  oCtx.fillStyle = '#d99b7a';
+  oCtx.fillRect(p.x + 1, py + 3, 5, 6);
+}
+
+function drawCoffeeCorner(gx, gy) {
+  const p = iso(gx, gy);
+  drawCoffeeTable(gx, gy);
+  if (officeAssetReady('coffeeMachine')) drawOfficeAsset('coffeeMachine', p.x, p.y - 4, 0.75, 0.98);
+  if (officeAssetReady('plantSmall2')) drawOfficeAsset('plantSmall2', p.x + 18, p.y + 4, 0.52, 0.95);
+  oCtx.fillStyle = '#fff6ea';
+  oCtx.font = 'bold 7px system-ui';
+  oCtx.textAlign = 'center';
+  oCtx.fillText('COFFEE', p.x, p.y + 18);
+}
+
+function drawServerRack(gx, gy) {
+  const p = iso(gx, gy);
+  oCtx.fillStyle = '#1f2430';
+  oCtx.fillRect(p.x - 10, p.y - 28, 20, 30);
+  oCtx.strokeStyle = '#394150';
+  oCtx.lineWidth = 1;
+  oCtx.strokeRect(p.x - 10, p.y - 28, 20, 30);
+  for (let i = 0; i < 4; i++) {
+    const yy = p.y - 24 + i * 7;
+    oCtx.fillStyle = '#2b3242';
+    oCtx.fillRect(p.x - 8, yy, 16, 4);
+    oCtx.fillStyle = i % 2 === 0 ? '#60a5fa' : '#34d399';
+    oCtx.fillRect(p.x + 4, yy + 1, 2, 2);
+  }
 }
 
 function drawSharedFurniture(time) {
+  const isMobile = window.innerWidth <= 768;
   for (const f of SHARED_FURNITURE) {
+    if (isMobile && !['window','doorway','coffeeMachine','waterCooler','whiteboard','serverRack','bookshelfClosed','bookshelf','lamp'].includes(f.type)) continue;
     switch (f.type) {
       case 'bookshelf': drawBookshelf(f.gx, f.gy); break;
+      case 'bookshelfClosed': drawBookshelf(f.gx, f.gy, true); break;
       case 'plant': drawPlant(f.gx, f.gy); break;
       case 'coffeeMachine': drawCoffeeMachine(f.gx, f.gy); break;
       case 'lamp': drawLamp(f.gx, f.gy); break;
@@ -727,10 +1415,20 @@ function drawSharedFurniture(time) {
       case 'rug': drawRug(f.gx, f.gy); break;
       case 'clock': drawClock(f.gx, f.gy); break;
       case 'poster': drawPoster(f.gx, f.gy, f.hue || 0); break;
+      case 'photoFrame': drawPhotoFrame(f.gx, f.gy); break;
+      case 'coffeeCorner': drawCoffeeCorner(f.gx, f.gy); break;
       case 'window': drawWindow(f.gx, f.gy); break;
+      case 'doorway': drawDoorway(f.gx, f.gy); break;
       case 'waterCooler': drawWaterCooler(f.gx, f.gy); break;
+      case 'serverRack': drawServerRack(f.gx, f.gy); break;
       case 'whiteboard': drawWhiteboard(f.gx, f.gy); break;
       case 'armchair': drawArmchair(f.gx, f.gy); break;
+      case 'sideTable': drawSideTable(f.gx, f.gy); break;
+      case 'coffeeTable': drawCoffeeTable(f.gx, f.gy); break;
+      case 'benchProp': drawBenchProp(f.gx, f.gy); break;
+      case 'boxProp': drawBoxProp(f.gx, f.gy); break;
+      case 'speakerProp': drawSpeakerProp(f.gx, f.gy); break;
+      case 'lampProp': drawLampProp(f.gx, f.gy); break;
     }
   }
 }
@@ -738,39 +1436,67 @@ function drawSharedFurniture(time) {
 function drawWindow(gx, gy) {
   const p = iso(gx, gy);
   const wy = p.y - ISO.tileH / 2 - 32;
+  const nightMode = new Date(_frameTime).getHours() < 7 || new Date(_frameTime).getHours() >= 19;
   // Frame
   oCtx.fillStyle = '#5a4a3a';
   oCtx.fillRect(p.x - 14, wy, 28, 22);
-  // Glass — sky gradient
+  // Glass — warm night / cool day
   const grad = oCtx.createLinearGradient(p.x, wy + 2, p.x, wy + 18);
-  grad.addColorStop(0, '#87ceeb');
-  grad.addColorStop(0.6, '#b8e6f0');
-  grad.addColorStop(1, '#d4eef4');
+  if (nightMode) {
+    grad.addColorStop(0, '#2a3650');
+    grad.addColorStop(0.38, '#3e5378');
+    grad.addColorStop(0.72, '#845f47');
+    grad.addColorStop(1, '#f4b36d');
+  } else {
+    grad.addColorStop(0, '#87ceeb');
+    grad.addColorStop(0.6, '#b8e6f0');
+    grad.addColorStop(1, '#d4eef4');
+  }
   oCtx.fillStyle = grad;
   oCtx.fillRect(p.x - 12, wy + 2, 24, 18);
   // Cross bar
   oCtx.fillStyle = '#5a4a3a';
   oCtx.fillRect(p.x - 0.5, wy + 2, 1, 18);
   oCtx.fillRect(p.x - 12, wy + 10, 24, 1);
-  // Light reflection
-  oCtx.globalAlpha = 0.2;
+  // Light reflection / lived-in window warmth
+  oCtx.globalAlpha = nightMode ? 0.18 : 0.2;
   oCtx.fillStyle = '#fff';
   oCtx.fillRect(p.x - 9, wy + 4, 6, 3);
+  if (nightMode) {
+    oCtx.fillStyle = 'rgba(255,212,144,0.42)';
+    oCtx.fillRect(p.x - 11, wy + 12, 22, 6);
+  }
   oCtx.globalAlpha = 1;
-  // Sunlight pool on floor
+  // Light pool on floor
   oCtx.save();
-  oCtx.globalAlpha = 0.06;
+  oCtx.globalAlpha = nightMode ? 0.16 : 0.06;
   const floorP = iso(gx, gy + 2);
   oCtx.beginPath();
   oCtx.ellipse(floorP.x, floorP.y, 30, 15, 0, 0, Math.PI * 2);
-  oCtx.fillStyle = '#ffe8a0';
+  oCtx.fillStyle = nightMode ? '#ffcc7a' : '#ffe8a0';
   oCtx.fill();
   oCtx.restore();
+}
+
+function drawDoorway(gx, gy) {
+  const p = iso(gx, gy);
+  const doorKey = pickOfficeAsset((gx + gy) % 2 === 0 ? ['doorwayNE','doorway'] : ['doorway','doorwayNE']);
+  if (officeAssetReady(doorKey)) {
+    drawOfficeAsset(doorKey, p.x, p.y + 10, 0.92, 0.92);
+    return;
+  }
+  oCtx.fillStyle = 'rgba(90,74,58,0.85)';
+  oCtx.fillRect(p.x - 16, p.y - 26, 32, 24);
+  oCtx.clearRect(p.x - 8, p.y - 24, 16, 20);
 }
 
 function drawWaterCooler(gx, gy) {
   const p = iso(gx, gy);
   const by = p.y - ISO.tileH / 2;
+  if (officeAssetReady('waterCooler')) {
+    drawOfficeAsset('waterCooler', p.x, p.y + 10, 0.72);
+    return;
+  }
   // Base/stand
   oCtx.fillStyle = '#888';
   oCtx.fillRect(p.x - 5, by - 16, 10, 20);
@@ -829,6 +1555,11 @@ function drawWhiteboard(gx, gy) {
 function drawArmchair(gx, gy) {
   const p = iso(gx, gy);
   const by = p.y - ISO.tileH / 2;
+  const chairKey = (gx + gy) % 2 === 0 ? 'armchair' : 'armchairAlt';
+  if (officeAssetReady(chairKey)) {
+    drawOfficeAsset(chairKey, p.x, p.y + 10, chairKey === 'armchairAlt' ? 0.88 : 0.92);
+    return;
+  }
   // Seat cushion
   oCtx.fillStyle = '#6b4c3b';
   oCtx.fillRect(p.x - 8, by - 6, 16, 10);
@@ -846,6 +1577,63 @@ function drawArmchair(gx, gy) {
   oCtx.globalAlpha = 1;
 }
 
+function drawSideTable(gx, gy) {
+  const p = iso(gx, gy);
+  if (officeAssetReady('sideTable')) {
+    drawOfficeAsset('sideTable', p.x, p.y + 8, 0.82);
+    if (officeAssetReady('books') && (gx + gy) % 2 === 0) drawOfficeAsset('books', p.x + 2, p.y - 1, 0.55, 0.95);
+    return;
+  }
+  drawIsoBox(gx, gy, 10, '#8a6038', '#6d4b2f', '#7b5434');
+}
+
+function drawCoffeeTable(gx, gy) {
+  const p = iso(gx, gy);
+  if (officeAssetReady('coffeeTable')) {
+    drawOfficeAsset('coffeeTable', p.x, p.y + 8, 0.9);
+    if (officeAssetReady('books')) drawOfficeAsset('books', p.x - 3, p.y, 0.52, 0.92);
+    return;
+  }
+  drawIsoBox(gx, gy, 8, '#7d5836', '#65462a', '#6e4c2e');
+}
+
+function drawBenchProp(gx, gy) {
+  const p = iso(gx, gy);
+  if (officeAssetReady('bench')) {
+    drawOfficeAsset('bench', p.x, p.y + 8, 0.92);
+    return;
+  }
+  drawIsoBox(gx, gy, 10, '#846044', '#6e4f37', '#795640');
+}
+
+function drawBoxProp(gx, gy) {
+  const p = iso(gx, gy);
+  if (officeAssetReady('box')) {
+    drawOfficeAsset('box', p.x, p.y + 6, 0.72);
+    return;
+  }
+  drawIsoBox(gx, gy, 8, '#b98d58', '#987146', '#a67d50');
+}
+
+function drawSpeakerProp(gx, gy) {
+  const p = iso(gx, gy);
+  if (officeAssetReady('speaker')) {
+    drawOfficeAsset('speaker', p.x, p.y + 6, 0.64);
+    return;
+  }
+  oCtx.fillStyle = '#2f2f35';
+  oCtx.fillRect(p.x - 5, p.y - 12, 10, 16);
+}
+
+function drawLampProp(gx, gy) {
+  const p = iso(gx, gy);
+  if (officeAssetReady('lampFloor')) {
+    drawOfficeAsset('lampFloor', p.x, p.y + 8, 0.78, 0.96);
+    return;
+  }
+  drawLamp(gx, gy);
+}
+
 // ── SPEECH BUBBLES ──
 let _speechBubbleAgent = null;
 let _speechBubbleTime = 0;
@@ -853,10 +1641,19 @@ const SPEECH_BUBBLE_DURATION = 5000;
 const SPEECH_BUBBLE_INTERVAL = 6000;
 let _lastBubbleSwitch = 0;
 
+function sanitizeAgentText(text) {
+  return String(text || '')
+    .replace(/\[\[\s*reply_to(?:_[^\]]+|:[^\]]+)?\s*\]\]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function drawSpeechBubble(x, y, text) {
   if (!text) return;
-  const maxLen = 35;
-  const display = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+  const clean = sanitizeAgentText(text);
+  if (!clean) return;
+  const maxLen = 24;
+  const display = clean.length > maxLen ? clean.slice(0, maxLen) + '…' : clean;
   oCtx.font = '9px -apple-system, system-ui, sans-serif';
   oCtx.textAlign = 'left';
   const tw = oCtx.measureText(display).width;
@@ -895,6 +1692,7 @@ function drawSpeechBubble(x, y, text) {
 let _frameTime = 0;
 let _staticValid = false;
 let _staticCanvas = null, _staticCtx = null;
+let _staticCamZoom = 0, _staticCamPanX = 0, _staticCamPanY = 0;
 
 function invalidateStaticCache() { _staticValid = false; }
 
@@ -913,19 +1711,69 @@ function _drawOfficeInner(rafNow) {
   const cw = oCanvas.width / dpr;
   const ch = oCanvas.height / dpr;
 
-  // Warm studio backdrop instead of a flat beige slab
+  const hour = new Date(_frameTime).getHours();
+  const nightMode = hour < 7 || hour >= 19;
+
+  // Stronger day/night atmosphere so the office feels intentionally staged
   const bgGrad = oCtx.createLinearGradient(0, 0, 0, ch);
-  bgGrad.addColorStop(0, PAL.backdropTop);
-  bgGrad.addColorStop(1, PAL.backdropBottom);
+  if (nightMode) {
+    bgGrad.addColorStop(0, '#17111f');
+    bgGrad.addColorStop(0.22, '#31253f');
+    bgGrad.addColorStop(0.5, '#5a4562');
+    bgGrad.addColorStop(0.74, '#966d56');
+    bgGrad.addColorStop(1, '#d7b38d');
+  } else {
+    bgGrad.addColorStop(0, '#dbeaf8');
+    bgGrad.addColorStop(0.36, '#f3e7d5');
+    bgGrad.addColorStop(1, '#d7bf9f');
+  }
   oCtx.fillStyle = bgGrad;
+  oCtx.fillRect(0, 0, cw, ch);
+
+  // Time-of-day glow layer
+  const horizonGlow = oCtx.createRadialGradient(cw * 0.5, ch * 0.22, 24, cw * 0.5, ch * 0.22, Math.max(cw, ch) * 0.58);
+  if (nightMode) {
+    horizonGlow.addColorStop(0, 'rgba(255,206,138,0.24)');
+    horizonGlow.addColorStop(0.28, 'rgba(210,132,214,0.14)');
+    horizonGlow.addColorStop(0.58, 'rgba(89,58,110,0.08)');
+    horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  } else {
+    horizonGlow.addColorStop(0, 'rgba(255,248,226,0.28)');
+    horizonGlow.addColorStop(0.42, 'rgba(180,221,255,0.12)');
+    horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  }
+  oCtx.fillStyle = horizonGlow;
   oCtx.fillRect(0, 0, cw, ch);
 
   // Soft vignette so empty canvas edges feel intentional, not broken
   const vignette = oCtx.createRadialGradient(cw / 2, ch * 0.42, Math.min(cw, ch) * 0.18, cw / 2, ch * 0.46, Math.max(cw, ch) * 0.78);
   vignette.addColorStop(0, 'rgba(255,245,230,0)');
-  vignette.addColorStop(1, PAL.vignette);
+  vignette.addColorStop(1, nightMode ? 'rgba(30,14,24,0.34)' : 'rgba(120,84,44,0.14)');
   oCtx.fillStyle = vignette;
   oCtx.fillRect(0, 0, cw, ch);
+
+  if (nightMode) {
+    const lampWash = oCtx.createRadialGradient(cw * 0.5, ch * 0.28, 20, cw * 0.5, ch * 0.28, Math.max(cw, ch) * 0.55);
+    lampWash.addColorStop(0, 'rgba(255,216,150,0.28)');
+    lampWash.addColorStop(0.34, 'rgba(255,190,110,0.12)');
+    lampWash.addColorStop(1, 'rgba(255,210,130,0)');
+    oCtx.fillStyle = lampWash;
+    oCtx.fillRect(0, 0, cw, ch);
+
+    // Tiny star specks keep the night sky from feeling like a flat gradient
+    oCtx.save();
+    oCtx.globalAlpha = 0.7;
+    for (let i = 0; i < 18; i++) {
+      const sx = ((i * 137) % Math.max(40, Math.floor(cw - 60))) + 30;
+      const sy = ((i * 83) % Math.max(20, Math.floor(ch * 0.24))) + 18;
+      const r = i % 5 === 0 ? 1.6 : 1.05;
+      oCtx.beginPath();
+      oCtx.arc(sx, sy, r, 0, Math.PI * 2);
+      oCtx.fillStyle = i % 4 === 0 ? 'rgba(255,230,190,0.9)' : 'rgba(255,248,235,0.85)';
+      oCtx.fill();
+    }
+    oCtx.restore();
+  }
 
   // Apply zoom + pan
   oCtx.save();
@@ -952,12 +1800,43 @@ function _drawOfficeInner(rafNow) {
   oCtx.fill();
   oCtx.restore();
 
-  // Draw layers back-to-front
-  drawWalls();
-  drawFloor();
-
-  // Shared furniture (back rows first)
-  drawSharedFurniture(time);
+  // Draw static layers from cache (walls, floor, zones, partitions, labels, furniture)
+  if (!_staticValid || !_staticCanvas || _staticCanvas.width !== oCanvas.width || _staticCanvas.height !== oCanvas.height) {
+    if (!_staticCanvas) { _staticCanvas = document.createElement('canvas'); _staticCtx = _staticCanvas.getContext('2d'); }
+    _staticCanvas.width = oCanvas.width;
+    _staticCanvas.height = oCanvas.height;
+    _staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    _staticCtx.imageSmoothingEnabled = false;
+    _staticCtx.clearRect(0, 0, cw, ch);
+    // Mirror the current transform into static context
+    _staticCtx.save();
+    _staticCtx.translate(cw / 2, ch / 2);
+    _staticCtx.scale(camZoom, camZoom);
+    _staticCtx.translate(-cw / 2 + camPanX, -ch / 2 + camPanY);
+    const _origCtx = oCtx;
+    oCtx = _staticCtx;
+    drawWalls();
+    drawFloor();
+    drawZoneBoundaries();
+    drawInteriorPartitions();
+    drawZoneLabels();
+    drawSharedFurniture(time);
+    oCtx = _origCtx;
+    _staticCtx.restore();
+    _staticValid = true;
+    _staticCamZoom = camZoom;
+    _staticCamPanX = camPanX;
+    _staticCamPanY = camPanY;
+  }
+  // Invalidate if camera moved
+  if (_staticCamZoom !== camZoom || _staticCamPanX !== camPanX || _staticCamPanY !== camPanY) {
+    _staticValid = false;
+  }
+  // Blit static cache — draw it at identity transform since it was rendered with the full transform
+  oCtx.save();
+  oCtx.setTransform(1, 0, 0, 1, 0, 0);
+  oCtx.drawImage(_staticCanvas, 0, 0);
+  oCtx.restore();
 
   // Assign agents to desk slots — only occupied slots get desks
   const agents = (typeof agentData !== 'undefined' ? agentData : []).slice();
@@ -967,9 +1846,34 @@ function _drawOfficeInner(rafNow) {
     return (order[a.status] ?? 3) - (order[b.status] ?? 3);
   });
 
-  // Only draw desks for agents that exist
-  const usedSlots = DESK_SLOTS.slice(0, agents.length);
-  const sortedSlots = usedSlots.map((s, i) => ({ ...s, agent: agents[i], idx: i }))
+  // Assign desks by department first so the office feels intentionally organized
+  const zoneBuckets = { engineering: [], content: [], leadership: [], support: [] };
+  const overflowAgents = [];
+  for (const a of agents) {
+    const z = getZoneForAgent(a);
+    if (zoneBuckets[z]) zoneBuckets[z].push(a); else overflowAgents.push(a);
+  }
+  const activeDeskSlots = getActiveDeskSlots();
+  const slotsByZone = {
+    engineering: activeDeskSlots.filter(s => s.zone === 'engineering'),
+    content: activeDeskSlots.filter(s => s.zone === 'content'),
+    leadership: activeDeskSlots.filter(s => s.zone === 'leadership'),
+    support: activeDeskSlots.filter(s => s.zone === 'support'),
+  };
+  const assigned = [];
+  Object.keys(slotsByZone).forEach(zone => {
+    const people = zoneBuckets[zone] || [];
+    slotsByZone[zone].forEach((slot, i) => {
+      const agent = people[i] || overflowAgents.shift() || null;
+      if (agent) assigned.push({ ...slot, agent });
+    });
+  });
+  while (overflowAgents.length && assigned.length < activeDeskSlots.length) {
+    const slot = activeDeskSlots[assigned.length];
+    assigned.push({ ...slot, agent: overflowAgents.shift() });
+  }
+  const sortedSlots = assigned
+    .map((s, i) => ({ ...s, idx: i }))
     .sort((a, b) => (a.gy + a.gx) - (b.gy + b.gx));
 
   for (const slot of sortedSlots) {
@@ -983,12 +1887,19 @@ function _drawOfficeInner(rafNow) {
       const wp = iso(wpos.gx, wpos.gy);
       drawAgent(wp.x, wp.y - ISO.tileH / 2 - 10, slot.agent, time);
       drawNameLabel(wp.x, wp.y + 4, slot.agent);
+      const screen = worldToScreen(wp.x, wp.y - ISO.tileH / 2 - 10, cw, ch);
+      _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 16 });
+    } else if (slot.agent) {
+      const dp = iso(slot.gx, slot.gy);
+        drawNameLabel(dp.x, dp.y + ISO.tileH / 2 + 8, slot.agent);
+      const screen = worldToScreen(dp.x, dp.y - ISO.tileH / 2 - 22, cw, ch);
+      _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 16 });
     }
   }
 
   // Speech bubble for active agents (rotate every 6s)
   const workingAgents = sortedSlots.filter(s => s.agent && s.agent.status === 'working' && s.agent.lastMessage);
-  if (workingAgents.length > 0) {
+  if (workingAgents.length > 0 && window.innerWidth > 480) {
     if (time - _lastBubbleSwitch > SPEECH_BUBBLE_INTERVAL) {
       _lastBubbleSwitch = time;
       _speechBubbleAgent = (_speechBubbleAgent === null) ? 0 : (_speechBubbleAgent + 1) % workingAgents.length;
@@ -1000,12 +1911,36 @@ function _drawOfficeInner(rafNow) {
       const fadeIn = Math.min(1, (time - _lastBubbleSwitch) / 300);
       const fadeOut = Math.max(0, 1 - Math.max(0, time - _lastBubbleSwitch - SPEECH_BUBBLE_DURATION) / 500);
       oCtx.globalAlpha = Math.min(fadeIn, fadeOut);
-      drawSpeechBubble(p.x, p.y - ISO.tileH / 2 - 30, bubbleSlot.agent.lastMessage);
+      drawSpeechBubble(p.x, p.y - ISO.tileH / 2 - 38, bubbleSlot.agent.lastMessage);
       oCtx.globalAlpha = 1;
     }
   }
 
   oCtx.restore(); // undo zoom+pan
+
+  if (_hoveredAgent) {
+    const text = sanitizeAgentText(_hoveredAgent.lastMessage || _hoveredAgent.role || 'No recent activity').replace(/\n/g, ' ').slice(0, 72);
+    const status = String(_hoveredAgent.status || 'unknown').toUpperCase();
+    const title = `${_hoveredAgent.name || 'Agent'} · ${status}`;
+    oCtx.font = '600 11px -apple-system, system-ui, sans-serif';
+    const tw = Math.max(oCtx.measureText(title).width, oCtx.measureText(text).width);
+    const bx = Math.max(12, Math.min(_mouseCanvasX + 14, cw - tw - 28));
+    const by = Math.max(12, _mouseCanvasY - 54);
+    oCtx.fillStyle = PAL.tooltipBg;
+    oCtx.beginPath();
+    oCtx.roundRect(bx, by, tw + 16, 38, 8);
+    oCtx.fill();
+    oCtx.strokeStyle = PAL.tooltipBorder;
+    oCtx.lineWidth = 1;
+    oCtx.stroke();
+    oCtx.fillStyle = PAL.tooltipAccent;
+    oCtx.fillRect(bx + 8, by + 8, 4, 22);
+    oCtx.fillStyle = '#fff';
+    oCtx.fillText(title, bx + 18, by + 16);
+    oCtx.font = '10px -apple-system, system-ui, sans-serif';
+    oCtx.fillStyle = 'rgba(255,255,255,0.82)';
+    oCtx.fillText(text, bx + 18, by + 30);
+  }
 
   // Watermark / zoom hint
   oCtx.font = '9px -apple-system, system-ui, sans-serif';
@@ -1089,9 +2024,8 @@ function resizeCanvas() {
   const canvasW = w;
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
-  const mobileH = Math.min(Math.max(340, window.innerHeight * 0.58), 520);
-  const desktopH = Math.min(availH, Math.max(450, window.innerHeight * 0.74), 920);
-  const canvasH = isMobile ? Math.min(availH, mobileH) : desktopH;
+  const mobileH = Math.min(Math.max(400, window.innerHeight * 0.82), 800);
+  const canvasH = isMobile ? Math.min(availH, mobileH) : Math.max(400, availH);
 
   const dpr = window.devicePixelRatio || 1;
   const internalW = Math.max(canvasW, 800);
@@ -1112,11 +2046,16 @@ function resizeCanvas() {
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 1.28 : fitBase * 1.26;
+  const fit = isMobile ? fitBase * 2.4 : fitBase * 1.52;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
-    camPanY = isMobile ? 18 : 14;
+    if (isMobile) {
+      camPanX = -120;
+      camPanY = 60;
+    } else {
+      camPanY = 14;
+    }
   }
 
   invalidateStaticCache();
@@ -1130,12 +2069,26 @@ if (oCanvas) {
     else camZoom = Math.max(ZOOM_MIN, camZoom - ZOOM_STEP);
   }, { passive: false });
 
+  oCanvas.addEventListener('mousemove', (e) => {
+    const rect = oCanvas.getBoundingClientRect();
+    _mouseCanvasX = e.clientX - rect.left;
+    _mouseCanvasY = e.clientY - rect.top;
+    _hoveredAgent = null;
+    for (const t of _hoverTargets) {
+      const dx = _mouseCanvasX - t.x, dy = _mouseCanvasY - t.y;
+      if ((dx * dx + dy * dy) <= (t.r * t.r)) { _hoveredAgent = t.agent; break; }
+    }
+  });
+  oCanvas.addEventListener('mouseleave', () => { _hoveredAgent = null; });
+
   oCanvas.addEventListener('mousedown', (e) => {
     _dragging = true;
     _dragStartX = e.clientX;
     _dragStartY = e.clientY;
     _dragPanStartX = camPanX;
     _dragPanStartY = camPanY;
+    _pointerDownAgent = _hoveredAgent;
+    _pointerDownAt = Date.now();
     oCanvas.style.cursor = 'grabbing';
   });
   window.addEventListener('mousemove', (e) => {
@@ -1143,9 +2096,16 @@ if (oCanvas) {
     camPanX = _dragPanStartX + (e.clientX - _dragStartX) / camZoom;
     camPanY = _dragPanStartY + (e.clientY - _dragStartY) / camZoom;
   });
-  window.addEventListener('mouseup', () => {
+  window.addEventListener('mouseup', (e) => {
+    const moved = Math.hypot(e.clientX - _dragStartX, e.clientY - _dragStartY);
+    const tapped = _pointerDownAgent && moved < 8 && (Date.now() - _pointerDownAt) < 350;
+    const targetAgent = _pointerDownAgent;
     _dragging = false;
+    _pointerDownAgent = null;
     if (oCanvas) oCanvas.style.cursor = 'grab';
+    if (tapped && targetAgent && typeof openAgentDetail === 'function') {
+      openAgentDetail(targetAgent.name);
+    }
   });
   oCanvas.style.cursor = 'grab';
 
@@ -1153,11 +2113,21 @@ if (oCanvas) {
   let _touchStart = null, _touchDist = null;
   oCanvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
+      const rect = oCanvas.getBoundingClientRect();
+      _mouseCanvasX = e.touches[0].clientX - rect.left;
+      _mouseCanvasY = e.touches[0].clientY - rect.top;
+      _hoveredAgent = null;
+      for (const t of _hoverTargets) {
+        const dx = _mouseCanvasX - t.x, dy = _mouseCanvasY - t.y;
+        if ((dx * dx + dy * dy) <= (t.r * t.r)) { _hoveredAgent = t.agent; break; }
+      }
       _dragging = true;
       _dragStartX = e.touches[0].clientX;
       _dragStartY = e.touches[0].clientY;
       _dragPanStartX = camPanX;
       _dragPanStartY = camPanY;
+      _pointerDownAgent = _hoveredAgent;
+      _pointerDownAt = Date.now();
     } else if (e.touches.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -1177,7 +2147,18 @@ if (oCanvas) {
       _touchDist = dist;
     }
   }, { passive: true });
-  oCanvas.addEventListener('touchend', () => { _dragging = false; _touchDist = null; }, { passive: true });
+  oCanvas.addEventListener('touchend', (e) => {
+    const touch = e.changedTouches && e.changedTouches[0];
+    const moved = touch ? Math.hypot(touch.clientX - _dragStartX, touch.clientY - _dragStartY) : 999;
+    const tapped = _pointerDownAgent && moved < 12 && (Date.now() - _pointerDownAt) < 400;
+    const targetAgent = _pointerDownAgent;
+    _dragging = false;
+    _touchDist = null;
+    _pointerDownAgent = null;
+    if (tapped && targetAgent && typeof openAgentDetail === 'function') {
+      openAgentDetail(targetAgent.name);
+    }
+  }, { passive: true });
 }
 
 // ── INIT ──

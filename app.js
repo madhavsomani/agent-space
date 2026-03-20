@@ -1,6 +1,7 @@
 // Theme
 let _tabLoaded = {};
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function sanitizeAgentText(text) { return String(text || '').replace(/\[\[\s*reply_to(?:_[^\]]+|:[^\]]+)?\s*\]\]/gi, '').replace(/\s+/g, ' ').trim(); }
 function getTheme() { return localStorage.getItem('hq-theme') || 'dark'; }
 function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️'; if (typeof invalidateStaticCache === 'function') invalidateStaticCache(); }
 function toggleTheme() { const t = getTheme() === 'dark' ? 'light' : 'dark'; localStorage.setItem('hq-theme', t); applyTheme(t); }
@@ -52,13 +53,13 @@ function switchTab(tabName) {
   const newIdx = _tabOrder.indexOf(tabName);
   const direction = newIdx > oldIdx ? 'right' : 'left';
   document.querySelectorAll('#tabs-nav button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-  document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active','slide-in-right','slide-in-left'); });
+  document.querySelectorAll('body > .tab').forEach(t => { t.classList.remove('active','slide-in-right','slide-in-left'); });
   // Also update mobile nav
   document.querySelectorAll('.mobile-nav button').forEach(b => b.classList.remove('active'));
   const mobBtn = document.querySelector(`.mobile-nav [data-tab="${tabName}"]`);
   if(mobBtn) mobBtn.classList.add('active');
   const btn = document.querySelector(`#tabs-nav [data-tab="${tabName}"]`);
-  const tabEl = document.getElementById('tab-' + tabName);
+  const tabEl = document.querySelector(`body > .tab#tab-${tabName}`) || document.getElementById('tab-' + tabName);
   if(btn) { btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
   const sel = document.getElementById('tab-select');
   if(sel) sel.value = tabName;
@@ -301,7 +302,34 @@ function setActivityAgentFilter(val) {
 }
 
 let timelineData = null; // cached timeline heatmap for sparklines
+let _timelineFilter = null;
+let _renderCardsTimer = null;
 const MAX_TOASTS = 3;
+
+function isInternalActivityItem(i) {
+  const agent = String(i?.agent || '').toLowerCase();
+  const text = String(i?.text || '').toLowerCase();
+  if (!text) return false;
+  if (agent.includes('qa agent') || agent.includes('coding agent')) return true;
+  return [
+    'heartbeat acknowledged',
+    'qa fault',
+    'screenshot proof sent',
+    'no new commits on either repo',
+    'check #',
+    'i’m switching from',
+    'patches are in',
+    "i've identified the root issue",
+    'updating state and notifying',
+    'report to ',
+    'sending screenshot',
+    'read memory/state.md'
+  ].some(s => text.includes(s));
+}
+
+function getPublicActivityItems(items) {
+  return (items || []).filter(i => !isInternalActivityItem(i));
+}
 
 // showToast is defined once near end of file — this call-site uses the hoisted version
 
@@ -374,7 +402,7 @@ async function refreshActivity() {
     const typeIcons = { wr:'📋', agent:'🤖', commit:'💾', system:'⚙️' };
     const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
     if(lastActivityTs && items.length) {
-      const newItems = items.filter(i => i.ts && new Date(i.ts).getTime() > lastActivityTs);
+      const newItems = getPublicActivityItems(items.filter(i => i.ts && new Date(i.ts).getTime() > lastActivityTs));
       newItems.slice(0,2).forEach(i => {
         showToast(typeIcons[i.type]||'📌', `<strong>${i.agent||'system'}</strong> ${(i.text||'').slice(0,60)}`, typeColors[i.type]);
       });
@@ -390,8 +418,8 @@ async function refreshActivity() {
     const recentCount = items.filter(i => i.ts && (Date.now() - new Date(i.ts).getTime()) < 3600000).length;
     actBtn.innerHTML = recentCount > 0 ? `📡 Activity <span class="badge" style="background:var(--accent)">${recentCount}</span>` : '📡 Activity';
 
-    // Update office ticker with latest item
-    const latest = items[0];
+    // Update office ticker with latest user-relevant item (filter internal agent chatter)
+    const latest = getPublicActivityItems(items)[0];
     if(latest) {
       document.getElementById('office-ticker-text').innerHTML = `<span style="color:${colors[latest.type]||'var(--dim)'};font-weight:600">${esc(latest.agent||'system')}</span> <span style="color:var(--text)">${esc((latest.text||'').slice(0,80))}</span>`;
       document.getElementById('office-ticker-time').textContent = latest.ts ? timeAgo(new Date(latest.ts)) : '';
@@ -492,7 +520,8 @@ oCanvas.addEventListener('mousemove', e => {
   if (agent) {
     const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
     const age = agent.ageMin !== undefined ? (!agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
-    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${esc(agent.name)}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${esc(agent.role)}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${esc(agent.lastMessage.slice(0, 80))}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px;opacity:0.7">Click to view details →</div>`;
+    const cleanMsg = sanitizeAgentText(agent.lastMessage || '');
+    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${esc(agent.name)}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${esc(agent.role)}</div>${cleanMsg ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${esc(cleanMsg.slice(0, 80))}${cleanMsg.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px;opacity:0.7">Click to view details →</div>`;
     canvasTooltip.style.display = 'block';
     canvasTooltip.style.left = Math.min(e.clientX + 12, window.innerWidth - 240) + 'px';
     canvasTooltip.style.top = (e.clientY - 10) + 'px';
@@ -521,7 +550,8 @@ oCanvas.addEventListener('touchstart', e => {
     e.preventDefault();
     const statusIcon = agent.status === 'working' ? '🟢' : agent.status === 'idle' ? '🟡' : '💤';
     const age = agent.ageMin !== undefined ? (!agent.ageMin ? '' : agent.ageMin < 1 ? 'just now' : agent.ageMin < 60 ? agent.ageMin + 'm ago' : Math.round(agent.ageMin / 60) + 'h ago') : '';
-    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${esc(agent.name)}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${esc(agent.role)}</div>${agent.lastMessage ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${esc(agent.lastMessage.slice(0, 80))}${agent.lastMessage.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px">Tap again to view activity →</div>`;
+    const cleanMsg = sanitizeAgentText(agent.lastMessage || '');
+    canvasTooltip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="color:${agent.color};font-weight:700;font-size:13px">${esc(agent.name)}</span>${statusIcon}</div><div style="color:var(--dim);font-size:11px;margin-bottom:4px">${esc(agent.role)}</div>${cleanMsg ? `<div style="font-size:11px;color:var(--text);border-left:2px solid ${agent.color};padding-left:6px;margin-top:6px">${esc(cleanMsg.slice(0, 80))}${cleanMsg.length > 80 ? '…' : ''}</div>` : ''}<div style="font-size:10px;color:var(--dim);margin-top:4px">${age}</div><div style="font-size:9px;color:var(--accent);margin-top:6px">Tap again to view activity →</div>`;
     canvasTooltip.style.display = 'block';
     canvasTooltip.style.left = Math.min(touch.clientX + 12, window.innerWidth - 240) + 'px';
     canvasTooltip.style.top = (touch.clientY - 10) + 'px';
@@ -594,7 +624,6 @@ function tickRefreshBar() {
 setInterval(tickRefreshBar, 500);
 
 // ===== TIMELINE CLICK FILTER =====
-let _timelineFilter = null;
 function filterByTimeSlot(agentName, startISO, endISO, label, color) {
   _timelineFilter = { agentName, start: new Date(startISO), end: new Date(endISO), label, color };
   const bar = document.getElementById('timeline-filter-bar');
@@ -782,7 +811,6 @@ function getTeamGroups() {
   return groups;
 }
 
-let _renderCardsTimer = null;
 function scheduleRenderAgentCards() { if (_renderCardsTimer) return; _renderCardsTimer = setTimeout(() => { _renderCardsTimer = null; renderAgentCards(); }, 200); }
 function renderAgentCards() {
   const container = document.getElementById('agent-status-cards');
@@ -851,22 +879,22 @@ function renderAgentCards() {
       }
     }
     return `<div class="agent-card-item" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${borderL};border-radius:10px;padding:12px 14px;font-size:11px;transition:border-color .2s,background .2s,transform .15s;cursor:pointer" onclick="openAgentDetail('${a.name.replace(/'/g,String.fromCharCode(92)+String.fromCharCode(39))}')" onmouseenter="this.style.borderColor='${a.color}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseleave="this.style.borderColor='var(--border)';this.style.borderLeftColor='${borderL}';this.style.transform='';this.style.boxShadow=''">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <div style="position:relative;flex-shrink:0">
-          <img src="https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(a.name)}&backgroundColor=transparent" alt="${a.name}" style="width:40px;height:40px;border-radius:50%;border:2px solid ${a.status === 'working' ? a.color : a.status === 'idle' ? 'var(--orange)' : 'var(--border)'};background:rgba(255,255,255,0.05)" loading="lazy" onerror="this.style.display='none'">
-          <span style="position:absolute;bottom:-1px;right:-1px;font-size:11px;line-height:1">${icon}</span>
+      <div class="agent-card-head" style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div class="agent-card-avatar-wrap" style="position:relative;flex-shrink:0">
+          <img class="agent-card-avatar" src="https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(a.name)}&backgroundColor=transparent" alt="${a.name}" style="width:40px;height:40px;border-radius:50%;border:2px solid ${a.status === 'working' ? a.color : a.status === 'idle' ? 'var(--orange)' : 'var(--border)'};background:rgba(255,255,255,0.05)" loading="lazy" onerror="this.style.display='none'">
+          <span class="agent-card-status-icon" style="position:absolute;bottom:-1px;right:-1px;font-size:11px;line-height:1">${icon}</span>
         </div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-weight:700;font-size:13px;color:${a.color}">${a.name}</span>${moodEmoji ? `<span style="font-size:11px" title="Mood: ${a.mood}">${moodEmoji}</span>` : ''}${uptimeBadge}${cronInfo}${durInfo}
-            ${a.cronJobId && a.status !== 'working' ? `<button onclick="event.stopPropagation();wakeAgentCard(this,'${a.cronJobId}','${a.name.replace(/'/g,String.fromCharCode(92)+String.fromCharCode(39))}')" style="background:var(--green-dim,rgba(34,197,94,0.15));border:1px solid var(--green,#22c55e);color:var(--green,#22c55e);padding:1px 8px;border-radius:6px;cursor:pointer;font-size:9px;font-weight:700;font-family:inherit;margin-left:4px;transition:all .15s;white-space:nowrap" onmouseenter="this.style.background='var(--green,#22c55e)';this.style.color='#fff'" onmouseleave="this.style.background='var(--green-dim,rgba(34,197,94,0.15))';this.style.color='var(--green,#22c55e)'" title="Wake agent now">⚡</button>` : ''}
+        <div class="agent-card-main" style="flex:1;min-width:0">
+          <div class="agent-card-title-row" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="agent-card-name" style="font-weight:700;font-size:13px;color:${a.color}">${a.name}</span>${moodEmoji ? `<span class="agent-card-mood" style="font-size:11px" title="Mood: ${a.mood}">${moodEmoji}</span>` : ''}${uptimeBadge}${cronInfo}${durInfo}
+            ${a.cronJobId && a.status !== 'working' ? `<button class="agent-card-wake" onclick="event.stopPropagation();wakeAgentCard(this,'${a.cronJobId}','${a.name.replace(/'/g,String.fromCharCode(92)+String.fromCharCode(39))}')" style="background:var(--green-dim,rgba(34,197,94,0.15));border:1px solid var(--green,#22c55e);color:var(--green,#22c55e);padding:1px 8px;border-radius:6px;cursor:pointer;font-size:9px;font-weight:700;font-family:inherit;margin-left:4px;transition:all .15s;white-space:nowrap" onmouseenter="this.style.background='var(--green,#22c55e)';this.style.color='#fff'" onmouseleave="this.style.background='var(--green-dim,rgba(34,197,94,0.15))';this.style.color='var(--green,#22c55e)'" title="Wake agent now">⚡</button>` : ''}
           </div>
-          <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+          <div class="agent-card-subrow" style="display:flex;align-items:center;gap:4px;margin-top:2px">
             <span class="status-timer" data-since="${sinceTs}" data-verb="${statusVerb}" style="color:${statusTimerColor};font-size:10px;font-family:'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums">${statusVerb} ${age}</span>
           </div>
         </div>
       </div>
-      <div style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>${nextRunHtml ? `<div style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div style="padding-left:50px">${sparkHtml}</div>` : ''}${activityBar}
+      <div class="agent-card-message" style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>${nextRunHtml ? `<div class="agent-card-next-run" style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div class="agent-card-spark" style="padding-left:50px">${sparkHtml}</div>` : ''}<div class="agent-card-activity-bar">${activityBar}</div>
     </div>`;
   }).join('');
     html += `</div></div>`;
@@ -885,6 +913,18 @@ function toggleTeamGroup(teamId, teamName) {
   collapsed[teamName] = !isHidden;
   localStorage.setItem('hq-collapsed-teams', JSON.stringify(collapsed));
 }
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    refreshActivity();
+    refreshTimeline();
+    refreshUptime();
+  }, 250);
+  setTimeout(() => {
+    refreshActivity();
+    refreshTimeline();
+  }, 2500);
+});
 
 // Live elapsed status timers + cron countdown (combined 1s interval)
 setInterval(() => {

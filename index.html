@@ -111,12 +111,12 @@
 
 <div class="tab active" role="tabpanel" id="tab-office">
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px" class="view-toggle-bar">
-    <button id="view-grid-btn" onclick="switchOfficeView('grid')" role="tab" aria-selected="true" aria-label="Card Grid View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Card Grid View">▦ Cards</button>
-    <button id="view-2d-btn" onclick="switchOfficeView('2d')" role="tab" aria-selected="false" aria-label="Isometric Office View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="Isometric Office View">🏢 Office</button>
+    <button id="view-grid-btn" onclick="switchOfficeView('grid',{explicit:true})" role="tab" aria-selected="true" aria-label="Cards View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:1" title="Cards View">🃏 Cards</button>
+    <button id="view-2d-btn" onclick="switchOfficeView('2d',{explicit:true})" role="tab" aria-selected="false" aria-label="3D Office View" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--dim);font-size:10px;cursor:pointer;font-weight:600;transition:all .15s;opacity:0.5" title="3D Office View">🏢 3D Office</button>
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
   <div id="office-2d-flat" style="display:none"></div>
-  <div id="office-3d-container" style="display:none"></div>
+  <div id="office-3d-container" style="display:none;background:#1e1e3a"></div>
   <div class="office-legend" id="office-legend"></div>
   <div id="office-ticker" style="max-width:100%;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
     <span style="flex-shrink:0;font-size:13px">📡</span>
@@ -386,20 +386,20 @@
   </div>
 </div>
 
-<script src="animations.js"></script>
-<script src="tab-heatmap.js"></script>
-<script src="app.js"></script>
-<script src="alerts.js"></script>
-<script src="live-logs.js"></script>
-<script src="tab-tokens.js"></script>
-<script src="tab-comm-graph.js"></script>
-<script src="tab-performance.js"></script>
-<script src="tab-timeline.js"></script>
-<script src="sounds.js"></script>
-<script src="tab-system.js"></script>
-<script src="tab-queue.js"></script>
-<script src="tab-memory.js"></script>
-<script src="agent-detail.js"></script>
+<script src="animations.js?v=20260319c"></script>
+<script src="tab-heatmap.js?v=20260319c"></script>
+<script src="app.js?v=20260319f"></script>
+<script src="alerts.js?v=20260319c"></script>
+<script src="live-logs.js?v=20260319c"></script>
+<script src="tab-tokens.js?v=20260319c"></script>
+<script src="tab-comm-graph.js?v=20260319c"></script>
+<script src="tab-performance.js?v=20260319c"></script>
+<script src="tab-timeline.js?v=20260319c"></script>
+<script src="sounds.js?v=20260319c"></script>
+<script src="tab-system.js?v=20260319c"></script>
+<script src="tab-queue.js?v=20260319c"></script>
+<script src="tab-memory.js?v=20260319c"></script>
+<script src="agent-detail.js?v=20260319c"></script>
 <!-- Pull-to-refresh indicator -->
 <div class="ptr-indicator" id="ptr-indicator">
   <span class="ptr-arrow" id="ptr-arrow">↓</span>
@@ -417,10 +417,12 @@
     <button data-tab="system" onclick="switchTab('system');syncMobileNav('system')"><span class="mob-icon">⚙️</span><span class="mob-label">System</span></button>
   </div>
 </div>
-<script src="mobile-nav.js"></script>
+<script src="mobile-nav.js?v=20260319c"></script>
 <!-- Three.js removed — using lightweight 2D canvas office instead -->
-<script src="office-canvas.js"></script>
-<script src="sprites.js"></script>
-<script src="office-view.js"></script>
+<script src="office-canvas.js?v=20260320h"></script>
+<script type="module" src="office3d-bridge.js?v=1"></script>
+<script type="module" src="office3d.js?v=20260320a"></script>
+<script src="sprites.js?v=20260319c"></script>
+<script src="office-view.js?v=20260319f"></script>
 </body>
 </html>
