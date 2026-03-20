@@ -125,6 +125,10 @@ const PAL = {
   catBody: '#666', catEar: '#555',
   posterFrame: '#5a4a3a',
   coffeeMachine: '#444', coffeeMachineLight: '#22c55e',
+  // Tooltip
+  tooltipBg: 'rgba(30,22,16,0.92)',
+  tooltipBorder: 'rgba(255,228,190,0.18)',
+  tooltipAccent: '#3b82f6',
 };
 
 // ── LAYOUT ──
