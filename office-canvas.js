@@ -1076,9 +1076,9 @@ function drawNameLabel(x, y, agent) {
   const isRightRoom = x > (_originX + ISO.tileW * 4.5);
   const rawName = agent.name || 'Unknown';
   const name = isMobileOffice
-    ? (rawName.length > 7 ? rawName.slice(0, 6) + '…' : rawName)
+    ? (rawName.length > 12 ? rawName.slice(0, 11) + '…' : rawName)
     : (rawName.length > (isRightRoom ? 9 : 11) ? rawName.slice(0, isRightRoom ? 8 : 10) + '…' : rawName);
-  oCtx.font = isMobileOffice ? '600 9px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 8 : 9}px -apple-system, system-ui, sans-serif`;
+  oCtx.font = isMobileOffice ? '600 8px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 8 : 9}px -apple-system, system-ui, sans-serif`;
   oCtx.textAlign = 'center';
   const tw = oCtx.measureText(name).width;
   const padX = isMobileOffice ? 5 : (isRightRoom ? 6 : 7);
@@ -2049,8 +2049,8 @@ function resizeCanvas() {
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
     if (isMobile) {
-      camPanX = -120;
-      camPanY = 20;
+      camPanX = -90;
+      camPanY = 10;
     } else {
       camPanY = 8;
     }
