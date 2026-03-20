@@ -2140,10 +2140,9 @@ function resizeCanvas() {
   const isMobile = window.innerWidth <= 480;
 
   const canvasW = w;
-  // Mobile should feel scene-first: let the office claim more vertical space
-  // so short pages don't leave a large dead band below the canvas.
-  // On mobile, size canvas to fit the isometric scene tightly (scene is landscape-oriented)
-  const mobileAvailH = Math.max(280, Math.min(availH, 720));
+  // Mobile: fill available viewport minus bottom nav padding.
+  // Desktop: fill the available viewport height.
+  const mobileAvailH = Math.max(300, availH - 12);
   const canvasH = isMobile ? mobileAvailH : Math.max(500, availH - 8);
 
   const dpr = window.devicePixelRatio || 1;
@@ -2166,17 +2165,13 @@ function resizeCanvas() {
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
-  const fit = isMobile ? fitW * 1.25 : Math.min(fitW, fitH);
+  // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
+  const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH);
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
-    if (isMobile) {
-      // Push the office toward the top of the canvas to reduce sky margin
-      camPanX = 0;
-      camPanY = -Math.round((internalH * 0.15));
-    } else {
-      camPanY = 0;
-    }
+    camPanX = 0;
+    camPanY = 0;
   }
 
   invalidateStaticCache();

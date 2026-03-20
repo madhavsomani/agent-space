@@ -98,7 +98,20 @@ async function switchOfficeView(view, opts = {}) {
 
   if (view === '2d') {
     btn2d.style.opacity = '1';
-    cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+    // On mobile, keep key panels visible below the isometric canvas
+    const isMobile = window.innerWidth <= 768;
+    const keepVisible = isMobile ? ['office-ticker','office-quickstats','agent-status-cards','agent-search-bar'] : [];
+    cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = keepVisible.includes(id) ? '' : 'none'; });
+    if (isMobile) {
+      const qs = document.getElementById('office-quickstats');
+      if (qs) qs.style.display = 'grid';
+      const sb = document.getElementById('agent-search-bar');
+      if (sb) sb.style.display = 'flex';
+      const sc = document.getElementById('agent-status-cards');
+      if (sc) sc.style.display = 'grid';
+      const tk = document.getElementById('office-ticker');
+      if (tk) tk.style.display = 'flex';
+    }
     canvas2d.style.display = 'block';
     invalidateStaticCache();
     if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
