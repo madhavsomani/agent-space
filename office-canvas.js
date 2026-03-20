@@ -2062,22 +2062,28 @@ function _drawOfficeInner(rafNow) {
     drawNameLabel(lbl.x, lbl.y, lbl.agent);
   }
 
-  // Speech bubble for active agents (rotate every 6s)
+  // Speech bubbles for active agents — show up to 2 simultaneously, staggered
   const workingAgents = sortedSlots.filter(s => s.agent && s.agent.status === 'working' && s.agent.lastMessage);
   if (workingAgents.length > 0 && window.innerWidth > 480) {
     if (time - _lastBubbleSwitch > SPEECH_BUBBLE_INTERVAL) {
       _lastBubbleSwitch = time;
       _speechBubbleAgent = (_speechBubbleAgent === null) ? 0 : (_speechBubbleAgent + 1) % workingAgents.length;
     }
-    const idx = (_speechBubbleAgent ?? 0) % workingAgents.length;
-    const bubbleSlot = workingAgents[idx];
-    if (bubbleSlot) {
-      const p = iso(bubbleSlot.gx, bubbleSlot.gy);
-      const fadeIn = Math.min(1, (time - _lastBubbleSwitch) / 300);
-      const fadeOut = Math.max(0, 1 - Math.max(0, time - _lastBubbleSwitch - SPEECH_BUBBLE_DURATION) / 500);
-      oCtx.globalAlpha = Math.min(fadeIn, fadeOut);
-      drawSpeechBubble(p.x, p.y - ISO.tileH / 2 - 38, bubbleSlot.agent.lastMessage);
-      oCtx.globalAlpha = 1;
+    const numBubbles = workingAgents.length >= 3 ? 2 : 1;
+    for (let bi = 0; bi < numBubbles; bi++) {
+      const idx = ((_speechBubbleAgent ?? 0) + bi * Math.max(1, Math.floor(workingAgents.length / 2))) % workingAgents.length;
+      const bubbleSlot = workingAgents[idx];
+      if (bubbleSlot) {
+        const p = iso(bubbleSlot.gx, bubbleSlot.gy);
+        const stagger = bi * 1200;
+        const elapsed = time - _lastBubbleSwitch - stagger;
+        if (elapsed < 0) continue;
+        const fadeIn = Math.min(1, elapsed / 300);
+        const fadeOut = Math.max(0, 1 - Math.max(0, elapsed - SPEECH_BUBBLE_DURATION) / 500);
+        oCtx.globalAlpha = Math.min(fadeIn, fadeOut);
+        drawSpeechBubble(p.x, p.y - ISO.tileH / 2 - 38, bubbleSlot.agent.lastMessage);
+        oCtx.globalAlpha = 1;
+      }
     }
   }
 
