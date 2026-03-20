@@ -2088,6 +2088,18 @@ function _drawOfficeInner(rafNow) {
     const slot = activeDeskSlots[assigned.length];
     assigned.push({ ...slot, agent: overflowAgents.shift() });
   }
+  // Dynamic overflow: place extra agents in unused grid space within room bounds
+  let overflowIdx = 0;
+  while (overflowAgents.length) {
+    const a = overflowAgents.shift();
+    // Place in a zigzag pattern across the room center
+    const gx = 4 + (overflowIdx % 5) * 4;
+    const gy = 2 + Math.floor(overflowIdx / 5) * 4;
+    const clampedGx = Math.min(gx, 22);
+    const clampedGy = Math.min(gy, 14);
+    assigned.push({ gx: clampedGx, gy: clampedGy, zone: 'support', agent: a });
+    overflowIdx++;
+  }
   const sortedSlots = assigned
     .map((s, i) => ({ ...s, idx: i }))
     .sort((a, b) => (a.gy + a.gx) - (b.gy + b.gx));
