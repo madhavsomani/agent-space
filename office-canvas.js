@@ -1782,7 +1782,7 @@ function _drawOfficeInner(rafNow) {
   // Center the real scene bounds, not just the raw tile grid, so the office fills the viewport cleanly.
   const scene = getSceneBounds();
   _originX = cw / 2 - (scene.minX + scene.maxX) / 2;
-  _originY = ch * 0.53 - (scene.minY + scene.maxY) / 2;
+  _originY = ch * 0.48 - (scene.minY + scene.maxY) / 2;
 
   // Grounding shadow under the whole office so it feels like a placed scene, not floating geometry
   oCtx.save();
@@ -2023,7 +2023,7 @@ function resizeCanvas() {
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
   const mobileH = Math.min(Math.max(400, window.innerHeight * 0.82), 800);
-  const canvasH = isMobile ? Math.min(availH, mobileH) : Math.max(400, availH);
+  const canvasH = isMobile ? Math.min(availH, mobileH) : Math.max(500, availH);
 
   const dpr = window.devicePixelRatio || 1;
   const internalW = Math.max(canvasW, 800);
@@ -2044,15 +2044,15 @@ function resizeCanvas() {
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 2.4 : fitBase * 1.52;
+  const fit = isMobile ? fitBase * 3.0 : fitBase * 2.4;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
     if (isMobile) {
       camPanX = -120;
-      camPanY = 60;
+      camPanY = 20;
     } else {
-      camPanY = 14;
+      camPanY = 8;
     }
   }
 
