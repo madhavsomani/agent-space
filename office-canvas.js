@@ -2165,13 +2165,15 @@ function resizeCanvas() {
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   // Use the SMALLER of width/height fit so nothing clips
-  const fit = Math.min(fitW, fitH);
+  // On mobile, bias toward width-fit since there's extra vertical space
+  const fit = isMobile ? fitW * 1.25 : Math.min(fitW, fitH);
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
     if (isMobile) {
+      // Push the office toward the top of the canvas to reduce sky margin
       camPanX = 0;
-      camPanY = -20;
+      camPanY = -Math.round((internalH * 0.15));
     } else {
       camPanY = 0;
     }
