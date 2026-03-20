@@ -1,4 +1,4 @@
-let _officeView = localStorage.getItem('office-view') || '2d'; // Default to cozy office view
+let _officeView = localStorage.getItem('office-view') || '2d';
 const _mobileOfficeViewKey = 'office-view-mobile';
 
 // ── Grid View Renderer ──
@@ -8,7 +8,6 @@ function renderGridView() {
   const agents = typeof agentData !== 'undefined' ? agentData : [];
   if (!agents.length) { el.innerHTML = '<div style="text-align:center;color:var(--dim);padding:40px;grid-column:1/-1">No agents discovered</div>'; return; }
   
-  // Group agents by zone
   const zones = { Engineering: [], 'Content Team': [], Leadership: [], Support: [], Other: [] };
   agents.forEach(a => {
     const z = a.zone || a.team || 'Other';
@@ -76,85 +75,47 @@ function renderGridView() {
   }
   el.innerHTML = html;
 }
+
 async function switchOfficeView(view, opts = {}) {
   const explicit = !!opts.explicit;
   if (window.innerWidth <= 768 && view === '2d' && !explicit) view = 'grid';
-  const useReal3D = view === '2d' && window.innerWidth > 768 && window.Office3D;
   _officeView = view;
   localStorage.setItem('office-view', view);
   if (window.innerWidth <= 768 && explicit) localStorage.setItem(_mobileOfficeViewKey, view);
+  
   const canvas2d = document.getElementById('office-canvas');
   const flat2d = document.getElementById('office-2d-flat');
-  const container3d = document.getElementById('office-3d-container');
   const btn2d = document.getElementById('view-2d-btn');
   const btnGrid = document.getElementById('view-grid-btn');
   window.scrollTo({ top: 0, behavior: 'instant' });
 
-  // Card-based elements to hide in canvas view
   const cardElements = ['office-quickstats','agent-search-bar','agent-search-results-count','agent-status-cards','agent-timeline','agent-uptime','heatmap-calendar','live-logs-panel','office-ticker'];
 
-  // Hide all canvas views
   canvas2d.style.display = 'none';
   flat2d.style.display = 'none';
-  container3d.style.display = 'none';
   btn2d.style.opacity = '0.5';
   btnGrid.style.opacity = '0.5';
 
   if (view === '2d') {
     btn2d.style.opacity = '1';
-    // Hide card-based content
     cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
-
-    if (useReal3D) {
-      container3d.style.display = 'block';
-      container3d.style.width = '100%';
-      container3d.style.minHeight = window.innerWidth > 1200 ? '760px' : '640px';
-      requestAnimationFrame(async () => {
-        try {
-          if (window.Office3D && typeof window.Office3D.start === 'function') {
-            await window.Office3D.start(container3d);
-          }
-        } catch (e) {
-          console.warn('Office3D start failed, falling back to canvas:', e?.message || e);
-          container3d.style.display = 'none';
-          canvas2d.style.display = 'block';
-          resizeCanvas();
-          invalidateStaticCache();
-          if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
-          if (typeof drawOffice === 'function') {
-            drawOffice(performance.now());
-            setTimeout(() => drawOffice(performance.now()), 40);
-            setTimeout(() => drawOffice(performance.now()), 140);
-          }
-          if (typeof officeLoop === 'function') requestAnimationFrame(officeLoop);
-        }
-      });
-    } else {
-      canvas2d.style.display = 'block';
+    canvas2d.style.display = 'block';
+    invalidateStaticCache();
+    if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
+    requestAnimationFrame(() => {
+      resizeCanvas();
       invalidateStaticCache();
       if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
-      requestAnimationFrame(() => {
-        resizeCanvas();
-        invalidateStaticCache();
-        if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
-        if (typeof drawOffice === 'function') {
-          drawOffice(performance.now());
-          setTimeout(() => drawOffice(performance.now()), 40);
-          setTimeout(() => drawOffice(performance.now()), 140);
-        }
-        if (typeof officeLoop === 'function') requestAnimationFrame(officeLoop);
-      });
-    }
-  } else {
-    if (window.Office3D && typeof window.Office3D.stop === 'function') {
-      try { window.Office3D.stop(); } catch (e) {}
-    }
-    // grid (default) — show card content
-    cardElements.forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.style.display = '';
+      if (typeof drawOffice === 'function') {
+        drawOffice(performance.now());
+        setTimeout(() => drawOffice(performance.now()), 40);
+        setTimeout(() => drawOffice(performance.now()), 140);
+      }
+      if (typeof officeLoop === 'function') requestAnimationFrame(officeLoop);
     });
-    // Restore display types that get cleared
+  } else {
+    // grid view
+    cardElements.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
     const qs = document.getElementById('office-quickstats');
     if (qs) qs.style.display = 'grid';
     const sb = document.getElementById('agent-search-bar');
@@ -170,7 +131,6 @@ async function switchOfficeView(view, opts = {}) {
 
 // Restore view preference on load
 setTimeout(() => {
-  // Migrate old preferences — 3d/pixel/old 2d → new 2d
   if (_officeView === '3d' || _officeView === 'pixel') _officeView = '2d';
   if (window.innerWidth <= 768) {
     const savedMobile = localStorage.getItem(_mobileOfficeViewKey);
@@ -182,6 +142,5 @@ setTimeout(() => {
 window.addEventListener('resize', () => {
   if (window.innerWidth <= 768 && _officeView === '2d') {
     if (typeof drawOffice === 'function') requestAnimationFrame(() => drawOffice(performance.now()));
-    return;
   }
 });

@@ -116,7 +116,7 @@
   </div>
   <canvas id="office-canvas" style="display:none"></canvas>
   <div id="office-2d-flat" style="display:none"></div>
-  <div id="office-3d-container" style="display:none;background:#1e1e3a"></div>
+  <!-- 3D container removed -->
   <div class="office-legend" id="office-legend"></div>
   <div id="office-ticker" style="max-width:100%;margin:10px auto 0;padding:8px 14px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;backdrop-filter:blur(10px);transition:opacity .3s">
     <span style="flex-shrink:0;font-size:13px">📡</span>
@@ -418,11 +418,9 @@
   </div>
 </div>
 <script src="mobile-nav.js?v=20260319c"></script>
-<!-- Three.js removed — using lightweight 2D canvas office instead -->
-<script src="office-canvas.js?v=20260320k"></script>
-<script type="module" src="office3d-bridge.js?v=1"></script>
-<script type="module" src="office3d.js?v=20260320a"></script>
+<!-- 2D canvas office -->
+<script src="office-canvas.js?v=20260320p"></script>
 <script src="sprites.js?v=20260319c"></script>
-<script src="office-view.js?v=20260319f"></script>
+<script src="office-view.js?v=20260320b"></script>
 </body>
 </html>

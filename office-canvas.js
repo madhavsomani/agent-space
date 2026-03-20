@@ -2022,7 +2022,7 @@ function resizeCanvas() {
   const canvasW = w;
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
-  const mobileH = Math.min(Math.max(400, window.innerHeight * 0.82), 800);
+  const mobileH = Math.min(Math.max(400, window.innerHeight * 0.65), 620);
   const canvasH = isMobile ? Math.min(availH, mobileH) : Math.max(500, availH);
 
   const dpr = window.devicePixelRatio || 1;
@@ -2044,13 +2044,13 @@ function resizeCanvas() {
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 3.0 : fitBase * 2.4;
+  const fit = isMobile ? fitBase * 2.8 : fitBase * 2.4;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
     if (isMobile) {
-      camPanX = -90;
-      camPanY = 10;
+      camPanX = -50;
+      camPanY = -20;
     } else {
       camPanY = 8;
     }
