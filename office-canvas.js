@@ -1160,7 +1160,7 @@ function drawNameLabel(x, y, agent) {
   const isMobileOffice = window.innerWidth <= 480;
   const isRightRoom = x > (_originX + ISO.tileW * 4.5);
   const rawName = agent.name || 'Unknown';
-  const maxLen = isMobileOffice ? 12 : 18;
+  const maxLen = isMobileOffice ? 16 : 18;
   const name = rawName.length > maxLen ? rawName.slice(0, maxLen - 1) + '…' : rawName;
   oCtx.font = isMobileOffice ? '600 11px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 9 : 10}px -apple-system, system-ui, sans-serif`;
   oCtx.textAlign = 'center';
@@ -1739,14 +1739,15 @@ function drawSpeechBubble(x, y, text) {
   if (!text) return;
   const clean = sanitizeAgentText(text);
   if (!clean) return;
-  const maxLen = 30;
+  const isMob = window.innerWidth <= 480;
+  const maxLen = isMob ? 35 : 30;
   const display = clean.length > maxLen ? clean.slice(0, maxLen) + '…' : clean;
-  oCtx.font = '600 10px -apple-system, system-ui, sans-serif';
+  oCtx.font = isMob ? '600 11px -apple-system, system-ui, sans-serif' : '600 10px -apple-system, system-ui, sans-serif';
   oCtx.textAlign = 'left';
   const tw = oCtx.measureText(display).width;
   const padX = 7, padY = 4;
   const bw = tw + padX * 2;
-  const bh = 18;
+  const bh = isMob ? 20 : 18;
   const bx = x - bw / 2;
   const by = y - 38;
 
