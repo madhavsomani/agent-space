@@ -872,6 +872,19 @@ function drawDeskStation(gx, gy, agent, time) {
 
 // ── AGENT CHARACTER ──
 function drawAgent(x, y, agent, time) {
+  // Hover glow ring
+  if (_hoveredAgent && _hoveredAgent.name === agent.name) {
+    oCtx.save();
+    const grad = oCtx.createRadialGradient(x, y + 8, 8, x, y + 8, 32);
+    grad.addColorStop(0, 'rgba(59,130,246,0.35)');
+    grad.addColorStop(0.6, 'rgba(59,130,246,0.12)');
+    grad.addColorStop(1, 'rgba(59,130,246,0)');
+    oCtx.fillStyle = grad;
+    oCtx.beginPath();
+    oCtx.ellipse(x, y + 8, 32, 18, 0, 0, Math.PI * 2);
+    oCtx.fill();
+    oCtx.restore();
+  }
   const color = agent.color || '#888';
   const role = String(agent?.role || '').toLowerCase();
   const isSleeping = agent.status === 'sleeping';
@@ -2303,6 +2316,7 @@ if (oCanvas) {
       const dx = _mouseCanvasX - t.x, dy = _mouseCanvasY - t.y;
       if ((dx * dx + dy * dy) <= (t.r * t.r)) { _hoveredAgent = t.agent; break; }
     }
+    oCanvas.style.cursor = _hoveredAgent ? 'pointer' : (_dragging ? 'grabbing' : 'grab');
   });
   oCanvas.addEventListener('mouseleave', () => { _hoveredAgent = null; });
 

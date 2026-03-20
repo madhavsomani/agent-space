@@ -18,7 +18,7 @@ async function refreshHealthScore() {
         <div style="font-size:48px;font-weight:900;color:${color};line-height:1">${d.score}</div>
         <div>
           <div style="font-size:24px;font-weight:800;color:${color}">${d.grade}</div>
-          <div style="font-size:11px;color:var(--dim)">CPU ${d.cpu}% · MEM ${d.memPct}% · DISK ${d.diskPct}%</div>
+          <div style="font-size:11px;color:var(--dim)">CPU ${Number(d.cpu).toFixed(1)}% · MEM ${d.memPct}% · DISK ${d.diskPct}%</div>
           <div style="font-size:11px;color:var(--dim)">${d.working}/${d.total} agents working</div>
         </div>
       </div>
