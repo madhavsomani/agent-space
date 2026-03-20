@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Agent Space | Digital Observatory</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-tertiary-fixed": "#001a42",
+              "primary-container": "#001209",
+              "surface-container-high": "#272a31",
+              "surface-container-low": "#191c22",
+              "on-primary": "#003824",
+              "on-tertiary-fixed-variant": "#004395",
+              "secondary": "#ffb95f",
+              "on-surface": "#e1e2eb",
+              "inverse-on-surface": "#2e3037",
+              "tertiary-fixed-dim": "#adc6ff",
+              "background": "#10131a",
+              "tertiary": "#adc6ff",
+              "secondary-container": "#ee9800",
+              "surface-tint": "#4edea3",
+              "on-error-container": "#ffdad6",
+              "outline-variant": "#45474b",
+              "surface-container-lowest": "#0b0e14",
+              "surface": "#10131a",
+              "secondary-fixed-dim": "#ffb95f",
+              "on-primary-fixed": "#002113",
+              "surface-bright": "#363940",
+              "secondary-fixed": "#ffddb8",
+              "on-primary-fixed-variant": "#005236",
+              "on-tertiary-container": "#2c77eb",
+              "tertiary-fixed": "#d8e2ff",
+              "on-background": "#e1e2eb",
+              "primary-fixed": "#6ffbbe",
+              "on-error": "#690005",
+              "surface-container-highest": "#32353c",
+              "on-surface-variant": "#c6c6cb",
+              "surface-container": "#1d2026",
+              "inverse-surface": "#e1e2eb",
+              "primary-fixed-dim": "#4edea3",
+              "on-secondary-fixed": "#2a1700",
+              "surface-dim": "#10131a",
+              "outline": "#909095"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(29, 32, 38, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(69, 71, 75, 0.15);
+        }
+        .status-glow-primary { box-shadow: 0 0 20px rgba(78, 222, 163, 0.1); }
+        .status-glow-secondary { box-shadow: 0 0 20px rgba(255, 185, 95, 0.1); }
+        .status-glow-tertiary { box-shadow: 0 0 20px rgba(173, 198, 255, 0.1); }
+        
+        @keyframes pulse-red {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .pulse-live { animation: pulse-red 2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30 selection:text-primary min-h-screen">
+<!-- TopNavBar -->
+<nav class="bg-[#10131a]/80 backdrop-blur-xl docked full-width top-0 sticky z-50 flex justify-between items-center w-full px-8 py-4">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<span class="text-xl font-black text-[#e1e2eb] tracking-tighter font-headline">Agent Space</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-error-container/20 border border-error/20">
+<span class="w-1.5 h-1.5 rounded-full bg-error pulse-live"></span>
+<span class="text-[10px] font-bold text-error tracking-widest uppercase">LIVE</span>
+</div>
+</div>
+<div class="hidden md:flex items-center gap-6 ml-4">
+<a class="text-[#4edea3] border-b-2 border-[#4edea3] pb-1 font-headline font-bold tracking-tight text-sm" href="#">Dashboard</a>
+<a class="text-[#adc6ff] hover:text-[#e1e2eb] transition-colors font-headline font-bold tracking-tight text-sm" href="#">Logs</a>
+<a class="text-[#adc6ff] hover:text-[#e1e2eb] transition-colors font-headline font-bold tracking-tight text-sm" href="#">System</a>
+<a class="text-[#adc6ff] hover:text-[#e1e2eb] transition-colors font-headline font-bold tracking-tight text-sm" href="#">Analytics</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-[#adc6ff] hover:bg-[#272a31]/50 rounded-lg transition-all duration-300 scale-95 active:scale-90">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-[#adc6ff] hover:bg-[#272a31]/50 rounded-lg transition-all duration-300 scale-95 active:scale-90">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Portrait of the system administrator user" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsWDI4m5fSif1Fy9VRvhBxP1ee9cXjFu6HaLt4nNEQC6_HyP-z6RwjgbF1v6jIsnLIrGII-_GSTpqH6sgQcM1NiqeXJAjN8o-ZwCQnO3ymsG4uP0NpKv-Aj2kA22YwPb_gQfEJZK5O_JSVBBj8M_jlsBwNeKu9sdSKqU6dSPez_l1xCd6jkYGcj_JOt0Nd2DSgQlxSG27Sg7Xq_fTd2O2NzKZZfHLFFoNajoIi9FbXc4aC_Iz8abnrcatk5806rpdJBG1WjJzwhEI"/>
+</div>
+</div>
+</nav>
+<main class="max-w-[1440px] mx-auto px-8 py-10 space-y-12">
+<!-- Header Section -->
+<header class="flex justify-between items-end">
+<div class="space-y-1">
+<h1 class="text-4xl font-black font-headline tracking-tighter text-on-surface">Observatory Dashboard</h1>
+<p class="text-on-surface-variant body-md max-w-lg">Real-time telemetry and status monitoring for active neural agents across the primary cluster.</p>
+</div>
+<button class="bg-primary text-on-primary font-bold px-6 py-3 rounded-xl hover:shadow-[0_0_20px_rgba(78,222,163,0.3)] transition-all flex items-center gap-2 scale-100 active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="add_circle">add_circle</span>
+                Deploy New Agent
+            </button>
+</header>
+<!-- Bento Grid: Agent Status Cards -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Agent 1: Leo -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-5 hover:bg-surface-container transition-colors group status-glow-primary">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary" data-icon="database">database</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Leo</h3>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-widest">Backend Engineer</p>
+</div>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-bold text-primary uppercase">Working</span>
+</div>
+</div>
+<div class="space-y-3">
+<p class="text-sm text-on-surface-variant leading-relaxed">Optimizing database queries for high-concurrency requests.</p>
+<div class="h-10 w-full bg-surface-container-lowest rounded-lg overflow-hidden relative flex items-end">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent"></div>
+<svg class="w-full h-6 stroke-primary fill-none" viewbox="0 0 100 24">
+<path d="M0 20 Q 10 5, 20 18 T 40 10 T 60 15 T 80 5 T 100 12" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Agent 2: Maya -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-5 hover:bg-surface-container transition-colors group status-glow-primary">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary" data-icon="palette">palette</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Maya</h3>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-widest">Designer</p>
+</div>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-bold text-primary uppercase">Working</span>
+</div>
+</div>
+<div class="space-y-3">
+<p class="text-sm text-on-surface-variant leading-relaxed">Generating design assets and high-fidelity mockups.</p>
+<div class="h-10 w-full bg-surface-container-lowest rounded-lg overflow-hidden relative flex items-end">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent"></div>
+<svg class="w-full h-6 stroke-primary fill-none" viewbox="0 0 100 24">
+<path d="M0 12 Q 25 2, 50 18 T 100 10" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Agent 3: Zane -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-5 hover:bg-surface-container transition-colors group status-glow-secondary">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center border border-secondary/20">
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle">check_circle</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Zane</h3>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-widest">QA Agent</p>
+</div>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary/10 border border-secondary/20">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-[10px] font-bold text-secondary uppercase">Idle</span>
+</div>
+</div>
+<div class="space-y-3">
+<p class="text-sm text-on-surface-variant leading-relaxed">Waiting for build completion to trigger test suites.</p>
+<div class="h-10 w-full bg-surface-container-lowest rounded-lg overflow-hidden relative flex items-end">
+<div class="absolute inset-0 bg-gradient-to-t from-secondary/5 to-transparent"></div>
+<svg class="w-full h-6 stroke-secondary fill-none opacity-50" viewbox="0 0 100 24">
+<path d="M0 12 H 100" stroke-dasharray="4 4" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Agent 4: Sasha -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-5 hover:bg-surface-container transition-colors group status-glow-primary">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary" data-icon="cloud_done">cloud_done</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Sasha</h3>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-widest">DevOps</p>
+</div>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-bold text-primary uppercase">Working</span>
+</div>
+</div>
+<div class="space-y-3">
+<p class="text-sm text-on-surface-variant leading-relaxed">Deploying production cluster with enhanced scaling.</p>
+<div class="h-10 w-full bg-surface-container-lowest rounded-lg overflow-hidden relative flex items-end">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent"></div>
+<svg class="w-full h-6 stroke-primary fill-none" viewbox="0 0 100 24">
+<path d="M0 20 L 10 15 L 20 22 L 30 10 L 40 18 L 60 5 L 80 12 L 100 2" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Agent 5: Kai -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-5 hover:bg-surface-container transition-colors group status-glow-tertiary">
+<div class="flex justify-between items-start opacity-60">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center border border-tertiary/20">
+<span class="material-symbols-outlined text-tertiary" data-icon="monitoring">monitoring</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Kai</h3>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-widest">Data Analyst</p>
+</div>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-tertiary/10 border border-tertiary/20">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-[10px] font-bold text-tertiary uppercase">Sleeping</span>
+</div>
+</div>
+<div class="space-y-3 opacity-60">
+<p class="text-sm text-on-surface-variant leading-relaxed">Daily batch jobs scheduled for 02:00 UTC.</p>
+<div class="h-10 w-full bg-surface-container-lowest rounded-lg overflow-hidden relative flex items-end">
+<div class="absolute inset-0 bg-gradient-to-t from-tertiary/5 to-transparent"></div>
+<svg class="w-full h-6 stroke-tertiary fill-none" viewbox="0 0 100 24">
+<path d="M0 22 L 100 22" stroke-linecap="round" stroke-width="1"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Agent 6: Mina -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-5 hover:bg-surface-container transition-colors group status-glow-primary">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary" data-icon="web">web</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Mina</h3>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-widest">Frontend Dev</p>
+</div>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-bold text-primary uppercase">Working</span>
+</div>
+</div>
+<div class="space-y-3">
+<p class="text-sm text-on-surface-variant leading-relaxed">Refining responsive layouts and accessibility states.</p>
+<div class="h-10 w-full bg-surface-container-lowest rounded-lg overflow-hidden relative flex items-end">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent"></div>
+<svg class="w-full h-6 stroke-primary fill-none" viewbox="0 0 100 24">
+<path d="M0 22 Q 20 22, 40 10 T 80 5 T 100 8" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+</div>
+</section>
+<!-- Live Activity Feed Section -->
+<section class="space-y-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="terminal">terminal</span>
+<h2 class="text-xl font-bold font-headline tracking-tight text-on-surface">Live Activity Feed</h2>
+</div>
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="divide-y divide-outline-variant/10">
+<!-- Feed Item 1 -->
+<div class="px-6 py-4 flex justify-between items-center hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(78,222,163,0.5)]"></div>
+<p class="text-sm font-medium">
+<span class="text-primary font-bold">Leo</span>
+<span class="text-on-surface-variant"> optimized </span>
+<span class="text-on-surface">4 database queries</span>
+</p>
+</div>
+<span class="text-xs font-medium text-outline">2m ago</span>
+</div>
+<!-- Feed Item 2 -->
+<div class="px-6 py-4 flex justify-between items-center hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(78,222,163,0.5)]"></div>
+<p class="text-sm font-medium">
+<span class="text-primary font-bold">Sasha</span>
+<span class="text-on-surface-variant"> scaled the production cluster to </span>
+<span class="text-on-surface">12 nodes</span>
+</p>
+</div>
+<span class="text-xs font-medium text-outline">5m ago</span>
+</div>
+<!-- Feed Item 3 -->
+<div class="px-6 py-4 flex justify-between items-center hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(78,222,163,0.5)]"></div>
+<p class="text-sm font-medium">
+<span class="text-primary font-bold">Maya</span>
+<span class="text-on-surface-variant"> exported </span>
+<span class="text-on-surface">12 SVG assets</span>
+</p>
+</div>
+<span class="text-xs font-medium text-outline">8m ago</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Sidebar (Hidden on Mobile, as per Responsive Pivot Rule) -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col bg-[#10131a] p-4 border-r border-[#45474b]/15 z-[60]">
+<div class="mb-10 px-4 py-2">
+<h2 class="text-[#e1e2eb] font-bold text-lg font-headline">Agent Space</h2>
+<p class="text-xs text-on-surface-variant font-medium">Observatory v2.4</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="text-[#4edea3] bg-[#4edea3]/10 rounded-xl px-4 py-3 flex items-center gap-3 border-r-2 border-[#4edea3] font-['Inter'] text-sm font-medium transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+                Fleet Overview
+            </a>
+<a class="text-[#adc6ff] px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-[#1d2026] hover:text-[#e1e2eb] font-['Inter'] text-sm font-medium transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+                Neural Logs
+            </a>
+<a class="text-[#adc6ff] px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-[#1d2026] hover:text-[#e1e2eb] font-['Inter'] text-sm font-medium transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="settings_input_component">settings_input_component</span>
+                System Health
+            </a>
+<a class="text-[#adc6ff] px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-[#1d2026] hover:text-[#e1e2eb] font-['Inter'] text-sm font-medium transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="shield">shield</span>
+                Security
+            </a>
+</nav>
+<div class="mt-auto space-y-1 pt-6 border-t border-outline-variant/10">
+<a class="text-[#adc6ff] px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-[#1d2026] hover:text-[#e1e2eb] font-['Inter'] text-sm font-medium transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+                Support
+            </a>
+<a class="text-[#adc6ff] px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-[#1d2026] hover:text-[#e1e2eb] font-['Inter'] text-sm font-medium transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+                Documentation
+            </a>
+</div>
+</aside>
+<!-- Padding for Sidebar Offset on Desktop -->
+<style>
+        @media (min-width: 1024px) {
+            body { padding-left: 16rem; }
+            nav { width: calc(100% - 16rem); left: 16rem; }
+        }
+    </style>
+</body></html>
