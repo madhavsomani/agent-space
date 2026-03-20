@@ -1709,47 +1709,109 @@ function _drawOfficeInner(rafNow) {
   const cw = oCanvas.width / dpr;
   const ch = oCanvas.height / dpr;
 
-  const hour = new Date(_frameTime).getHours();
+  const now = new Date(_frameTime);
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  const hourF = hour + minute / 60; // fractional hour for smooth transitions
   const nightMode = hour < 7 || hour >= 19;
 
-  // Stronger day/night atmosphere so the office feels intentionally staged
+  // ── Smooth multi-phase sky: night→dawn→morning→midday→golden→dusk→night ──
+  // Each phase has gradient stops; we blend between adjacent phases
+  const SKY_PHASES = [
+    // 0-5: deep night
+    { h: 0,  stops: [['#0a0812',0],['#17111f',0.22],['#1e1530',0.5],['#2a1f3a',0.74],['#3a2844',1]] },
+    // 5-6: pre-dawn (deep blue to purple horizon)
+    { h: 5,  stops: [['#0f0e1e',0],['#1a1832',0.2],['#2d2548',0.5],['#5a3858',0.74],['#7a4a52',1]] },
+    // 6-7: dawn (warm horizon, pink/orange)
+    { h: 6,  stops: [['#2a2848',0],['#4a3858',0.2],['#8a5a60',0.45],['#d4876a',0.74],['#e8a878',1]] },
+    // 7-8: sunrise (golden, warm)
+    { h: 7,  stops: [['#7aaed8',0],['#c4b8a0',0.3],['#e8c898',0.55],['#ddb888',0.8],['#d4aa80',1]] },
+    // 8-11: morning (bright, clear)
+    { h: 8,  stops: [['#b8d8f0',0],['#dbeaf8',0.2],['#f3e7d5',0.55],['#e0cdb0',0.8],['#d7bf9f',1]] },
+    // 11-15: midday (bright blue-white sky)
+    { h: 11, stops: [['#c4e2f8',0],['#e4eff8',0.25],['#f8f0e2',0.55],['#e8dac4',0.8],['#dac8a8',1]] },
+    // 15-17: afternoon (warm golden)
+    { h: 15, stops: [['#b8d4e8',0],['#dde0d8',0.25],['#f0e0c4',0.55],['#e0c8a0',0.8],['#d4b898',1]] },
+    // 17-18.5: golden hour
+    { h: 17, stops: [['#8ab0d8',0],['#d4b898',0.25],['#e8b878',0.5],['#d49858',0.78],['#c88848',1]] },
+    // 18.5-19.5: dusk (dramatic orange/purple)
+    { h: 18.5, stops: [['#3a3058',0],['#6a4868',0.22],['#a86858',0.48],['#c87848',0.74],['#b86848',1]] },
+    // 19.5-21: twilight
+    { h: 19.5, stops: [['#1a1428',0],['#2a2040',0.25],['#4a3558',0.5],['#6a4858',0.76],['#7a5050',1]] },
+    // 21-24: night
+    { h: 21, stops: [['#0a0812',0],['#17111f',0.22],['#1e1530',0.5],['#2a1f3a',0.74],['#3a2844',1]] },
+  ];
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function rgbToHex(r, g, b) {
+    return '#' + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
+  }
+  function lerpColor(c1, c2, t) {
+    const a = hexToRgb(c1), b = hexToRgb(c2);
+    return rgbToHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+
+  // Find two adjacent phases and blend
+  let phaseA = SKY_PHASES[SKY_PHASES.length - 1], phaseB = SKY_PHASES[0];
+  let blendT = 0;
+  for (let i = 0; i < SKY_PHASES.length - 1; i++) {
+    if (hourF >= SKY_PHASES[i].h && hourF < SKY_PHASES[i + 1].h) {
+      phaseA = SKY_PHASES[i]; phaseB = SKY_PHASES[i + 1];
+      blendT = (hourF - phaseA.h) / (phaseB.h - phaseA.h);
+      break;
+    }
+  }
+
   const bgGrad = oCtx.createLinearGradient(0, 0, 0, ch);
-  if (nightMode) {
-    bgGrad.addColorStop(0, '#17111f');
-    bgGrad.addColorStop(0.22, '#31253f');
-    bgGrad.addColorStop(0.5, '#5a4562');
-    bgGrad.addColorStop(0.74, '#966d56');
-    bgGrad.addColorStop(1, '#d7b38d');
-  } else {
-    bgGrad.addColorStop(0, '#dbeaf8');
-    bgGrad.addColorStop(0.36, '#f3e7d5');
-    bgGrad.addColorStop(1, '#d7bf9f');
+  for (let i = 0; i < phaseA.stops.length; i++) {
+    const [cA, posA] = phaseA.stops[i];
+    const [cB, posB] = phaseB.stops[Math.min(i, phaseB.stops.length - 1)];
+    bgGrad.addColorStop(posA + (posB - posA) * blendT, lerpColor(cA, cB, blendT));
   }
   oCtx.fillStyle = bgGrad;
   oCtx.fillRect(0, 0, cw, ch);
 
-  // Time-of-day glow layer
+  // Time-of-day glow — intensity varies by phase
+  const glowIntensity = nightMode ? 0.24 : (hourF >= 17 && hourF < 19.5) ? 0.3 : 0.18;
   const horizonGlow = oCtx.createRadialGradient(cw * 0.5, ch * 0.22, 24, cw * 0.5, ch * 0.22, Math.max(cw, ch) * 0.58);
   if (nightMode) {
-    horizonGlow.addColorStop(0, 'rgba(255,206,138,0.24)');
+    horizonGlow.addColorStop(0, `rgba(255,206,138,${glowIntensity})`);
     horizonGlow.addColorStop(0.28, 'rgba(210,132,214,0.14)');
     horizonGlow.addColorStop(0.58, 'rgba(89,58,110,0.08)');
     horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  } else if (hourF >= 6 && hourF < 8) {
+    // Dawn/sunrise warm glow
+    const dawnI = (hourF - 6) / 2;
+    horizonGlow.addColorStop(0, `rgba(255,220,160,${0.2 + dawnI * 0.15})`);
+    horizonGlow.addColorStop(0.35, `rgba(255,180,100,${0.08 + dawnI * 0.06})`);
+    horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  } else if (hourF >= 17 && hourF < 19.5) {
+    // Golden hour/dusk warm glow
+    const duskI = (hourF - 17) / 2.5;
+    horizonGlow.addColorStop(0, `rgba(255,180,100,${0.22 + duskI * 0.1})`);
+    horizonGlow.addColorStop(0.3, `rgba(240,140,80,${0.12 + duskI * 0.08})`);
+    horizonGlow.addColorStop(0.6, `rgba(180,80,120,${duskI * 0.08})`);
+    horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
   } else {
-    horizonGlow.addColorStop(0, 'rgba(255,248,226,0.28)');
-    horizonGlow.addColorStop(0.42, 'rgba(180,221,255,0.12)');
+    horizonGlow.addColorStop(0, 'rgba(255,248,226,0.22)');
+    horizonGlow.addColorStop(0.42, 'rgba(180,221,255,0.10)');
     horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
   }
   oCtx.fillStyle = horizonGlow;
   oCtx.fillRect(0, 0, cw, ch);
 
-  // Soft vignette so empty canvas edges feel intentional, not broken
+  // Soft vignette
+  const vignetteAlpha = nightMode ? 0.34 : (hourF >= 17 && hourF < 19.5) ? 0.22 : 0.14;
   const vignette = oCtx.createRadialGradient(cw / 2, ch * 0.42, Math.min(cw, ch) * 0.18, cw / 2, ch * 0.46, Math.max(cw, ch) * 0.78);
   vignette.addColorStop(0, 'rgba(255,245,230,0)');
-  vignette.addColorStop(1, nightMode ? 'rgba(30,14,24,0.34)' : 'rgba(120,84,44,0.14)');
+  vignette.addColorStop(1, nightMode ? `rgba(30,14,24,${vignetteAlpha})` : `rgba(120,84,44,${vignetteAlpha})`);
   oCtx.fillStyle = vignette;
   oCtx.fillRect(0, 0, cw, ch);
 
+  // Night-specific effects
   if (nightMode) {
     const lampWash = oCtx.createRadialGradient(cw * 0.5, ch * 0.28, 20, cw * 0.5, ch * 0.28, Math.max(cw, ch) * 0.55);
     lampWash.addColorStop(0, 'rgba(255,216,150,0.28)');
@@ -1757,14 +1819,19 @@ function _drawOfficeInner(rafNow) {
     lampWash.addColorStop(1, 'rgba(255,210,130,0)');
     oCtx.fillStyle = lampWash;
     oCtx.fillRect(0, 0, cw, ch);
+  }
 
-    // Tiny star specks keep the night sky from feeling like a flat gradient
+  // Stars — visible at night, fade in/out during twilight
+  const starAlpha = hourF < 5 ? 0.7 : hourF < 7 ? 0.7 * (1 - (hourF - 5) / 2) : hourF >= 19.5 ? Math.min(0.7, (hourF - 19.5) / 1.5 * 0.7) : hourF >= 21 ? 0.7 : 0;
+  if (starAlpha > 0.02) {
     oCtx.save();
-    oCtx.globalAlpha = 0.7;
-    for (let i = 0; i < 18; i++) {
+    oCtx.globalAlpha = starAlpha;
+    for (let i = 0; i < 24; i++) {
       const sx = ((i * 137) % Math.max(40, Math.floor(cw - 60))) + 30;
-      const sy = ((i * 83) % Math.max(20, Math.floor(ch * 0.24))) + 18;
-      const r = i % 5 === 0 ? 1.6 : 1.05;
+      const sy = ((i * 83) % Math.max(20, Math.floor(ch * 0.28))) + 14;
+      // Gentle twinkle
+      const twinkle = 0.6 + 0.4 * Math.sin(time / 1200 + i * 1.7);
+      const r = (i % 5 === 0 ? 1.8 : 1.1) * twinkle;
       oCtx.beginPath();
       oCtx.arc(sx, sy, r, 0, Math.PI * 2);
       oCtx.fillStyle = i % 4 === 0 ? 'rgba(255,230,190,0.9)' : 'rgba(255,248,235,0.85)';
@@ -2022,8 +2089,9 @@ function resizeCanvas() {
   const canvasW = w;
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
-  const mobileH = Math.min(Math.max(400, window.innerHeight * 0.55), 500);
-  const canvasH = isMobile ? Math.min(availH, mobileH) : Math.max(500, availH);
+  // On mobile, size canvas to fit the isometric scene tightly (scene is landscape-oriented)
+  const mobileAvailH = Math.max(280, Math.min(window.innerHeight * 0.52, 460));
+  const canvasH = isMobile ? mobileAvailH : Math.max(500, availH);
 
   const dpr = window.devicePixelRatio || 1;
   const internalW = Math.max(canvasW, 800);
@@ -2044,13 +2112,13 @@ function resizeCanvas() {
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 3.0 : fitBase * 2.4;
+  const fit = isMobile ? fitBase * 2.8 : fitBase * 2.4;
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
     if (isMobile) {
-      camPanX = -60;
-      camPanY = -25;
+      camPanX = -15;
+      camPanY = -20;
     } else {
       camPanY = 8;
     }
