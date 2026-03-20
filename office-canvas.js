@@ -599,46 +599,61 @@ function drawInteriorPartitions() {
       for (let gy = part.y0; gy <= part.y1; gy++) {
         const p = iso(part.gx, gy);
         const isDoor = gy === part.doorwayAt;
-        oCtx.save();
-        oCtx.globalAlpha = 0.92;
-        oCtx.fillStyle = 'rgba(126,155,126,0.55)';
-        oCtx.beginPath();
-        oCtx.moveTo(p.x - 4, p.y - 34);
-        oCtx.lineTo(p.x + 14, p.y - 24);
-        oCtx.lineTo(p.x + 14, p.y + 3);
-        oCtx.lineTo(p.x - 4, p.y - 7);
-        oCtx.closePath();
-        oCtx.fill();
-        oCtx.restore();
         if (isDoor) {
           const key = pickOfficeAsset(['doorwayNE','doorway']);
-          if (officeAssetReady(key)) drawOfficeAsset(key, p.x + 2, p.y + 8, 0.86, 0.96);
+          if (officeAssetReady(key)) drawOfficeAsset(key, p.x + 2, p.y + 8, 0.86, 0.72);
         } else {
-          const key = pickOfficeAsset(['wallRight','wallLeft']);
-          if (officeAssetReady(key)) drawOfficeAsset(key, p.x + 3, p.y + 11, 0.82, 0.92);
+          // Half-height cubicle divider — subtle glass/wood panel feel
+          oCtx.save();
+          oCtx.globalAlpha = 0.45;
+          // Glass panel top
+          oCtx.fillStyle = 'rgba(180,210,200,0.5)';
+          oCtx.beginPath();
+          oCtx.moveTo(p.x - 3, p.y - 16);
+          oCtx.lineTo(p.x + 12, p.y - 9);
+          oCtx.lineTo(p.x + 12, p.y + 3);
+          oCtx.lineTo(p.x - 3, p.y - 4);
+          oCtx.closePath();
+          oCtx.fill();
+          // Wood trim at bottom
+          oCtx.fillStyle = 'rgba(140,105,70,0.6)';
+          oCtx.beginPath();
+          oCtx.moveTo(p.x - 3, p.y - 4);
+          oCtx.lineTo(p.x + 12, p.y + 3);
+          oCtx.lineTo(p.x + 12, p.y + 5);
+          oCtx.lineTo(p.x - 3, p.y - 2);
+          oCtx.closePath();
+          oCtx.fill();
+          oCtx.restore();
         }
       }
     } else {
       for (let gx = part.x0; gx <= part.x1; gx++) {
         const p = iso(gx, part.gy);
         const isDoor = gx === part.doorwayAt;
-        oCtx.save();
-        oCtx.globalAlpha = 0.92;
-        oCtx.fillStyle = 'rgba(146,171,146,0.52)';
-        oCtx.beginPath();
-        oCtx.moveTo(p.x - 18, p.y - 26);
-        oCtx.lineTo(p.x + 18, p.y - 26);
-        oCtx.lineTo(p.x + 18, p.y + 2);
-        oCtx.lineTo(p.x - 18, p.y + 2);
-        oCtx.closePath();
-        oCtx.fill();
-        oCtx.restore();
         if (isDoor) {
           const key = pickOfficeAsset(['doorway','doorwayNE']);
-          if (officeAssetReady(key)) drawOfficeAsset(key, p.x, p.y + 8, 0.86, 0.96);
+          if (officeAssetReady(key)) drawOfficeAsset(key, p.x, p.y + 8, 0.86, 0.72);
         } else {
-          const key = pickOfficeAsset(['wallBack','wallBackNE']);
-          if (officeAssetReady(key)) drawOfficeAsset(key, p.x, p.y + 4, 0.82, 0.92);
+          oCtx.save();
+          oCtx.globalAlpha = 0.45;
+          oCtx.fillStyle = 'rgba(180,210,200,0.5)';
+          oCtx.beginPath();
+          oCtx.moveTo(p.x - 16, p.y - 14);
+          oCtx.lineTo(p.x + 16, p.y - 14);
+          oCtx.lineTo(p.x + 16, p.y + 2);
+          oCtx.lineTo(p.x - 16, p.y + 2);
+          oCtx.closePath();
+          oCtx.fill();
+          oCtx.fillStyle = 'rgba(140,105,70,0.6)';
+          oCtx.beginPath();
+          oCtx.moveTo(p.x - 16, p.y + 2);
+          oCtx.lineTo(p.x + 16, p.y + 2);
+          oCtx.lineTo(p.x + 16, p.y + 4);
+          oCtx.lineTo(p.x - 16, p.y + 4);
+          oCtx.closePath();
+          oCtx.fill();
+          oCtx.restore();
         }
       }
     }
@@ -1101,13 +1116,13 @@ function drawNameLabel(x, y, agent) {
   const rawName = agent.name || 'Unknown';
   const maxLen = isMobileOffice ? 12 : 18;
   const name = rawName.length > maxLen ? rawName.slice(0, maxLen - 1) + '…' : rawName;
-  oCtx.font = isMobileOffice ? '600 8px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 8 : 9}px -apple-system, system-ui, sans-serif`;
+  oCtx.font = isMobileOffice ? '600 11px -apple-system, system-ui, sans-serif' : `600 ${isRightRoom ? 9 : 10}px -apple-system, system-ui, sans-serif`;
   oCtx.textAlign = 'center';
   const tw = oCtx.measureText(name).width;
-  const padX = isMobileOffice ? 5 : (isRightRoom ? 6 : 7);
-  const padY = isMobileOffice ? 2 : 3;
-  const lw = tw + padX * 2 + (isMobileOffice ? 6 : 8);
-  const lh = isMobileOffice ? 12 : (isRightRoom ? 14 : 15);
+  const padX = isMobileOffice ? 6 : (isRightRoom ? 6 : 7);
+  const padY = isMobileOffice ? 3 : 3;
+  const lw = tw + padX * 2 + (isMobileOffice ? 7 : 8);
+  const lh = isMobileOffice ? 16 : (isRightRoom ? 15 : 16);
 
   let lx = x - tw / 2 - padX;
   // Clamp to visible world-space bounds (accounting for camera pan + zoom)
@@ -1678,14 +1693,14 @@ function drawSpeechBubble(x, y, text) {
   if (!text) return;
   const clean = sanitizeAgentText(text);
   if (!clean) return;
-  const maxLen = 24;
+  const maxLen = 30;
   const display = clean.length > maxLen ? clean.slice(0, maxLen) + '…' : clean;
-  oCtx.font = '9px -apple-system, system-ui, sans-serif';
+  oCtx.font = '600 10px -apple-system, system-ui, sans-serif';
   oCtx.textAlign = 'left';
   const tw = oCtx.measureText(display).width;
-  const padX = 6, padY = 4;
+  const padX = 7, padY = 4;
   const bw = tw + padX * 2;
-  const bh = 16;
+  const bh = 18;
   const bx = x - bw / 2;
   const by = y - 38;
 
@@ -1725,17 +1740,35 @@ let _staticCanvas = null, _staticCtx = null;
 let _staticCamZoom = 0, _staticCamPanX = 0, _staticCamPanY = 0;
 
 // ── Color utils (hoisted for perf — avoid re-creating per frame) ──
+const _hexCache = {};
 function hexToRgb(hex) {
+  if (_hexCache[hex]) return _hexCache[hex];
   const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const r = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  _hexCache[hex] = r;
+  return r;
 }
 function rgbToHex(r, g, b) {
   return '#' + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
 }
+const _lerpCache = {};
 function lerpColor(c1, c2, t) {
+  const key = c1 + c2 + (t * 1000 | 0);
+  if (_lerpCache[key]) return _lerpCache[key];
   const a = hexToRgb(c1), b = hexToRgb(c2);
-  return rgbToHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  const result = rgbToHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  _lerpCache[key] = result;
+  // Prevent cache from growing unbounded
+  if (Object.keys(_lerpCache).length > 500) {
+    const keys = Object.keys(_lerpCache);
+    for (let i = 0; i < 250; i++) delete _lerpCache[keys[i]];
+  }
+  return result;
 }
+
+// ── Sky cache — redrawn only when hour changes ──
+let _skyCanvas = null, _skyCtx = null;
+let _skyLastHour = -1, _skyLastW = 0, _skyLastH = 0, _skyLastTime = 0;
 
 function invalidateStaticCache() { _staticValid = false; }
 
@@ -1763,7 +1796,14 @@ function _drawOfficeInner(rafNow) {
   const hourF = hour + minute / 60; // fractional hour for smooth transitions
   const nightMode = hour < 7 || hour >= 19;
 
-  // ── Smooth multi-phase sky: night→dawn→morning→midday→golden→dusk→night ──
+  // ── Sky rendering (cached — only redraws every 5 minutes or on resize) ──
+  const skyKey = (hour * 12 + (minute / 5 | 0)); // changes every 5 min
+  if (!_skyCanvas || _skyLastHour !== skyKey || _skyLastW !== oCanvas.width || _skyLastH !== oCanvas.height) {
+    if (!_skyCanvas) { _skyCanvas = document.createElement('canvas'); _skyCtx = _skyCanvas.getContext('2d'); }
+    _skyCanvas.width = oCanvas.width; _skyCanvas.height = oCanvas.height;
+    _skyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const _origCtx2 = oCtx;
+    oCtx = _skyCtx;
   // Each phase has gradient stops; we blend between adjacent phases
   const SKY_PHASES = [
     // 0-5: deep night
@@ -1878,6 +1918,16 @@ function _drawOfficeInner(rafNow) {
     oCtx.restore();
   }
 
+    oCtx = _origCtx2;
+    _skyLastHour = skyKey; _skyLastW = oCanvas.width; _skyLastH = oCanvas.height;
+  }
+  // Blit cached sky
+  oCtx.save();
+  oCtx.setTransform(1, 0, 0, 1, 0, 0);
+  oCtx.drawImage(_skyCanvas, 0, 0);
+  oCtx.restore();
+  oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
   // Apply zoom + pan
   oCtx.save();
   oCtx.translate(cw / 2, ch / 2);
@@ -1943,6 +1993,11 @@ function _drawOfficeInner(rafNow) {
 
   // Assign agents to desk slots — only occupied slots get desks
   const agents = (typeof agentData !== 'undefined' ? agentData : []).slice();
+  // Clean up wander state for agents that no longer exist
+  const agentNames = new Set(agents.map(a => a.name));
+  for (const k of Object.keys(_wanderState)) {
+    if (!agentNames.has(k)) delete _wanderState[k];
+  }
   // Sort: working first, then idle, then sleeping
   agents.sort((a, b) => {
     const order = { working: 0, idle: 1, sleeping: 2 };
@@ -2065,27 +2120,39 @@ function _drawOfficeInner(rafNow) {
   oCtx.restore(); // undo zoom+pan
 
   if (_hoveredAgent) {
-    const text = sanitizeAgentText(_hoveredAgent.lastMessage || _hoveredAgent.role || 'No recent activity').replace(/\n/g, ' ').slice(0, 72);
-    const status = String(_hoveredAgent.status || 'unknown').toUpperCase();
-    const title = `${_hoveredAgent.name || 'Agent'} · ${status}`;
+    const ha = _hoveredAgent;
+    const msg = sanitizeAgentText(ha.lastMessage || 'No recent activity').replace(/\n/g, ' ').slice(0, 72);
+    const role = ha.role || 'Agent';
+    const status = String(ha.status || 'unknown').toUpperCase();
+    const ageMin = ha.ageMin || 0;
+    const ageStr = ageMin < 1 ? 'just now' : ageMin < 60 ? Math.round(ageMin) + 'm ago' : Math.round(ageMin / 60) + 'h ago';
+    const title = `${ha.name || 'Agent'} · ${status}`;
+    const subtitle = `${role} · ${ageStr}`;
     oCtx.font = '600 11px -apple-system, system-ui, sans-serif';
-    const tw = Math.max(oCtx.measureText(title).width, oCtx.measureText(text).width);
+    const tw1 = oCtx.measureText(title).width;
+    oCtx.font = '10px -apple-system, system-ui, sans-serif';
+    const tw2 = oCtx.measureText(subtitle).width;
+    const tw3 = oCtx.measureText(msg).width;
+    const tw = Math.max(tw1, tw2, tw3);
     const bx = Math.max(12, Math.min(_mouseCanvasX + 14, cw - tw - 28));
-    const by = Math.max(12, _mouseCanvasY - 54);
+    const by = Math.max(12, _mouseCanvasY - 66);
     oCtx.fillStyle = PAL.tooltipBg;
     oCtx.beginPath();
-    oCtx.roundRect(bx, by, tw + 16, 38, 8);
+    oCtx.roundRect(bx, by, tw + 16, 50, 8);
     oCtx.fill();
     oCtx.strokeStyle = PAL.tooltipBorder;
     oCtx.lineWidth = 1;
     oCtx.stroke();
     oCtx.fillStyle = PAL.tooltipAccent;
-    oCtx.fillRect(bx + 8, by + 8, 4, 22);
+    oCtx.fillRect(bx + 8, by + 8, 4, 34);
+    oCtx.font = '600 11px -apple-system, system-ui, sans-serif';
     oCtx.fillStyle = '#fff';
     oCtx.fillText(title, bx + 18, by + 16);
     oCtx.font = '10px -apple-system, system-ui, sans-serif';
+    oCtx.fillStyle = 'rgba(255,220,180,0.7)';
+    oCtx.fillText(subtitle, bx + 18, by + 28);
     oCtx.fillStyle = 'rgba(255,255,255,0.82)';
-    oCtx.fillText(text, bx + 18, by + 30);
+    oCtx.fillText(msg, bx + 18, by + 42);
   }
 
   // Watermark / zoom hint
@@ -2196,8 +2263,8 @@ function resizeCanvas() {
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
-  // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
-  const fit = isMobile ? Math.min(fitW, fitH) * 1.1 : Math.min(fitW, fitH) * 0.95;
+  // Mobile: use width-fit to fill the narrow viewport, desktop: balanced fit
+  const fit = isMobile ? fitW * 0.95 : Math.min(fitW, fitH) * 0.95;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
