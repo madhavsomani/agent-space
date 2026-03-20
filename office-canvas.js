@@ -1968,12 +1968,12 @@ function _drawOfficeInner(rafNow) {
       drawAgent(wp.x, wp.y - ISO.tileH / 2 - 10, slot.agent, time);
       _pendingLabels.push({ x: wp.x, y: wp.y + 4, agent: slot.agent });
       const screen = worldToScreen(wp.x, wp.y - ISO.tileH / 2 - 10, cw, ch);
-      _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 16 });
+      _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 36 });
     } else if (slot.agent) {
       const dp = iso(slot.gx, slot.gy);
       _pendingLabels.push({ x: dp.x, y: dp.y + ISO.tileH / 2 + 8, agent: slot.agent });
       const screen = worldToScreen(dp.x, dp.y - ISO.tileH / 2 - 22, cw, ch);
-      _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 16 });
+      _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 36 });
     }
   }
 
@@ -2193,8 +2193,10 @@ if (oCanvas) {
 
   oCanvas.addEventListener('mousemove', (e) => {
     const rect = oCanvas.getBoundingClientRect();
-    _mouseCanvasX = e.clientX - rect.left;
-    _mouseCanvasY = e.clientY - rect.top;
+    const scaleX = oCanvas.width / rect.width;
+    const scaleY = oCanvas.height / rect.height;
+    _mouseCanvasX = (e.clientX - rect.left) * scaleX;
+    _mouseCanvasY = (e.clientY - rect.top) * scaleY;
     _hoveredAgent = null;
     for (const t of _hoverTargets) {
       const dx = _mouseCanvasX - t.x, dy = _mouseCanvasY - t.y;
@@ -2237,8 +2239,10 @@ if (oCanvas) {
   oCanvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
       const rect = oCanvas.getBoundingClientRect();
-      _mouseCanvasX = e.touches[0].clientX - rect.left;
-      _mouseCanvasY = e.touches[0].clientY - rect.top;
+      const scaleX = oCanvas.width / rect.width;
+      const scaleY = oCanvas.height / rect.height;
+      _mouseCanvasX = (e.touches[0].clientX - rect.left) * scaleX;
+      _mouseCanvasY = (e.touches[0].clientY - rect.top) * scaleY;
       _hoveredAgent = null;
       for (const t of _hoverTargets) {
         const dx = _mouseCanvasX - t.x, dy = _mouseCanvasY - t.y;
