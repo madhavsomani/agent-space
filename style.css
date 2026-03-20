@@ -113,10 +113,10 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 .grid-2 { grid-template-columns:1fr 1fr; }
 .grid-3 { grid-template-columns:1fr 1fr 1fr; }
 .grid-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
-.card { background:linear-gradient(180deg,color-mix(in srgb, var(--card) 92%, #ffffff 8%), var(--card)); border:1px solid var(--border); border-radius:14px; padding:16px; transition:border-color .25s ease, background .25s ease, transform .25s ease, box-shadow .25s ease; box-shadow:0 10px 28px rgba(0,0,0,0.14); }
-.card:hover { border-color:rgba(255,255,255,0.10); background:linear-gradient(180deg,color-mix(in srgb, var(--card-hover) 88%, #ffffff 12%), var(--card-hover)); transform:translateY(-1px); box-shadow:0 14px 36px rgba(0,0,0,0.18); }
-.card h3 { font-size:11px; color:var(--dim); margin-bottom:10px; text-transform:uppercase; letter-spacing:1.2px; font-weight:700; }
-.metric { font-size:32px; font-weight:800; letter-spacing:-1px; line-height:1; }
+.card { background:linear-gradient(180deg,color-mix(in srgb, var(--card) 94%, #ffffff 6%), var(--card)); border:1px solid color-mix(in srgb, var(--border) 88%, #ffffff 12%); border-radius:16px; padding:18px; transition:border-color .25s ease, background .25s ease, transform .25s ease, box-shadow .25s ease; box-shadow:0 8px 22px rgba(0,0,0,0.12); }
+.card:hover { border-color:color-mix(in srgb, var(--accent) 28%, var(--border) 72%); background:linear-gradient(180deg,color-mix(in srgb, var(--card-hover) 90%, #ffffff 10%), var(--card-hover)); transform:translateY(-1px); box-shadow:0 12px 28px rgba(0,0,0,0.16); }
+.card h3 { font-size:11px; color:var(--dim); margin-bottom:12px; text-transform:uppercase; letter-spacing:1.2px; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.metric { font-size:32px; font-weight:800; letter-spacing:-1px; line-height:0.95; }
 .metric.green { color:var(--green); }
 .metric.orange { color:var(--orange); }
 .metric.red { color:var(--red); }
@@ -148,28 +148,29 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 /* Kanban */
 .kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-.wr-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:12px; transition:border-color .2s; }
-.wr-card:hover { border-color:var(--accent); }
-.wr-card .title { font-weight:600; margin-bottom:4px; font-size:12px; }
+.wr-card { background:linear-gradient(180deg,color-mix(in srgb, var(--bg) 84%, var(--card) 16%), var(--bg)); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; font-size:12px; transition:border-color .2s, transform .2s, box-shadow .2s; }
+.wr-card:hover { border-color:color-mix(in srgb, var(--accent) 30%, var(--border) 70%); transform:translateY(-1px); box-shadow:0 8px 18px rgba(0,0,0,0.10); }
+.wr-card .title { font-weight:700; margin-bottom:4px; font-size:12px; color:var(--text); }
 .wr-card .meta { color:var(--dim); font-size:10px; }
 
 /* Queue */
-.queue-section { margin-bottom:16px; }
-.queue-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; font-size:12px; transition:border-color .2s; }
-.queue-row:hover { border-color:rgba(255,255,255,0.1); }
-.state-badge { padding:3px 10px; border-radius:12px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+.queue-section { margin-bottom:18px; }
+.queue-row { display:flex; align-items:center; gap:10px; padding:12px 14px; background:linear-gradient(180deg,color-mix(in srgb, var(--bg) 84%, var(--card) 16%), var(--bg)); border:1px solid var(--border); border-radius:12px; margin-bottom:8px; font-size:12px; transition:border-color .2s, transform .2s, box-shadow .2s; }
+.queue-row:hover { border-color:color-mix(in srgb, var(--accent) 28%, var(--border) 72%); transform:translateY(-1px); box-shadow:0 8px 18px rgba(0,0,0,0.10); }
+.state-badge { padding:4px 10px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:0.3px; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04); }
 .state-active { background:var(--green-dim); color:var(--green); }
 .state-complete { background:rgba(100,100,100,0.15); color:#888; }
 .state-review { background:var(--orange-dim); color:var(--orange); }
 
 /* Activity feed */
-.feed-item { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; align-items:flex-start; animation:feedSlideIn .3s ease both; }
+.feed-item { display:flex; gap:10px; padding:12px 12px; border:1px solid transparent; border-bottom:1px solid var(--border); font-size:12px; align-items:flex-start; animation:feedSlideIn .3s ease both; border-radius:12px; }
 .feed-item:last-child { border:none; }
+.feed-item:hover { background:color-mix(in srgb, var(--card) 55%, transparent 45%); border-color:color-mix(in srgb, var(--accent) 18%, transparent 82%); }
 @keyframes feedSlideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
 .feed-dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; }
-.feed-time { color:var(--dim); font-size:10px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; margin-left:auto; flex-shrink:0; }
-.feed-scroll { max-height:520px; overflow-y:auto; scroll-behavior:smooth; }
-.feed-agent { font-weight:600; }
+.feed-time { color:var(--dim); font-size:10px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; margin-left:auto; flex-shrink:0; background:var(--bg); border:1px solid var(--border); border-radius:999px; padding:2px 7px; }
+.feed-scroll { max-height:520px; overflow-y:auto; scroll-behavior:smooth; display:flex; flex-direction:column; gap:6px; }
+.feed-agent { font-weight:700; color:var(--text); }
 
 /* Office canvas */
 #office-canvas { width:100%; margin:0 auto; display:block; border:1px solid var(--border); border-radius:12px; background:var(--canvas-floor); height:auto; }
@@ -299,7 +300,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 
 @media(max-width:768px) {
   .mobile-nav { display:block; }
-  .view-toggle-bar { display:none !important; }
+  .view-toggle-bar { display:flex !important; position:sticky; top:0; z-index:40; padding:8px 0 10px; margin-bottom:10px !important; gap:8px !important; justify-content:stretch !important; background:linear-gradient(to bottom, var(--bg) 72%, rgba(0,0,0,0)); }
+  .view-toggle-bar button { flex:1; min-height:44px; padding:10px 14px !important; font-size:13px !important; border-radius:12px !important; font-weight:700 !important; }
   nav#tabs-nav { display:none; }
   body { padding-bottom:64px; }
   .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }
@@ -307,6 +309,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   header { padding:6px 10px; gap:6px; flex-wrap:nowrap; }
   header h1 { font-size:12px; white-space:nowrap; }
   header .clock { display:none; }
+  .tab-select { margin-left:6px; max-width:92px; padding:5px 8px; font-size:10px; }
   header .refresh-btn { padding:3px 6px; font-size:10px; margin-left:2px; }
   header .refresh-btn:not(#refresh-btn):not(#pause-btn) { display:none; }
   header .live { font-size:9px; padding:3px 6px; margin-left:auto; }
@@ -314,12 +317,12 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   .status-strip .sep { display:none; }
   .status-strip .stat { gap:3px; }
   .tab { padding:10px 10px 10px; }
-  .card { padding:12px; }
-  .card h3 { font-size:10px; }
+  .card { padding:12px; border-radius:14px; box-shadow:0 6px 18px rgba(0,0,0,0.10); }
+  .card h3 { font-size:10px; margin-bottom:10px; }
   .metric { font-size:24px; }
-  .feed-item { font-size:11px; gap:6px; }
-  .feed-scroll { max-height:400px; }
-  .queue-row { padding:8px 10px; font-size:11px; flex-wrap:wrap; }
+  .feed-item { font-size:11px; gap:8px; padding:10px; }
+  .feed-scroll { max-height:400px; gap:4px; }
+  .queue-row { padding:10px 10px; font-size:11px; flex-wrap:wrap; border-radius:10px; }
   .kanban { grid-template-columns:1fr; }
   #office-canvas { border-radius:8px; min-height:200px; }
   #office-quickstats { grid-template-columns:repeat(2,1fr) !important; gap:6px !important; }
@@ -337,13 +340,59 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   #alerts-banner { font-size:11px; padding:4px 10px; }
 }
 @media(max-width:400px) {
-  header .logo { font-size:16px; }
-  header h1 { font-size:11px; }
+  header { padding:6px 8px; gap:4px; }
+  header .logo { font-size:14px; }
+  header h1 { font-size:10px; max-width:58px; overflow:hidden; text-overflow:ellipsis; }
+  .tab-select { display:none; }
+  header .refresh-btn { padding:3px 5px; font-size:9px; border-radius:7px; }
+  #refresh-btn { min-width:0; }
+  #refresh-btn .icon { margin-right:0; }
+  #pause-btn #pause-label { display:none; }
+  #pause-btn { min-width:0; }
+  header .live { padding:2px 5px; font-size:8px; letter-spacing:0; max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   nav button { padding:6px 10px; font-size:10px; min-height:32px; }
   .metric { font-size:20px; }
-  .card { padding:10px; border-radius:10px; }
-  #office-quickstats { grid-template-columns:1fr 1fr !important; }
+  .card { padding:9px; border-radius:10px; }
+  .tab { padding:8px 7px 10px; }
+  #office-quickstats { grid-template-columns:1fr 1fr !important; gap:5px !important; }
+  #office-ticker { margin-top:8px !important; padding:7px 9px !important; border-radius:10px !important; }
+  #office-ticker h3 { margin-bottom:5px !important; font-size:9px !important; }
+  #office-ticker-text { display:block; font-size:9px !important; line-height:1.2 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #office-ticker-time { font-size:8px !important; }
+  #agent-search-bar { margin-top:8px !important; gap:5px !important; }
+  #agent-search-bar input, #agent-search-bar select, #agent-search-bar button { min-height:34px !important; font-size:10px !important; }
   .status-strip { padding:4px 8px; font-size:10px; }
+  #ss-working-names, #ss-countdown { display:none !important; }
+  #office-legend { display:none !important; }
+  .zone-header { margin:12px 0 6px !important; }
+  .zone-header .count { font-size:8px; padding:1px 5px; }
+  .zone-header span:first-child { font-size:10px !important; }
+  .feed-scroll { max-height:190px !important; }
+  .feed-item { gap:6px !important; padding:7px 8px !important; font-size:9px !important; border-radius:8px !important; }
+  .feed-agent { font-size:9px !important; }
+  .feed-time { font-size:7px !important; padding:1px 5px !important; }
+
+  /* Ultra-compact 375px agent cards */
+  #agent-status-cards .team-group > div:last-child { grid-template-columns:1fr !important; }
+  #agent-status-cards .team-group-header { padding:4px 8px !important; }
+  #agent-status-cards .agent-card-item { padding:4px 6px !important; border-radius:9px !important; }
+  #agent-status-cards .agent-card-head { gap:6px !important; margin-bottom:1px !important; }
+  #agent-status-cards .agent-card-avatar { width:24px !important; height:24px !important; border-width:1.5px !important; }
+  #agent-status-cards .agent-card-status-icon { font-size:8px !important; }
+  #agent-status-cards .agent-card-title-row { gap:2px !important; }
+  #agent-status-cards .agent-card-name { font-size:9px !important; max-width:92px !important; }
+  #agent-status-cards .agent-card-mood,
+  #agent-status-cards .agent-card-wake,
+  #agent-status-cards .agent-card-spark,
+  #agent-status-cards .status-timer + span,
+  #agent-status-cards [title*='Active '],
+  #agent-status-cards [title*='Last run duration'] { display:none !important; }
+  #agent-status-cards .agent-card-message { padding-left:30px !important; font-size:8px !important; line-height:1.2 !important; -webkit-line-clamp:1 !important; }
+  #agent-status-cards .agent-card-next-run { padding-left:30px !important; font-size:7px !important; margin-top:2px !important; }
+
+  /* Shorter secondary panels to reduce endless scroll */
+  #live-logs-panel .feed-scroll, #live-logs-panel #live-logs-feed { max-height:140px !important; }
+  #agent-timeline .timeline-row:last-child { margin-bottom:0 !important; }
 }
 
 /* Collapsible office sub-panels on mobile */
@@ -354,8 +403,19 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   .office-section-toggle .arrow.collapsed { transform:rotate(-90deg); }
   .office-section-body.collapsed { display:none !important; }
   /* Compact agent cards on mobile */
-  #agent-status-cards .team-group > div:last-child .agent-card-item { padding:6px 8px !important; font-size:10px !important; }
-  #agent-status-cards .agent-card-item .status-timer { font-size:9px !important; }
+  #agent-status-cards .team-group > div:last-child .agent-card-item { padding:5px 7px !important; font-size:10px !important; border-radius:10px !important; }
+  #agent-status-cards .agent-card-item .status-timer { font-size:8px !important; }
+  #agent-status-cards .agent-card-head { gap:7px !important; margin-bottom:2px !important; }
+  #agent-status-cards .agent-card-avatar { width:28px !important; height:28px !important; }
+  #agent-status-cards .agent-card-status-icon { font-size:9px !important; }
+  #agent-status-cards .agent-card-title-row { gap:3px !important; }
+  #agent-status-cards .agent-card-name { font-size:10px !important; max-width:124px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; }
+  #agent-status-cards .agent-card-mood,
+  #agent-status-cards .agent-card-wake,
+  #agent-status-cards .agent-card-spark { display:none !important; }
+  #agent-status-cards .agent-card-message { padding-left:36px !important; font-size:9px !important; line-height:1.25 !important; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  #agent-status-cards .agent-card-next-run { padding-left:36px !important; font-size:8px !important; margin-top:3px !important; }
+  #agent-status-cards .agent-card-activity-bar { display:none !important; }
   /* Compact quick stats */
   #office-quickstats .card { padding:6px 8px !important; }
   #office-quickstats .card div:first-child { font-size:9px !important; margin-bottom:2px !important; }
@@ -364,8 +424,24 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   #agent-search-bar { flex-direction:column; gap:6px; }
   #agent-filter-buttons { justify-content:flex-start; flex-wrap:wrap; }
   /* Timeline/uptime compact */
-  #agent-timeline, #agent-uptime, #heatmap-calendar, #live-logs-panel { padding:10px 12px !important; }
-  #agent-timeline h3, #agent-uptime h3, #heatmap-calendar h3, #live-logs-panel h3 { font-size:10px !important; }
+  #agent-timeline, #agent-uptime, #heatmap-calendar, #live-logs-panel { padding:9px 10px !important; }
+  #agent-timeline h3, #agent-uptime h3, #heatmap-calendar h3, #live-logs-panel h3 { font-size:9px !important; }
+  .timeline-row { gap:5px !important; margin-bottom:2px !important; }
+  .timeline-label { width:46px !important; font-size:7px !important; text-align:left !important; }
+  .timeline-header { margin-left:50px !important; }
+  .timeline-header span { font-size:6px !important; }
+  .timeline-slot { height:7px !important; border-radius:2px !important; }
+  #agent-uptime .card, #agent-uptime .uptime-row, #agent-uptime .row { font-size:9px !important; }
+  #agent-uptime canvas { max-height:110px !important; }
+  #heatmap-calendar #heatmap-agent-filter { gap:4px !important; flex-wrap:wrap !important; }
+  #heatmap-calendar #heatmap-agent-filter button { padding:3px 7px !important; font-size:8px !important; border-radius:999px !important; }
+  #heatmap-calendar .month-label, #heatmap-calendar .weekday-label { font-size:7px !important; }
+  #heatmap-calendar svg text { font-size:7px !important; }
+  #live-logs-panel .feed-scroll, #live-logs-panel #live-logs-feed { max-height:180px !important; }
+  #live-logs-panel .feed-item { padding:6px 6px !important; gap:5px !important; border-radius:8px !important; }
+  #live-logs-panel .feed-agent { font-size:9px !important; min-width:46px !important; }
+  #live-logs-panel .feed-time { font-size:7px !important; padding:1px 4px !important; }
+  #live-logs-panel .feed-item > div { font-size:8px !important; line-height:1.2 !important; }
   /* Office canvas sizing */
   #office-canvas { min-height:180px; }
   .office-legend { gap:4px; font-size:9px; }
@@ -376,8 +452,8 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
   /* Kanban responsive */
   .kanban { grid-template-columns:1fr !important; }
   /* Feed compact */
-  .feed-scroll { max-height:300px; }
-  .feed-item { font-size:10px; padding:6px 0; }
+  .feed-scroll { max-height:220px; }
+  .feed-item { font-size:9px; padding:5px 0; }
 }
 
 /* Command Palette */

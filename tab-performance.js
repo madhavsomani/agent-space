@@ -6,10 +6,11 @@ async function refreshPerformance() {
     const fmtDur = ms => ms >= 60000 ? (ms/60000).toFixed(1)+'m' : ms >= 1000 ? (ms/1000).toFixed(1)+'s' : ms+'ms';
     const avgDurAll = d.agents?.length ? Math.round(d.agents.reduce((a,x)=>a+x.avgDurationMs,0)/d.agents.length) : 0;
     document.getElementById('perf-summary').innerHTML = `
-      <div class="card"><h3>Total Runs</h3><div class="metric blue">${s.totalRuns||0}</div><div class="sub">${s.totalSucceeded||0} succeeded · ${s.totalFailed||0} failed</div></div>
-      <div class="card"><h3>Success Rate</h3><div class="metric ${(s.overallSuccessRate||0)>=90?'green':(s.overallSuccessRate||0)>=70?'orange':'red'}">${s.overallSuccessRate||0}%</div><div class="bar-bg"><div class="bar-fill ${(s.overallSuccessRate||0)>=90?'green':(s.overallSuccessRate||0)>=70?'orange':'red'}" style="width:${s.overallSuccessRate||0}%"></div></div></div>
-      <div class="card"><h3>Avg Duration</h3><div class="metric blue">${fmtDur(avgDurAll)}</div><div class="sub">Across all cron agents</div></div>`;
+      <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Total Runs</h3><div class="metric blue">${s.totalRuns||0}</div><div class="sub">${s.totalSucceeded||0} succeeded · ${s.totalFailed||0} failed</div></div>
+      <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Success Rate</h3><div class="metric ${(s.overallSuccessRate||0)>=90?'green':(s.overallSuccessRate||0)>=70?'orange':'red'}">${s.overallSuccessRate||0}%</div><div class="bar-bg" style="margin-top:8px"><div class="bar-fill ${(s.overallSuccessRate||0)>=90?'green':(s.overallSuccessRate||0)>=70?'orange':'red'}" style="width:${s.overallSuccessRate||0}%"></div></div><div class="sub" style="margin-top:6px">Fleet-wide reliability snapshot</div></div>
+      <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Avg Duration</h3><div class="metric blue">${fmtDur(avgDurAll)}</div><div class="sub">Across all cron agents</div></div>`;
     // Workload Distribution Donut
+    const _noData = '<div style="color:var(--dim);font-size:11px;padding:12px 0">No cron run data yet</div>';
     if(d.agents?.length) {
       const donutSvg = document.getElementById('perf-donut-svg');
       const donutLegend = document.getElementById('perf-donut-legend');
@@ -52,6 +53,10 @@ async function refreshPerformance() {
           </div>`;
         }).join('');
       }
+    } else {
+      const _ds = document.getElementById('perf-donut-svg'); if(_ds) _ds.innerHTML='';
+      const _dl = document.getElementById('perf-donut-legend'); if(_dl) _dl.innerHTML=_noData;
+      const _rb = document.getElementById('perf-reliability-body'); if(_rb) _rb.innerHTML=_noData;
     }
     // Response Time Histogram
     const histBody = document.getElementById('perf-histogram-body');
@@ -127,6 +132,8 @@ async function refreshPerformance() {
       } else {
         histBody.innerHTML = '<div style="color:var(--dim)">Not enough data for histogram</div>';
       }
+    } else if(histBody) {
+      histBody.innerHTML = _noData;
     }
 
     // Overall Success Rate Trend (aggregate)
@@ -191,10 +198,12 @@ async function refreshPerformance() {
       } else {
         otBody.innerHTML='<div style="color:var(--dim)">Not enough data points yet</div>';
       }
+    } else if(otBody) {
+      otBody.innerHTML = _noData;
     }
 
-    if(!d.agents?.length) { document.getElementById('perf-agents').innerHTML='<h3>📊 Agent Performance</h3><div class="sub">No cron agent data</div>'; return; }
-    document.getElementById('perf-agents').innerHTML = '<h3>📊 Agent Performance</h3>' + d.agents.map(a => {
+    if(!d.agents?.length) { document.getElementById('perf-agents').innerHTML='<h3>📊 Agent Performance</h3><div class="sub">No cron agent data</div>'; }
+    else { document.getElementById('perf-agents').innerHTML = '<h3>📊 Agent Performance</h3>' + d.agents.map(a => {
       const rateColor = a.successRate>=90?'var(--green)':a.successRate>=70?'var(--orange)':'var(--red)';
       // Mini bar chart from hourBuckets
       const maxB = Math.max(...(a.hourBuckets||[]), 1);
@@ -288,7 +297,7 @@ async function refreshPerformance() {
         })()}
         ${errorHtml}
       </div>`;
-    }).join('');
+    }).join(''); }
   } catch {}
 }
 

@@ -39,18 +39,18 @@ async function refreshQueue() {
     const r = await fetchWithTimeout(API+'/queue', {}, 10000); const d = await r.json();
     let html = '';
     if(d.active?.length) {
-      html += `<div class="queue-section"><div class="card"><h3>🔥 Active Work</h3>`;
+      html += `<div class="queue-section"><div class="card" style="padding:16px 18px"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px"><span>🔥 Active Work</span><span style="font-size:10px;color:var(--dim);font-weight:600">Live queue</span></h3><div class="sub" style="margin-bottom:10px">Current work running across the agent fleet</div>`;
       d.active.forEach(w => {
         const badge = w.complete ? 'state-complete' : 'state-active';
         const label = w.complete ? '✅ Done' : '⚡ Active';
-        html += `<div class="queue-row"><span class="state-badge ${badge}">${label}</span><strong>${w.file.replace(/`/g,'')}</strong><span style="color:var(--dim);margin-left:auto">${w.type} · ${w.owner}</span></div>`;
+        html += `<div class="queue-row" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)"><span class="state-badge ${badge}">${label}</span><strong style="font-size:12px">${w.file.replace(/`/g,'')}</strong><span style="color:var(--dim);margin-left:auto;font-size:11px;text-align:right">${w.type} · ${w.owner}</span></div>`;
       });
       html += `</div></div>`;
     }
     if(d.review?.length) {
-      html += `<div class="queue-section"><div class="card"><h3>⏳ Awaiting Review</h3>`;
+      html += `<div class="queue-section"><div class="card" style="padding:16px 18px"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px"><span>⏳ Awaiting Review</span><span style="font-size:10px;color:var(--dim);font-weight:600">Needs human eyes</span></h3><div class="sub" style="margin-bottom:10px">Items blocked on review or QA confirmation</div>`;
       d.review.forEach(w => {
-        html += `<div class="queue-row"><span class="state-badge state-review">Review</span><strong>${w.file.replace(/`/g,'')}</strong><span style="color:var(--dim);margin-left:auto">${w.type} · ${w.since}</span></div>`;
+        html += `<div class="queue-row" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)"><span class="state-badge state-review">Review</span><strong style="font-size:12px">${w.file.replace(/`/g,'')}</strong><span style="color:var(--dim);margin-left:auto;font-size:11px;text-align:right">${w.type} · ${w.since}</span></div>`;
       });
       html += `</div></div>`;
     }
@@ -70,9 +70,9 @@ async function refreshQueue() {
         buckets[col].push(w);
       });
       const icons = {'To Do':'📝','In Progress':'⚡','In Review':'🔍','Done':'✅'};
-      html += `<div class="queue-section" style="margin-top:16px"><div class="kanban">`;
+      html += `<div class="queue-section" style="margin-top:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 10px"><h3 style="margin:0;font-size:14px">📋 Work Request Board</h3><span style="font-size:10px;color:var(--dim);font-weight:600">To Do → In Progress → In Review → Done</span></div><div class="kanban">`;
       Object.entries(buckets).forEach(([name,items])=>{
-        html += `<div><div class="card"><h3>${icons[name]||''} ${name} (${items.length})</h3>${items.map(w=>`<div class="wr-card"><div class="title">${w.title}</div><div class="meta">${w.type} · ${w.priority||''}</div></div>`).join('')||'<div style="color:var(--dim);font-size:11px;text-align:center;padding:16px">Empty</div>'}</div></div>`;
+        html += `<div><div class="card" style="padding:14px 16px"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px"><span>${icons[name]||''} ${name}</span><span style="font-size:10px;color:var(--dim);font-weight:700">${items.length}</span></h3>${items.map(w=>`<div class="wr-card" style="padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);margin-bottom:8px"><div class="title" style="font-weight:700;font-size:12px;margin-bottom:4px">${w.title}</div><div class="meta" style="font-size:10px;color:var(--dim)">${w.type} ${w.priority?`· ${w.priority}`:''}</div></div>`).join('')||'<div style="color:var(--dim);font-size:11px;text-align:center;padding:16px;border:1px dashed var(--border);border-radius:10px">Empty</div>'}</div></div>`;
       });
       html += `</div></div>`;
     }
