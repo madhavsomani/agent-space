@@ -1859,7 +1859,7 @@ function _drawOfficeInner(rafNow) {
   // Center the real scene bounds, not just the raw tile grid, so the office fills the viewport cleanly.
   const scene = getSceneBounds();
   _originX = cw / 2 - (scene.minX + scene.maxX) / 2;
-  _originY = ch * 0.48 - (scene.minY + scene.maxY) / 2;
+  _originY = ch * 0.46 - (scene.minY + scene.maxY) / 2;
 
   // Grounding shadow under the whole office so it feels like a placed scene, not floating geometry
   oCtx.save();
@@ -2144,7 +2144,7 @@ function resizeCanvas() {
   // so short pages don't leave a large dead band below the canvas.
   // On mobile, size canvas to fit the isometric scene tightly (scene is landscape-oriented)
   const mobileAvailH = Math.max(280, Math.min(availH, 720));
-  const canvasH = isMobile ? mobileAvailH : Math.max(500, availH);
+  const canvasH = isMobile ? mobileAvailH : Math.max(500, availH - 8);
 
   const dpr = window.devicePixelRatio || 1;
   const internalW = Math.max(canvasW, 800);
