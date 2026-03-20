@@ -871,9 +871,17 @@ function drawAgent(x, y, agent, time) {
   const shoulderW = bodyType === 2 ? torsoW + 4 : torsoW + 2;
   const headR = bodyType === 3 ? 5 : 6;
   const stance = isWorking ? -2 : isIdle ? 1 : 0;
+  // Breathing — subtle torso rise/fall for all agents (slower when sleeping)
+  const breathRate = isSleeping ? 1800 : isIdle ? 1200 : 900;
+  const breathAmp = isSleeping ? 0.6 : isIdle ? 0.5 : 0.3;
+  const breathY = Math.sin(time / breathRate * Math.PI * 2 + seed * 1.7) * breathAmp;
   const poseTilt = isWorking ? Math.sin(time / 240 + seed) * 1.5 : isIdle ? Math.sin(time / 650 + seed) * 0.8 : 0;
-  const headBob = isWorking ? Math.sin(time / 300 + seed) * 1 : 0;
+  const headBob = isWorking ? Math.sin(time / 300 + seed) * 1 + breathY : breathY;
   const stepSwing = Math.sin(time / 180 + seed) * 1.6;
+  // Idle stretch — occasionally agents do a stretch (every ~8s, lasts ~1.5s)
+  const stretchCycle = ((time / 1000 + seed * 3.7) % 8) / 1.5; // 0-1 = stretching, >1 = normal
+  const isStretching = isIdle && stretchCycle < 1;
+  const stretchT = isStretching ? Math.sin(stretchCycle * Math.PI) : 0; // smooth 0→1→0
   const isLeader = /director|lead|ceo|manager|founder/.test(role);
   const isEngineer = /engineer|developer|qa|test|android|frontend|backend|dev/.test(role);
   const isContent = /writer|content|research|design|visual|producer|publisher/.test(role);
@@ -905,10 +913,11 @@ function drawAgent(x, y, agent, time) {
     oCtx.fillRect(x + 1, y + 7 - stepSwing * 0.18, 3, 6);
   }
 
-  // Torso outline for stronger silhouette
+  // Torso outline for stronger silhouette (with breathing offset)
+  const by = breathY * 0.5; // subtle torso shift from breathing
   oCtx.fillStyle = '#2a1a12';
-  oCtx.fillRect(x - torsoW / 2 - 1, y, torsoW + 2, 11);
-  oCtx.fillRect(x - shoulderW / 2 - 1, y - 2, shoulderW + 2, 5);
+  oCtx.fillRect(x - torsoW / 2 - 1, y + by, torsoW + 2, 11);
+  oCtx.fillRect(x - shoulderW / 2 - 1, y - 2 + by, shoulderW + 2, 5);
 
   // Torso + shoulders
   oCtx.fillStyle = jacket;
@@ -1035,9 +1044,21 @@ function drawAgent(x, y, agent, time) {
       oCtx.restore();
     }
   } else if (isIdle) {
-    // asymmetric casual pose so idle agents don't look cloned
-    oCtx.fillRect(x - 8, y + 3 + poseTilt, 3, 5);
-    oCtx.fillRect(x + 5, y + 0 - poseTilt, 3, 5);
+    // asymmetric casual pose — with occasional stretch
+    if (isStretching) {
+      // Arms go up in a stretch
+      const armUp = stretchT * 12;
+      oCtx.fillRect(x - 9, y - 2 - armUp, 3, 5 + armUp * 0.3);
+      oCtx.fillRect(x + 6, y - 2 - armUp, 3, 5 + armUp * 0.3);
+      // Hands at top
+      oCtx.fillStyle = skin;
+      oCtx.fillRect(x - 9, y - 3 - armUp, 3, 2);
+      oCtx.fillRect(x + 6, y - 3 - armUp, 3, 2);
+      oCtx.fillStyle = color;
+    } else {
+      oCtx.fillRect(x - 8, y + 3 + poseTilt, 3, 5);
+      oCtx.fillRect(x + 5, y + 0 - poseTilt, 3, 5);
+    }
     oCtx.fillStyle = '#f5d489';
     oCtx.beginPath();
     oCtx.arc(x + 8, y - 18 + Math.sin(time / 400 + seed) * 2, 2.5, 0, Math.PI * 2);
