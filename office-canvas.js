@@ -1887,7 +1887,7 @@ function _drawOfficeInner(rafNow) {
   // Center the real scene bounds, not just the raw tile grid, so the office fills the viewport cleanly.
   const scene = getSceneBounds();
   _originX = cw / 2 - (scene.minX + scene.maxX) / 2;
-  _originY = ch * 0.48 - (scene.minY + scene.maxY) / 2;
+  _originY = ch * 0.45 - (scene.minY + scene.maxY) / 2;
 
   // Grounding shadow under the whole office so it feels like a placed scene, not floating geometry
   oCtx.save();
@@ -2139,12 +2139,15 @@ try {
   }
 } catch (e) {}
 
+var _lastViewSwitchTime = performance.now();
 function officeLoop(now) {
   requestAnimationFrame(officeLoop);
   if (typeof _officeView !== 'undefined' && _officeView === 'grid') return;
   if (document.hidden) { _wasHidden = true; return; }
   if (typeof _currentTab !== 'undefined' && _currentTab !== 'office') return;
-  if (!_canvasVisible) return;
+  // Skip visibility check for 2s after view switch to let IntersectionObserver catch up
+  const recentSwitch = (now - _lastViewSwitchTime) < 2000;
+  if (!_canvasVisible && !recentSwitch) return;
   if (now - _lastFrameTime < FRAME_INTERVAL) return;
   _lastFrameTime = now;
   if (!oCanvas.width || !oCanvas.height || oCanvas.width < 10) { resizeCanvas(); return; }
@@ -2186,15 +2189,15 @@ function resizeCanvas() {
 
   // Auto-fit zoom: fill viewport while keeping the ENTIRE office visible (no clipping).
   const scene = getSceneBounds();
-  const padX = isMobile ? 8 : 40;
-  const padTop = isMobile ? 8 : 15;
-  const padBottom = isMobile ? 8 : 25;
+  const padX = isMobile ? 8 : 60;
+  const padTop = isMobile ? 8 : 30;
+  const padBottom = isMobile ? 8 : 50;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
-  const fit = isMobile ? Math.min(fitW, fitH) * 1.15 : Math.min(fitW, fitH) * 1.35;
+  const fit = isMobile ? Math.min(fitW, fitH) * 1.1 : Math.min(fitW, fitH) * 0.95;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));

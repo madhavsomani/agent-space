@@ -116,6 +116,7 @@ async function switchOfficeView(view, opts = {}) {
     invalidateStaticCache();
     if (typeof _canvasVisible !== 'undefined') _canvasVisible = true;
     if (typeof window._canvasVisible !== 'undefined') window._canvasVisible = true;
+    if (typeof _lastViewSwitchTime !== 'undefined') _lastViewSwitchTime = performance.now();
     requestAnimationFrame(() => {
       resizeCanvas();
       invalidateStaticCache();
