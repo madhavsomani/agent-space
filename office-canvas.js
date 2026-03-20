@@ -133,63 +133,63 @@ const PAL = {
 const ISO = { tileW: 64, tileH: 32 };
 
 // Room dimensions
-const ROOM = { cols: 22, rows: 16 };
+const ROOM = { cols: 26, rows: 18 };
 
 const ZONES = [
-  { key: 'engineering', name: 'ENGINEERING', x0: 1, x1: 7, y0: 1, y1: 14, color: 'rgba(93, 126, 201, 0.12)', line: '#6888d8' },
-  { key: 'content', name: 'CONTENT', x0: 8, x1: 14, y0: 1, y1: 14, color: 'rgba(207, 153, 94, 0.12)', line: '#c58a4d' },
-  { key: 'leadership', name: 'LEADERSHIP', x0: 15, x1: 20, y0: 1, y1: 6, color: 'rgba(151, 116, 204, 0.13)', line: '#9a72d5' },
-  { key: 'support', name: 'SUPPORT', x0: 15, x1: 20, y0: 7, y1: 14, color: 'rgba(91, 176, 137, 0.13)', line: '#4aa97e' },
+  { key: 'engineering', name: 'ENGINEERING', x0: 1, x1: 8, y0: 1, y1: 16, color: 'rgba(93, 126, 201, 0.12)', line: '#6888d8' },
+  { key: 'content', name: 'CONTENT', x0: 9, x1: 16, y0: 1, y1: 16, color: 'rgba(207, 153, 94, 0.12)', line: '#c58a4d' },
+  { key: 'leadership', name: 'LEADERSHIP', x0: 17, x1: 24, y0: 1, y1: 7, color: 'rgba(151, 116, 204, 0.13)', line: '#9a72d5' },
+  { key: 'support', name: 'SUPPORT', x0: 17, x1: 24, y0: 8, y1: 16, color: 'rgba(91, 176, 137, 0.13)', line: '#4aa97e' },
 ];
 
 // Fixed desk positions — spread across the full floor with corridor gaps
 const DESK_SLOTS = [
-  // Engineering cluster
+  // Engineering cluster — spread wider
   { gx: 3, gy: 4, zone: 'engineering' },
-  { gx: 6, gy: 4, zone: 'engineering' },
-  { gx: 3, gy: 9, zone: 'engineering' },
-  { gx: 6, gy: 9, zone: 'engineering' },
-  { gx: 4, gy: 13, zone: 'engineering' },
+  { gx: 7, gy: 4, zone: 'engineering' },
+  { gx: 3, gy: 10, zone: 'engineering' },
+  { gx: 7, gy: 10, zone: 'engineering' },
+  { gx: 5, gy: 15, zone: 'engineering' },
   // Content cluster
-  { gx: 10, gy: 3, zone: 'content' },
-  { gx: 13, gy: 3, zone: 'content' },
-  { gx: 10, gy: 8, zone: 'content' },
-  { gx: 13, gy: 8, zone: 'content' },
-  { gx: 11, gy: 13, zone: 'content' },
+  { gx: 11, gy: 3, zone: 'content' },
+  { gx: 15, gy: 3, zone: 'content' },
+  { gx: 11, gy: 9, zone: 'content' },
+  { gx: 15, gy: 9, zone: 'content' },
+  { gx: 13, gy: 15, zone: 'content' },
   // Leadership cluster
-  { gx: 15, gy: 3, zone: 'leadership' },
-  { gx: 17, gy: 3, zone: 'leadership' },
-  { gx: 16, gy: 6, zone: 'leadership' },
+  { gx: 18, gy: 3, zone: 'leadership' },
+  { gx: 22, gy: 3, zone: 'leadership' },
+  { gx: 20, gy: 6, zone: 'leadership' },
   // Support cluster
-  { gx: 15, gy: 9, zone: 'support' },
-  { gx: 17, gy: 9, zone: 'support' },
-  { gx: 15, gy: 13, zone: 'support' },
-  { gx: 17, gy: 13, zone: 'support' },
+  { gx: 18, gy: 10, zone: 'support' },
+  { gx: 22, gy: 10, zone: 'support' },
+  { gx: 18, gy: 15, zone: 'support' },
+  { gx: 22, gy: 15, zone: 'support' },
 ];
 
 // Mobile desk slots — must stay within ROOM bounds (22×16)
 const MOBILE_DESK_SLOTS = [
-  // Engineering cluster (left side)
-  { gx: 2, gy: 3, zone: 'engineering' },
-  { gx: 5, gy: 3, zone: 'engineering' },
-  { gx: 2, gy: 7, zone: 'engineering' },
-  { gx: 5, gy: 7, zone: 'engineering' },
-  { gx: 3, gy: 11, zone: 'engineering' },
-  // Content cluster (center)
-  { gx: 9, gy: 3, zone: 'content' },
-  { gx: 12, gy: 3, zone: 'content' },
-  { gx: 9, gy: 7, zone: 'content' },
-  { gx: 12, gy: 7, zone: 'content' },
-  { gx: 10, gy: 11, zone: 'content' },
-  // Leadership cluster (right-top)
-  { gx: 14, gy: 3, zone: 'leadership' },
-  { gx: 16, gy: 3, zone: 'leadership' },
-  { gx: 15, gy: 7, zone: 'leadership' },
-  // Support cluster (right-bottom)
-  { gx: 14, gy: 10, zone: 'support' },
-  { gx: 16, gy: 10, zone: 'support' },
-  { gx: 14, gy: 13, zone: 'support' },
-  { gx: 16, gy: 13, zone: 'support' },
+  // Engineering cluster
+  { gx: 3, gy: 3, zone: 'engineering' },
+  { gx: 6, gy: 3, zone: 'engineering' },
+  { gx: 3, gy: 8, zone: 'engineering' },
+  { gx: 6, gy: 8, zone: 'engineering' },
+  { gx: 4, gy: 13, zone: 'engineering' },
+  // Content cluster
+  { gx: 10, gy: 3, zone: 'content' },
+  { gx: 14, gy: 3, zone: 'content' },
+  { gx: 10, gy: 8, zone: 'content' },
+  { gx: 14, gy: 8, zone: 'content' },
+  { gx: 12, gy: 13, zone: 'content' },
+  // Leadership cluster
+  { gx: 17, gy: 3, zone: 'leadership' },
+  { gx: 20, gy: 3, zone: 'leadership' },
+  { gx: 18, gy: 7, zone: 'leadership' },
+  // Support cluster
+  { gx: 17, gy: 10, zone: 'support' },
+  { gx: 20, gy: 10, zone: 'support' },
+  { gx: 17, gy: 14, zone: 'support' },
+  { gx: 20, gy: 14, zone: 'support' },
 ];
 
 function getActiveDeskSlots() {
@@ -203,34 +203,34 @@ const SHARED_FURNITURE = [
   { type: 'bookshelfClosed', gx: 0, gy: 6 },
   { type: 'bookshelf', gx: 0, gy: 10 },
   { type: 'plant', gx: 0, gy: 14 },
-  { type: 'coffeeMachine', gx: 21, gy: 2 },
-  { type: 'plant', gx: 21, gy: 5 },
-  { type: 'plant', gx: 21, gy: 10 },
-  { type: 'plant', gx: 21, gy: 14 },
+  { type: 'coffeeMachine', gx: 25, gy: 2 },
+  { type: 'plant', gx: 25, gy: 5 },
+  { type: 'plant', gx: 25, gy: 10 },
+  { type: 'plant', gx: 25, gy: 14 },
   { type: 'lamp', gx: 2, gy: 0 },
-  { type: 'lamp', gx: 10, gy: 0 },
-  { type: 'lamp', gx: 17, gy: 0 },
-  { type: 'clock', gx: 11, gy: 0 },
+  { type: 'lamp', gx: 12, gy: 0 },
+  { type: 'lamp', gx: 20, gy: 0 },
+  { type: 'clock', gx: 13, gy: 0 },
   { type: 'window', gx: 3, gy: 0 },
-  { type: 'window', gx: 6, gy: 0 },
-  { type: 'window', gx: 10, gy: 0 },
-  { type: 'window', gx: 13, gy: 0 },
-  { type: 'window', gx: 17, gy: 0 },
-  { type: 'window', gx: 20, gy: 0 },
+  { type: 'window', gx: 7, gy: 0 },
+  { type: 'window', gx: 11, gy: 0 },
+  { type: 'window', gx: 15, gy: 0 },
+  { type: 'window', gx: 19, gy: 0 },
+  { type: 'window', gx: 23, gy: 0 },
   // Zone separators / room feel
-  { type: 'doorway', gx: 7, gy: 3 },
-  { type: 'doorway', gx: 14, gy: 3 },
-  { type: 'doorway', gx: 15, gy: 7 },
-  // Shared lounge / social space — placed off the main desk lanes
-  { type: 'cat', gx: 10, gy: 15 },
-  { type: 'rug', gx: 10, gy: 15 },
-  { type: 'armchair', gx: 9, gy: 15 },
-  { type: 'armchair', gx: 11, gy: 15 },
-  { type: 'coffeeTable', gx: 10, gy: 14 },
-  { type: 'sideTable', gx: 8, gy: 15 },
-  { type: 'lampProp', gx: 12, gy: 15 },
-  { type: 'benchProp', gx: 9, gy: 13 },
-  { type: 'waterCooler', gx: 21, gy: 8 },
+  { type: 'doorway', gx: 8, gy: 3 },
+  { type: 'doorway', gx: 16, gy: 3 },
+  { type: 'doorway', gx: 17, gy: 8 },
+  // Shared lounge / social space
+  { type: 'cat', gx: 12, gy: 17 },
+  { type: 'rug', gx: 12, gy: 17 },
+  { type: 'armchair', gx: 11, gy: 17 },
+  { type: 'armchair', gx: 13, gy: 17 },
+  { type: 'coffeeTable', gx: 12, gy: 16 },
+  { type: 'sideTable', gx: 10, gy: 17 },
+  { type: 'lampProp', gx: 14, gy: 17 },
+  { type: 'benchProp', gx: 11, gy: 15 },
+  { type: 'waterCooler', gx: 25, gy: 8 },
   // Engineering zone
   { type: 'whiteboard', gx: 2, gy: 0 },
   { type: 'poster', gx: 4, gy: 0, hue: 210 },
@@ -1883,7 +1883,7 @@ function _drawOfficeInner(rafNow) {
   // Center the real scene bounds, not just the raw tile grid, so the office fills the viewport cleanly.
   const scene = getSceneBounds();
   _originX = cw / 2 - (scene.minX + scene.maxX) / 2;
-  _originY = ch * 0.46 - (scene.minY + scene.maxY) / 2;
+  _originY = ch * 0.48 - (scene.minY + scene.maxY) / 2;
 
   // Grounding shadow under the whole office so it feels like a placed scene, not floating geometry
   oCtx.save();
@@ -2182,15 +2182,15 @@ function resizeCanvas() {
 
   // Auto-fit zoom: fill viewport while keeping the ENTIRE office visible (no clipping).
   const scene = getSceneBounds();
-  const padX = isMobile ? 16 : 80;
-  const padTop = isMobile ? 12 : 30;
-  const padBottom = isMobile ? 16 : 50;
+  const padX = isMobile ? 8 : 40;
+  const padTop = isMobile ? 8 : 15;
+  const padBottom = isMobile ? 8 : 25;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
-  const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH) * 1.08;
+  const fit = isMobile ? Math.min(fitW, fitH) * 1.15 : Math.min(fitW, fitH) * 1.35;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));

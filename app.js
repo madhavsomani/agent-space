@@ -377,7 +377,10 @@ function renderActivityFeed(items) {
   }
   if(!timeFiltered.length) {
     const filterNote = _timelineFilter ? ` for ${_timelineFilter.agentName} at ${_timelineFilter.label}` : '';
-    document.getElementById('activity-feed').innerHTML = '<h3>📡 Agent Activity Feed</h3><div class="sub">No ' + (activityFilter === 'all' ? '' : activityFilter + ' ') + 'activity' + filterNote + '</div>';
+    const emptyIcons = { wr:'📋', agent:'🤖', commit:'💾', system:'⚙️', all:'📡' };
+    const emptyHints = { wr:'Work requests will appear here as agents pick up tasks.', agent:'Agent messages and status updates will stream here.', commit:'Git commits from coding agents will show here.', system:'System events like restarts and alerts will appear here.', all:'Activity will appear here as agents start working.' };
+    const ek = activityFilter || 'all';
+    document.getElementById('activity-feed').innerHTML = '<h3>📡 Agent Activity Feed</h3><div style="text-align:center;padding:48px 16px;color:var(--dim)"><div style="font-size:40px;margin-bottom:12px;opacity:0.5">' + (emptyIcons[ek]||'📡') + '</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">No ' + (ek === 'all' ? '' : ek + ' ') + 'activity' + filterNote + '</div><div style="font-size:12px;opacity:0.7">' + (emptyHints[ek]||'') + '</div></div>';
     return;
   }
   const icons = { wr:'📋', agent:'🤖', commit:'💾', system:'⚙️' };
@@ -409,7 +412,7 @@ async function refreshActivity() {
     }
     if(items.length && items[0].ts) lastActivityTs = new Date(items[0].ts).getTime();
     if(!items.length) {
-      document.getElementById('activity-feed').innerHTML = '<h3>Agent Activity Feed</h3><div class="sub">No recent activity</div>';
+      document.getElementById('activity-feed').innerHTML = '<h3>Agent Activity Feed</h3><div style="text-align:center;padding:48px 16px;color:var(--dim)"><div style="font-size:40px;margin-bottom:12px;opacity:0.5">📡</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">No recent activity</div><div style="font-size:12px;opacity:0.7">Activity will appear here as agents start working.</div></div>';
       return;
     }
     const colors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };

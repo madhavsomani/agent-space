@@ -1263,10 +1263,10 @@ function getActivity() {
     }).sort((a, b) => b.mtime - a.mtime).slice(0, 10);
     recentWrs.forEach(w => {
       const content = fs.readFileSync(path.join(WR_DIR, w.file), 'utf8');
-      const title = content.match(/^#\s+WR:\s*(.+)/m)?.[1] || w.file;
-      const status = content.match(/\*\*Status:\*\*\s*\`?([^\`\n]+)/)?.[1]?.trim() || 'unknown';
+      const title = content.match(/^#\s+WR:\s*(.+)/m)?.[1] || content.match(/^#\s+(.+)/m)?.[1] || w.file;
+      const status = content.match(/\*\*Status:\*\*\s*\`?([^\`\n]+)/)?.[1]?.trim() || content.match(/\*\*Target:\*\*\s*(.+)/)?.[1]?.trim() || '';
       const owner = content.match(/\*\*Owner:\*\*\s*\`?([^\`\n]+)/)?.[1]?.trim() || '';
-      lines.push({ ts: new Date(w.mtime).toISOString(), agent: owner || 'system', text: 'WR: ' + title + ' — ' + status, type: 'wr' });
+      lines.push({ ts: new Date(w.mtime).toISOString(), agent: owner || 'system', text: 'WR: ' + title + (status ? ' — ' + status : ''), type: 'wr' });
     });
 
     // 2. Real agent activity from JSONL session files
@@ -1535,8 +1535,8 @@ function getCalendar() {
     const wrs = files.map(f => {
       const content = fs.readFileSync(path.join(WR_DIR, f), 'utf8');
       const get = (key) => content.match(new RegExp(`\*\*${key}:\*\*\s*(.+)`))?.[1]?.trim() || '';
-      const title = content.match(/^#\s*WR:\s*(.+)/m)?.[1] || f;
-      return { file: f, title, status: get('Status'), type: get('Type'), created: get('Created') };
+      const title = content.match(/^#\s*WR:\s*(.+)/m)?.[1] || content.match(/^#\s+(.+)/m)?.[1] || f;
+      return { file: f, title, status: get('Status') || get('Target') || 'active', type: get('Type'), created: get('Created') || get('Owner') };
     });
     const active = wrs.filter(w => { const s = (w.status||'').toLowerCase(); return !s.includes('complete') && !s.includes('done'); });
     return { events: gcalEvents, activeWRs: active, timestamp: Date.now() };
