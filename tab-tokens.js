@@ -8,9 +8,9 @@ async function refreshTokens() {
     const totalTok = (d.totals.input||0) + (d.totals.output||0);
     const tokLabel = totalTok >= 1e6 ? (totalTok/1e6).toFixed(1)+'M' : totalTok >= 1000 ? (totalTok/1000).toFixed(1)+'K' : String(totalTok);
     const qst = document.getElementById('qs-tokens'); if(qst) animateValue(qst, tokLabel);
-    const cacheRatio = d.totals.input > 0 ? Math.round((d.totals.cached / d.totals.input) * 100) : 0;
+    const cacheRatio = (d.totals.input + d.totals.cached) > 0 ? Math.min(100, Math.round((d.totals.cached / (d.totals.input + d.totals.cached)) * 100)) : 0;
     document.getElementById('tok-top').innerHTML=`
-      <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Input Tokens</h3><div class="metric blue">${fmtK(d.totals.input)}</div><div class="sub">Cached: ${fmtK(d.totals.cached)}${cacheRatio > 0 ? ` (${cacheRatio}% hit rate)` : ''}</div>${d.totals.input > 0 ? `<div class="bar-bg" style="margin-top:8px"><div class="bar-fill green" style="width:${cacheRatio}%"></div></div><div class="sub" style="font-size:10px;margin-top:4px">Cache utilization</div>` : ''}</div>
+      <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Input Tokens</h3><div class="metric blue">${fmtK(d.totals.input)}</div><div class="sub">Cached: ${fmtK(d.totals.cached)}${cacheRatio > 0 ? ` (${cacheRatio}% hit rate)` : ''}</div>${d.totals.input > 0 ? `<div class="bar-bg" style="margin-top:8px"><div class="bar-fill green" style="width:${Math.min(100, cacheRatio)}%"></div></div><div class="sub" style="font-size:10px;margin-top:4px">Cache utilization</div>` : ''}</div>
       <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Output Tokens</h3><div class="metric blue">${fmtK(d.totals.output)}</div>${totalTok > 0 ? `<div class="sub">I/O ratio: ${d.totals.input > 0 ? (d.totals.output / d.totals.input).toFixed(1) : '—'}x</div>` : '<div class="sub" style="color:var(--dim)">No session data yet</div>'}</div>
       <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Estimated Cost</h3><div class="metric green">$${d.estimatedCostUSD.toFixed(2)}</div><div class="sub">${d.note||'Live estimate for current tracked usage'}</div></div>`;
     const agents=Object.entries(d.byAgent).sort((a,b)=>(b[1].input+b[1].output)-(a[1].input+a[1].output));
