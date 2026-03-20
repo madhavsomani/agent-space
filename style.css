@@ -476,6 +476,7 @@ nav button .badge { display:inline-block; background:var(--red); color:#fff; fon
 /* Mobile header: tighter spacing so title fits */
 @media(max-width:480px) {
   header { gap:6px; padding:8px 10px; }
-  header h1 { font-size:14px; }
+  header h1 { font-size:14px; max-width:none; }
+  header .clock { display:none; }
   header .refresh-btn { padding:3px 6px; font-size:10px; }
 }
