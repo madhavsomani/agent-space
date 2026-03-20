@@ -1641,12 +1641,7 @@ const SPEECH_BUBBLE_DURATION = 5000;
 const SPEECH_BUBBLE_INTERVAL = 6000;
 let _lastBubbleSwitch = 0;
 
-function sanitizeAgentText(text) {
-  return String(text || '')
-    .replace(/\[\[\s*reply_to(?:_[^\]]+|:[^\]]+)?\s*\]\]/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// sanitizeAgentText defined in app.js (loaded first) — removed duplicate
 
 function drawSpeechBubble(x, y, text) {
   if (!text) return;
@@ -1704,6 +1699,9 @@ function drawOffice(rafNow) {
 function _drawOfficeInner(rafNow) {
   const dpr = window.devicePixelRatio || 1;
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Reset hover targets each frame to prevent unbounded growth (memory leak fix)
+  _hoverTargets.length = 0;
 
   const time = rafNow ? Math.round(performance.timeOrigin + rafNow) : Date.now();
   _frameTime = time;
