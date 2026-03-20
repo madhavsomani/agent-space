@@ -374,14 +374,14 @@
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="refresh-btn" style="font-size:10px;padding:3px 10px" onclick="toggleCommFilter('active')" id="comm-filter-active">🟢 Active Only</button>
       <button class="refresh-btn" style="font-size:10px;padding:3px 10px;opacity:0.5" onclick="toggleCommFilter('all')" id="comm-filter-all">🔗 All Links</button>
-      <button class="refresh-btn" style="font-size:10px;padding:3px 10px;opacity:0.5" onclick="document.getElementById('comm-graph-card').style.display=document.getElementById('comm-graph-card').style.display==='none'?'block':'none';this.style.opacity=this.style.opacity==='1'?'0.5':'1'">📈 Toggle Graph</button>
+      <button class="refresh-btn" style="font-size:10px;padding:3px 10px;opacity:1" onclick="document.getElementById('comm-graph-card').style.display=document.getElementById('comm-graph-card').style.display==='none'?'block':'none';this.style.opacity=this.style.opacity==='1'?'0.5':'1'">📈 Toggle Graph</button>
     </div>
   </div>
   <div class="card" style="margin-top:12px" id="comm-graph-table">
     <h3>📊 Communication Edges</h3>
     <div class="sub">Loading...</div>
   </div>
-  <div class="card" style="position:relative;min-height:500px;overflow:hidden;display:none" id="comm-graph-card">
+  <div class="card" style="position:relative;min-height:500px;overflow:hidden" id="comm-graph-card">
     <svg id="comm-graph-svg" width="100%" height="500" style="display:block"></svg>
   </div>
 </div>
@@ -419,7 +419,7 @@
 </div>
 <script src="mobile-nav.js?v=20260319c"></script>
 <!-- 2D canvas office -->
-<script src="office-canvas.js?v=20260320u"></script>
+<script src="office-canvas.js?v=20260320v"></script>
 <script src="sprites.js?v=20260319c"></script>
 <script src="office-view.js?v=20260320b"></script>
 </body>

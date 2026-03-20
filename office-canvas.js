@@ -1981,6 +1981,42 @@ function _drawOfficeInner(rafNow) {
     }
   }
 
+  // ── Ambient particles (dust motes by day, firefly embers at night) ──
+  oCtx.save();
+  const particleCount = nightMode ? 12 : 8;
+  for (let i = 0; i < particleCount; i++) {
+    const seed = i * 73 + 17;
+    const speed = 0.0002 + (seed % 7) * 0.00005;
+    const phase = seed * 1.3;
+    // Orbital path with gentle drift
+    const px = (Math.sin(time * speed + phase) * 0.35 + 0.5) * cw / camZoom;
+    const py = (Math.cos(time * speed * 0.7 + phase * 0.8) * 0.3 + 0.45) * ch / camZoom;
+    const breathe = 0.5 + 0.5 * Math.sin(time * 0.001 + i * 2.1);
+    if (nightMode) {
+      // Warm firefly embers
+      const r = 1.2 + breathe * 1.4;
+      oCtx.globalAlpha = 0.15 + breathe * 0.35;
+      oCtx.beginPath();
+      oCtx.arc(px, py, r + 2, 0, Math.PI * 2);
+      oCtx.fillStyle = i % 3 === 0 ? 'rgba(255,200,80,0.3)' : 'rgba(255,160,60,0.25)';
+      oCtx.fill();
+      oCtx.beginPath();
+      oCtx.arc(px, py, r, 0, Math.PI * 2);
+      oCtx.fillStyle = i % 3 === 0 ? '#ffcc55' : '#ffaa44';
+      oCtx.fill();
+    } else {
+      // Floating dust motes
+      const r = 0.8 + breathe * 0.6;
+      oCtx.globalAlpha = 0.08 + breathe * 0.12;
+      oCtx.beginPath();
+      oCtx.arc(px, py, r, 0, Math.PI * 2);
+      oCtx.fillStyle = '#fff8e0';
+      oCtx.fill();
+    }
+  }
+  oCtx.globalAlpha = 1;
+  oCtx.restore();
+
   oCtx.restore(); // undo zoom+pan
 
   if (_hoveredAgent) {

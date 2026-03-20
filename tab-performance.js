@@ -10,7 +10,7 @@ async function refreshPerformance() {
       <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Success Rate</h3><div class="metric ${(s.overallSuccessRate||0)>=90?'green':(s.overallSuccessRate||0)>=70?'orange':'red'}">${s.overallSuccessRate||0}%</div><div class="bar-bg" style="margin-top:8px"><div class="bar-fill ${(s.overallSuccessRate||0)>=90?'green':(s.overallSuccessRate||0)>=70?'orange':'red'}" style="width:${s.overallSuccessRate||0}%"></div></div><div class="sub" style="margin-top:6px">Fleet-wide reliability snapshot</div></div>
       <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Avg Duration</h3><div class="metric blue">${fmtDur(avgDurAll)}</div><div class="sub">Across all cron agents</div></div>`;
     // Workload Distribution Donut
-    const _noData = '<div style="color:var(--dim);font-size:11px;padding:12px 0">No cron run data yet</div>';
+    const _noData = '<div style="color:var(--dim);font-size:12px;padding:24px 0;text-align:center"><span style="font-size:24px;display:block;margin-bottom:6px;opacity:0.5">📭</span>No cron run data yet<br><span style="font-size:10px;opacity:0.6;margin-top:4px;display:inline-block">Data populates as cron jobs run over time</span></div>';
     if(d.agents?.length) {
       const donutSvg = document.getElementById('perf-donut-svg');
       const donutLegend = document.getElementById('perf-donut-legend');
@@ -202,7 +202,7 @@ async function refreshPerformance() {
       otBody.innerHTML = _noData;
     }
 
-    if(!d.agents?.length) { document.getElementById('perf-agents').innerHTML='<h3>📊 Agent Performance</h3><div class="sub">No cron agent data</div>'; }
+    if(!d.agents?.length) { document.getElementById('perf-agents').innerHTML='<h3>📊 Agent Performance</h3><div style="color:var(--dim);font-size:12px;padding:24px 0;text-align:center"><span style="font-size:24px;display:block;margin-bottom:6px;opacity:0.5">📭</span>No cron agent data yet<br><span style="font-size:10px;opacity:0.6;margin-top:4px;display:inline-block">Data populates as cron jobs run over time</span></div>'; }
     else { document.getElementById('perf-agents').innerHTML = '<h3>📊 Agent Performance</h3>' + d.agents.map(a => {
       const rateColor = a.successRate>=90?'var(--green)':a.successRate>=70?'var(--orange)':'var(--red)';
       // Mini bar chart from hourBuckets
