@@ -3,16 +3,9 @@ services:
     build: .
     ports:
       - "18790:18790"
-    environment:
-      - BIND_HOST=0.0.0.0
-      - QDRANT_URL=http://qdrant:6333
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    # Uncomment to mount live data or custom config:
-    # volumes:
-    #   - ~/.openclaw/agents:/root/.openclaw/agents:ro
-    #   - ./config.json:/app/config.json:ro
+    volumes:
+      - ${OPENCLAW_HOME:-~/.openclaw}:/root/.openclaw:ro
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -20,11 +13,7 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:6333/healthz"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
+    restart: unless-stopped
 
 volumes:
   qdrant_data:
