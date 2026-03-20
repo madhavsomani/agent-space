@@ -2143,7 +2143,7 @@ function resizeCanvas() {
   // Mobile should feel scene-first: let the office claim more vertical space
   // so short pages don't leave a large dead band below the canvas.
   // On mobile, size canvas to fit the isometric scene tightly (scene is landscape-oriented)
-  const mobileAvailH = Math.max(280, Math.min(window.innerHeight * 0.78, 700));
+  const mobileAvailH = Math.max(280, Math.min(availH, 720));
   const canvasH = isMobile ? mobileAvailH : Math.max(500, availH);
 
   const dpr = window.devicePixelRatio || 1;
@@ -2157,23 +2157,23 @@ function resizeCanvas() {
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   oCtx.imageSmoothingEnabled = false;
 
-  // Auto-fit zoom using the real rendered scene bounds so the office fills the viewport cleanly.
+  // Auto-fit zoom: fill viewport while keeping the ENTIRE office visible (no clipping).
   const scene = getSceneBounds();
-  const padX = isMobile ? 18 : 100;
-  const padTop = isMobile ? 18 : 24;
-  const padBottom = isMobile ? 26 : 36;
+  const padX = isMobile ? 16 : 60;
+  const padTop = isMobile ? 12 : 20;
+  const padBottom = isMobile ? 16 : 30;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
-  const fitBase = Math.min(fitW, fitH);
-  const fit = isMobile ? fitBase * 2.8 : fitBase * 1.9;
+  // Use the SMALLER of width/height fit so nothing clips
+  const fit = Math.min(fitW, fitH);
 
   if (!_dragging && camPanX === 0 && camPanY <= 0) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
     if (isMobile) {
-      camPanX = -15;
+      camPanX = 0;
       camPanY = -20;
     } else {
-      camPanY = 8;
+      camPanY = 0;
     }
   }
 

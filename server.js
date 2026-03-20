@@ -2470,7 +2470,7 @@ const server = http.createServer((req, res) => {
 
   // SSE endpoint
   if (url === '/api/events') {
-    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*' });
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*', 'X-Accel-Buffering': 'no' });
     res.write(`event: connected\ndata: {"ok":true}\n\n`);
     // Send initial state burst so reconnecting clients don't miss anything
     try {
@@ -2726,3 +2726,16 @@ server.listen(PORT, BIND_HOST, () => {
   // Initial snapshot after caches warm
   setTimeout(() => { setImmediate(persistSnapshot); }, 20000);
 });
+
+// Graceful shutdown — drain SSE clients cleanly to avoid ERR_INCOMPLETE_CHUNKED_ENCODING
+function gracefulShutdown(signal) {
+  console.log(`[shutdown] ${signal} received, draining ${sseClients.size} SSE clients...`);
+  for (const client of sseClients) {
+    try { client.end(); } catch {}
+  }
+  sseClients.clear();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 3000);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
