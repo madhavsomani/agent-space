@@ -18,6 +18,9 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 ### Office View (Light)
 ![Agent Space — Light Mode](screenshot-light-office.jpg)
 
+### Cards Dashboard View (Light)
+![Agent Space — Cards Light](screenshot-light-cards.jpg)
+
 ## Features
 
 - **Isometric pixel-art office** — 2D canvas office with zone-based layout, pixel-art agent sprites, and desk animations
