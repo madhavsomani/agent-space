@@ -369,10 +369,10 @@ function getSceneBounds() {
   ];
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   pts.forEach(p => {
-    minX = Math.min(minX, p.x - ISO.tileW / 2 - 28);
-    maxX = Math.max(maxX, p.x + ISO.tileW / 2 + 28);
-    minY = Math.min(minY, p.y - ISO.tileH / 2 - wallH - 40);
-    maxY = Math.max(maxY, p.y + ISO.tileH / 2 + 46);
+    minX = Math.min(minX, p.x - ISO.tileW / 2 - 50);
+    maxX = Math.max(maxX, p.x + ISO.tileW / 2 + 80);
+    minY = Math.min(minY, p.y - ISO.tileH / 2 - wallH - 60);
+    maxY = Math.max(maxY, p.y + ISO.tileH / 2 + 100);
   });
   return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
 }
@@ -1699,6 +1699,19 @@ let _staticValid = false;
 let _staticCanvas = null, _staticCtx = null;
 let _staticCamZoom = 0, _staticCamPanX = 0, _staticCamPanY = 0;
 
+// ── Color utils (hoisted for perf — avoid re-creating per frame) ──
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex(r, g, b) {
+  return '#' + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
+}
+function lerpColor(c1, c2, t) {
+  const a = hexToRgb(c1), b = hexToRgb(c2);
+  return rgbToHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+}
+
 function invalidateStaticCache() { _staticValid = false; }
 
 function drawOffice(rafNow) {
@@ -1752,17 +1765,7 @@ function _drawOfficeInner(rafNow) {
     { h: 21, stops: [['#0a0812',0],['#17111f',0.22],['#1e1530',0.5],['#2a1f3a',0.74],['#3a2844',1]] },
   ];
 
-  function hexToRgb(hex) {
-    const n = parseInt(hex.slice(1), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  }
-  function rgbToHex(r, g, b) {
-    return '#' + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
-  }
-  function lerpColor(c1, c2, t) {
-    const a = hexToRgb(c1), b = hexToRgb(c2);
-    return rgbToHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
-  }
+  // hexToRgb/rgbToHex/lerpColor hoisted to module scope for perf
 
   // Find two adjacent phases and blend
   let phaseA = SKY_PHASES[SKY_PHASES.length - 1], phaseB = SKY_PHASES[0];
@@ -2158,15 +2161,15 @@ function resizeCanvas() {
 
   // Auto-fit zoom: fill viewport while keeping the ENTIRE office visible (no clipping).
   const scene = getSceneBounds();
-  const padX = isMobile ? 16 : 60;
-  const padTop = isMobile ? 12 : 20;
-  const padBottom = isMobile ? 16 : 30;
+  const padX = isMobile ? 16 : 80;
+  const padTop = isMobile ? 12 : 30;
+  const padBottom = isMobile ? 16 : 50;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
   const fitH = (internalH - padTop - padBottom) / Math.max(scene.height, 1);
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
-  const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH);
+  const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH) * 0.98;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
