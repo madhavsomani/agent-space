@@ -152,10 +152,10 @@ const DESK_SLOTS = [
   { gx: 4, gy: 13, zone: 'engineering' },
   // Content cluster
   { gx: 10, gy: 3, zone: 'content' },
-  { gx: 14, gy: 3, zone: 'content' },
+  { gx: 13, gy: 3, zone: 'content' },
   { gx: 10, gy: 8, zone: 'content' },
-  { gx: 14, gy: 8, zone: 'content' },
-  { gx: 12, gy: 13, zone: 'content' },
+  { gx: 13, gy: 8, zone: 'content' },
+  { gx: 11, gy: 13, zone: 'content' },
   // Leadership cluster
   { gx: 15, gy: 3, zone: 'leadership' },
   { gx: 17, gy: 3, zone: 'leadership' },
@@ -182,14 +182,14 @@ const MOBILE_DESK_SLOTS = [
   { gx: 12, gy: 7, zone: 'content' },
   { gx: 10, gy: 11, zone: 'content' },
   // Leadership cluster (right-top)
-  { gx: 15, gy: 3, zone: 'leadership' },
-  { gx: 17, gy: 3, zone: 'leadership' },
-  { gx: 16, gy: 7, zone: 'leadership' },
+  { gx: 14, gy: 3, zone: 'leadership' },
+  { gx: 16, gy: 3, zone: 'leadership' },
+  { gx: 15, gy: 7, zone: 'leadership' },
   // Support cluster (right-bottom)
-  { gx: 15, gy: 10, zone: 'support' },
-  { gx: 17, gy: 10, zone: 'support' },
-  { gx: 15, gy: 13, zone: 'support' },
-  { gx: 17, gy: 13, zone: 'support' },
+  { gx: 14, gy: 10, zone: 'support' },
+  { gx: 16, gy: 10, zone: 'support' },
+  { gx: 14, gy: 13, zone: 'support' },
+  { gx: 16, gy: 13, zone: 'support' },
 ];
 
 function getActiveDeskSlots() {
@@ -847,8 +847,7 @@ function drawDeskStation(gx, gy, agent, time) {
   if (agent) {
     // Draw agent slightly above and behind desk center
     drawAgent(p.x, p.y - ISO.tileH / 2 - 22, agent, time);
-    // Name label below desk
-    drawNameLabel(p.x, p.y + ISO.tileH / 2 + 8, agent);
+    // Name labels drawn in separate overlay pass (see _pendingLabels)
   }
 }
 
@@ -1091,7 +1090,7 @@ function drawNameLabel(x, y, agent) {
   const _cwN = oCanvas.width / _dprN;
   const worldLeftN = (_cwN / 2 - _cwN / 2 / camZoom) - camPanX;
   const worldRightN = (_cwN / 2 + _cwN / 2 / camZoom) - camPanX;
-  lx = Math.max(worldLeftN + 4, Math.min(lx, worldRightN - lw - 4));
+  lx = Math.max(worldLeftN + 4, Math.min(lx, worldRightN - lw - 12));
   const ly = y - padY - (isRightRoom ? 3 : 0);
 
   // Badge background
@@ -1952,6 +1951,8 @@ function _drawOfficeInner(rafNow) {
     .map((s, i) => ({ ...s, idx: i }))
     .sort((a, b) => (a.gy + a.gx) - (b.gy + b.gx));
 
+  const _pendingLabels = []; // collect labels for final overlay pass
+
   for (const slot of sortedSlots) {
     // Get wander position for idle agents
     const wpos = slot.agent ? getWanderPos(slot.agent.name, slot.gx, slot.gy, slot.agent.status, time) : null;
@@ -1962,15 +1963,20 @@ function _drawOfficeInner(rafNow) {
     if (isWandering && slot.agent) {
       const wp = iso(wpos.gx, wpos.gy);
       drawAgent(wp.x, wp.y - ISO.tileH / 2 - 10, slot.agent, time);
-      drawNameLabel(wp.x, wp.y + 4, slot.agent);
+      _pendingLabels.push({ x: wp.x, y: wp.y + 4, agent: slot.agent });
       const screen = worldToScreen(wp.x, wp.y - ISO.tileH / 2 - 10, cw, ch);
       _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 16 });
     } else if (slot.agent) {
       const dp = iso(slot.gx, slot.gy);
-        drawNameLabel(dp.x, dp.y + ISO.tileH / 2 + 8, slot.agent);
+      _pendingLabels.push({ x: dp.x, y: dp.y + ISO.tileH / 2 + 8, agent: slot.agent });
       const screen = worldToScreen(dp.x, dp.y - ISO.tileH / 2 - 22, cw, ch);
       _hoverTargets.push({ agent: slot.agent, x: screen.x, y: screen.y, r: 16 });
     }
+  }
+
+  // Draw all name labels AFTER all desks/agents so they're always on top
+  for (const lbl of _pendingLabels) {
+    drawNameLabel(lbl.x, lbl.y, lbl.agent);
   }
 
   // Speech bubble for active agents (rotate every 6s)
@@ -2153,7 +2159,7 @@ function resizeCanvas() {
 
   // Auto-fit zoom using the real rendered scene bounds so the office fills the viewport cleanly.
   const scene = getSceneBounds();
-  const padX = isMobile ? 18 : 64;
+  const padX = isMobile ? 18 : 100;
   const padTop = isMobile ? 18 : 24;
   const padBottom = isMobile ? 26 : 36;
   const fitW = (internalW - padX * 2) / Math.max(scene.width, 1);
