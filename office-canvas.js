@@ -2169,7 +2169,7 @@ function resizeCanvas() {
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use min(fitW, fitH) scaled up to fill the tighter canvas
-  const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH) * 0.98;
+  const fit = isMobile ? Math.min(fitW, fitH) * 1.05 : Math.min(fitW, fitH) * 1.08;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
