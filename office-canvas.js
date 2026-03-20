@@ -97,7 +97,7 @@ loadOfficeAsset('doorway', 'doorwayOpen_SW.png');
 loadOfficeAsset('doorwayNE', 'doorwayOpen_NE.png');
 
 // ── PALETTE ──
-const PAL = {
+const PAL_LIGHT = {
   // Warm wood floor
   floorA: '#caa982', floorB: '#bb986f',
   floorLine: '#9c7d5c',
@@ -130,6 +130,39 @@ const PAL = {
   tooltipBorder: 'rgba(255,228,190,0.18)',
   tooltipAccent: '#3b82f6',
 };
+
+const PAL_DARK = {
+  floorA: '#3a3040', floorB: '#322838',
+  floorLine: '#4a3e50',
+  backdropTop: '#1a1428', backdropBottom: '#12101e',
+  vignette: 'rgba(10,6,20,0.28)',
+  wallTop: '#3a4a5a', wallSide: '#2e3e4e', wallTrim: '#243444',
+  deskTop: '#5a4838', deskFront: '#483828', deskSide: '#504030',
+  monFrame: '#1a1a1e', monScreen: '#3b82f6', monScreenIdle: '#22c55e', monScreenSleep: '#2a2a2e',
+  chairSeat: '#2a2a2e', chairBack: '#222', chairLeg: '#3a3a3e',
+  labelBg: 'rgba(16,12,24,0.92)', labelText: '#c8c0d8', labelBorder: 'rgba(140,120,180,0.28)',
+  statusWorking: '#22c55e', statusIdle: '#eab308', statusSleeping: '#4b5563',
+  plantPot: '#5a3e2c', leafDark: '#1a4a1a', leafLight: '#2a8a3a',
+  bookColors: ['#a03030','#2870a8','#c0a030','#208848','#7840a0','#b86020','#148870','#b83070'],
+  shelfWood: '#4a3828', shelfSide: '#3a2818',
+  mugBody: '#6a6060', mugCoffee: '#4a2a16', mugHandle: '#585050',
+  lampPole: '#666', lampShade: '#8a7840',
+  rugColors: ['#4a2810','#563018','#6a4828','#786040'],
+  catBody: '#444', catEar: '#383838',
+  posterFrame: '#3a2e28',
+  coffeeMachine: '#2a2a2e', coffeeMachineLight: '#22c55e',
+  tooltipBg: 'rgba(12,8,20,0.95)',
+  tooltipBorder: 'rgba(120,100,180,0.22)',
+  tooltipAccent: '#60a5fa',
+};
+
+var PAL = { ...PAL_LIGHT };
+
+function _syncThemePalette() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const src = isDark ? PAL_DARK : PAL_LIGHT;
+  for (const k in src) PAL[k] = src[k];
+}
 
 // ── LAYOUT ──
 // Each desk station is a self-contained area with desk, chair, monitor, personal items.
@@ -665,7 +698,7 @@ function drawDeskStation(gx, gy, agent, time) {
   const p = iso(gx, gy);
   const seed = hashAgent(agent?.name || `${gx},${gy}`);
   const hour = new Date(_frameTime).getHours();
-  const nightMode = hour < 7 || hour >= 19;
+  const nightMode = document.documentElement.getAttribute("data-theme") === "dark" || hour < 7 || hour >= 19;
   const zoneKey = getZoneForAgent(agent);
   const isEngineering = zoneKey === 'engineering';
   const isContent = zoneKey === 'content';
@@ -891,7 +924,7 @@ function drawAgent(x, y, agent, time) {
   const isWorking = agent.status === 'working';
   const isIdle = agent.status === 'idle';
   const hour = new Date(_frameTime).getHours();
-  const nightMode = hour < 7 || hour >= 19;
+  const nightMode = document.documentElement.getAttribute("data-theme") === "dark" || hour < 7 || hour >= 19;
   const seed = hashAgent(agent?.name || 'agent');
   const hairColors = ['#2f2a24','#7c4a2b','#d0a15b','#5b6477','#8a3f54','#5c7f4f'];
   const skinTones = ['#f1d2b0','#e3bc92','#c9966b','#8b5e3c'];
@@ -1495,7 +1528,7 @@ function drawSharedFurniture(time) {
 function drawWindow(gx, gy) {
   const p = iso(gx, gy);
   const wy = p.y - ISO.tileH / 2 - 32;
-  const nightMode = new Date(_frameTime).getHours() < 7 || new Date(_frameTime).getHours() >= 19;
+  const nightMode = document.documentElement.getAttribute('data-theme') === 'dark' || new Date(_frameTime).getHours() < 7 || new Date(_frameTime).getHours() >= 19;
   // Frame
   oCtx.fillStyle = '#5a4a3a';
   oCtx.fillRect(p.x - 14, wy, 28, 22);
@@ -1781,9 +1814,17 @@ function lerpColor(c1, c2, t) {
 
 // ── Sky cache — redrawn only when hour changes ──
 let _skyCanvas = null, _skyCtx = null;
-let _skyLastHour = -1, _skyLastW = 0, _skyLastH = 0, _skyLastTime = 0;
+let _skyLastHour = -1, _skyLastW = 0, _skyLastH = 0, _skyLastTime = 0, _skyLastTheme = '';
 
-function invalidateStaticCache() { _staticValid = false; }
+function invalidateStaticCache() {
+  _staticValid = false;
+  _syncThemePalette();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame((t) => {
+      try { if (typeof drawOffice === 'function') drawOffice(t); } catch (_) {}
+    });
+  }
+}
 
 function drawOffice(rafNow) {
   if (!oCtx || !oCanvas.width) return;
@@ -1791,6 +1832,7 @@ function drawOffice(rafNow) {
 }
 
 function _drawOfficeInner(rafNow) {
+  _syncThemePalette();
   const dpr = window.devicePixelRatio || 1;
   oCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -1807,17 +1849,20 @@ function _drawOfficeInner(rafNow) {
   const hour = now.getHours();
   const minute = now.getMinutes();
   const hourF = hour + minute / 60; // fractional hour for smooth transitions
-  const nightMode = hour < 7 || hour >= 19;
+  const _themeDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const nightMode = _themeDark || hour < 7 || hour >= 19;
 
   // ── Sky rendering (cached — only redraws every 5 minutes or on resize) ──
-  const skyKey = (hour * 12 + (minute / 5 | 0)); // changes every 5 min
-  if (!_skyCanvas || _skyLastHour !== skyKey || _skyLastW !== oCanvas.width || _skyLastH !== oCanvas.height) {
+  const skyKey = _themeDark ? -999 : (hour * 12 + (minute / 5 | 0)); // changes every 5 min or on theme change
+  const _themeKey = _themeDark ? 'dark' : 'light';
+  if (!_skyCanvas || _skyLastHour !== skyKey || _skyLastW !== oCanvas.width || _skyLastH !== oCanvas.height || _skyLastTheme !== _themeKey) {
     if (!_skyCanvas) { _skyCanvas = document.createElement('canvas'); _skyCtx = _skyCanvas.getContext('2d'); }
     _skyCanvas.width = oCanvas.width; _skyCanvas.height = oCanvas.height;
     _skyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const _origCtx2 = oCtx;
     oCtx = _skyCtx;
   // Each phase has gradient stops; we blend between adjacent phases
+  const _skyHourF = _themeDark ? 1 : hourF; // force deep night in dark theme
   const SKY_PHASES = [
     // 0-5: deep night
     { h: 0,  stops: [['#0a0812',0],['#17111f',0.22],['#1e1530',0.5],['#2a1f3a',0.74],['#3a2844',1]] },
@@ -1849,9 +1894,9 @@ function _drawOfficeInner(rafNow) {
   let phaseA = SKY_PHASES[SKY_PHASES.length - 1], phaseB = SKY_PHASES[0];
   let blendT = 0;
   for (let i = 0; i < SKY_PHASES.length - 1; i++) {
-    if (hourF >= SKY_PHASES[i].h && hourF < SKY_PHASES[i + 1].h) {
+    if (_skyHourF >= SKY_PHASES[i].h && hourF < SKY_PHASES[i + 1].h) {
       phaseA = SKY_PHASES[i]; phaseB = SKY_PHASES[i + 1];
-      blendT = (hourF - phaseA.h) / (phaseB.h - phaseA.h);
+      blendT = (_skyHourF - phaseA.h) / (phaseB.h - phaseA.h);
       break;
     }
   }
@@ -1866,22 +1911,22 @@ function _drawOfficeInner(rafNow) {
   oCtx.fillRect(0, 0, cw, ch);
 
   // Time-of-day glow — intensity varies by phase
-  const glowIntensity = nightMode ? 0.24 : (hourF >= 17 && hourF < 19.5) ? 0.3 : 0.18;
+  const glowIntensity = nightMode ? 0.24 : (_skyHourF >= 17 && _skyHourF < 19.5) ? 0.3 : 0.18;
   const horizonGlow = oCtx.createRadialGradient(cw * 0.5, ch * 0.22, 24, cw * 0.5, ch * 0.22, Math.max(cw, ch) * 0.58);
   if (nightMode) {
     horizonGlow.addColorStop(0, `rgba(255,206,138,${glowIntensity})`);
     horizonGlow.addColorStop(0.28, 'rgba(210,132,214,0.14)');
     horizonGlow.addColorStop(0.58, 'rgba(89,58,110,0.08)');
     horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
-  } else if (hourF >= 6 && hourF < 8) {
+  } else if (_skyHourF >= 6 && _skyHourF < 8) {
     // Dawn/sunrise warm glow
-    const dawnI = (hourF - 6) / 2;
+    const dawnI = (_skyHourF - 6) / 2;
     horizonGlow.addColorStop(0, `rgba(255,220,160,${0.2 + dawnI * 0.15})`);
     horizonGlow.addColorStop(0.35, `rgba(255,180,100,${0.08 + dawnI * 0.06})`);
     horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
-  } else if (hourF >= 17 && hourF < 19.5) {
+  } else if (_skyHourF >= 17 && _skyHourF < 19.5) {
     // Golden hour/dusk warm glow
-    const duskI = (hourF - 17) / 2.5;
+    const duskI = (_skyHourF - 17) / 2.5;
     horizonGlow.addColorStop(0, `rgba(255,180,100,${0.22 + duskI * 0.1})`);
     horizonGlow.addColorStop(0.3, `rgba(240,140,80,${0.12 + duskI * 0.08})`);
     horizonGlow.addColorStop(0.6, `rgba(180,80,120,${duskI * 0.08})`);
@@ -1895,7 +1940,7 @@ function _drawOfficeInner(rafNow) {
   oCtx.fillRect(0, 0, cw, ch);
 
   // Soft vignette
-  const vignetteAlpha = nightMode ? 0.34 : (hourF >= 17 && hourF < 19.5) ? 0.22 : 0.14;
+  const vignetteAlpha = nightMode ? 0.34 : (_skyHourF >= 17 && _skyHourF < 19.5) ? 0.22 : 0.14;
   const vignette = oCtx.createRadialGradient(cw / 2, ch * 0.42, Math.min(cw, ch) * 0.18, cw / 2, ch * 0.46, Math.max(cw, ch) * 0.78);
   vignette.addColorStop(0, 'rgba(255,245,230,0)');
   vignette.addColorStop(1, nightMode ? `rgba(30,14,24,${vignetteAlpha})` : `rgba(120,84,44,${vignetteAlpha})`);
@@ -1913,7 +1958,7 @@ function _drawOfficeInner(rafNow) {
   }
 
   // Stars — visible at night, fade in/out during twilight
-  const starAlpha = hourF < 5 ? 0.7 : hourF < 7 ? 0.7 * (1 - (hourF - 5) / 2) : hourF >= 19.5 ? Math.min(0.7, (hourF - 19.5) / 1.5 * 0.7) : hourF >= 21 ? 0.7 : 0;
+  const starAlpha = _skyHourF < 5 ? 0.7 : _skyHourF < 7 ? 0.7 * (1 - (_skyHourF - 5) / 2) : _skyHourF >= 19.5 ? Math.min(0.7, (_skyHourF - 19.5) / 1.5 * 0.7) : _skyHourF >= 21 ? 0.7 : 0;
   if (starAlpha > 0.02) {
     oCtx.save();
     oCtx.globalAlpha = starAlpha;
@@ -1932,7 +1977,7 @@ function _drawOfficeInner(rafNow) {
   }
 
     oCtx = _origCtx2;
-    _skyLastHour = skyKey; _skyLastW = oCanvas.width; _skyLastH = oCanvas.height;
+    _skyLastHour = skyKey; _skyLastW = oCanvas.width; _skyLastH = oCanvas.height; _skyLastTheme = _themeKey;
   }
   // Blit cached sky
   oCtx.save();
@@ -2291,7 +2336,7 @@ function resizeCanvas() {
     const sceneCenterX = (scene.minX + scene.maxX) / 2;
     const sceneCenterY = (scene.minY + scene.maxY) / 2;
     camPanX = sceneCenterX;
-    camPanY = sceneCenterY;
+    camPanY = sceneCenterY + (isMobile ? -80 : 0);
   }
 
   invalidateStaticCache();
