@@ -6,3 +6,5 @@ memory-history.json
 agent-status.json
 agent-space.db
 .DS_Store
+stitch-export.html
+stitch-neon-orchard.html
