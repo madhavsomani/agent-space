@@ -1179,11 +1179,15 @@ function drawNameLabel(x, y, agent) {
   lx = Math.max(worldLeftN + 4, Math.min(lx, worldRightN - lw - 12));
   const ly = y - padY - (isRightRoom ? 3 : 0);
 
-  // Badge background
-  oCtx.fillStyle = isMobileOffice ? 'rgba(43,30,18,0.85)' : 'rgba(43,30,18,0.82)';
+  // Badge background — dark glass with subtle status accent
+  const statusColor = agent.status === 'working' ? 'rgba(34,197,94,0.2)' : agent.status === 'idle' ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.1)';
+  oCtx.fillStyle = isMobileOffice ? 'rgba(12,12,14,0.88)' : 'rgba(12,12,14,0.85)';
   oCtx.beginPath();
   oCtx.roundRect(lx, ly, lw, lh, 5);
   oCtx.fill();
+  oCtx.strokeStyle = statusColor;
+  oCtx.lineWidth = 1;
+  oCtx.stroke();
 
   // Status dot
   const dotR = isMobileOffice ? 2 : 2.5;
@@ -2341,7 +2345,7 @@ function resizeCanvas() {
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use width-fit to fill the narrow viewport, desktop: balanced fit
-  const fit = isMobile ? fitH * 1.25 : Math.min(fitW, fitH) * 1.22;
+  const fit = isMobile ? fitH * 1.35 : Math.min(fitW, fitH) * 1.45;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
@@ -2349,7 +2353,7 @@ function resizeCanvas() {
     const sceneCenterX = (scene.minX + scene.maxX) / 2;
     const sceneCenterY = (scene.minY + scene.maxY) / 2;
     camPanX = sceneCenterX;
-    camPanY = sceneCenterY + (isMobile ? -300 : -40);
+    camPanY = sceneCenterY + (isMobile ? -300 : -80);
   }
 
   invalidateStaticCache();
