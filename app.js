@@ -1,7 +1,7 @@
 // Theme
 let _tabLoaded = {};
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function sanitizeAgentText(text) { return String(text || '').replace(/\[\[\s*reply_to(?:_[^\]]+|:[^\]]+)?\s*\]\]/gi, '').replace(/\s+/g, ' ').trim(); }
+function sanitizeAgentText(text) { const s = String(text || '').replace(/\[\[\s*reply_to(?:_[^\]]+|:[^\]]+)?\s*\]\]/gi, '').replace(/\s+/g, ' ').trim(); if (/^(HEARTBEAT_OK|NO_REPLY)$/i.test(s)) return ''; return s; }
 function getTheme() { return localStorage.getItem('hq-theme') || 'dark'; }
 function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️'; if (typeof invalidateStaticCache === 'function') invalidateStaticCache(); }
 function toggleTheme() { const t = getTheme() === 'dark' ? 'light' : 'dark'; localStorage.setItem('hq-theme', t); applyTheme(t); }
