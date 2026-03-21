@@ -98,62 +98,62 @@ loadOfficeAsset('doorwayNE', 'doorwayOpen_NE.png');
 
 // ── PALETTE ──
 const PAL_LIGHT = {
-  // Warm wood floor
-  floorA: '#caa982', floorB: '#bb986f',
-  floorLine: '#9c7d5c',
-  backdropTop: '#efe3d0', backdropBottom: '#d8c1a2',
-  vignette: 'rgba(92,62,32,0.16)',
-  // Walls
-  wallTop: '#8faa8f', wallSide: '#7a9a7a', wallTrim: '#6a886a',
-  // Desks
-  deskTop: '#b08050', deskFront: '#8a6038', deskSide: '#9a7048',
-  // Monitor
-  monFrame: '#2a2a2e', monScreen: '#3b82f6', monScreenIdle: '#22c55e', monScreenSleep: '#444',
+  // Neon Orchard — vibrant warm floor
+  floorA: '#e8d5b8', floorB: '#dcc4a4',
+  floorLine: '#c4a47a',
+  backdropTop: '#fdf6ee', backdropBottom: '#f0d4b0',
+  vignette: 'rgba(157,78,221,0.08)',
+  // Walls — soft teal-green
+  wallTop: '#7ecfbf', wallSide: '#5cb8a8', wallTrim: '#4aa898',
+  // Desks — warm maple
+  deskTop: '#c89860', deskFront: '#a07840', deskSide: '#b08850',
+  // Monitor — purple accents
+  monFrame: '#2a2030', monScreen: '#9D4EDD', monScreenIdle: '#00F5D4', monScreenSleep: '#444',
   // Chair
-  chairSeat: '#444', chairBack: '#333', chairLeg: '#555',
-  // Labels
-  labelBg: 'rgba(58,39,24,0.88)', labelText: '#fff6ea', labelBorder: 'rgba(255,228,190,0.28)',
-  // Status dots
-  statusWorking: '#22c55e', statusIdle: '#eab308', statusSleeping: '#6b7280',
+  chairSeat: '#4a3860', chairBack: '#3a2850', chairLeg: '#5a4870',
+  // Labels — vibrant
+  labelBg: 'rgba(80,30,120,0.88)', labelText: '#fff6ea', labelBorder: 'rgba(157,78,221,0.40)',
+  // Status dots — Neon Orchard accents
+  statusWorking: '#00F5D4', statusIdle: '#F59E0B', statusSleeping: '#6b7280',
   // Furniture
-  plantPot: '#8B5E3C', leafDark: '#2d6b2d', leafLight: '#4ade80',
-  bookColors: ['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6','#e67e22','#1abc9c','#e84393'],
+  plantPot: '#8B5E3C', leafDark: '#006b5b', leafLight: '#00F5D4',
+  bookColors: ['#FF7E5F','#3B82F6','#F59E0B','#00F5D4','#9D4EDD','#e67e22','#10B981','#e84393'],
   shelfWood: '#7a5a3a', shelfSide: '#6a4a2a',
-  mugBody: '#e8e0d0', mugCoffee: '#6b4226', mugHandle: '#c8b8a0',
-  lampPole: '#888', lampShade: '#d4b870',
-  rugColors: ['#8b4513','#a0522d','#cd853f','#deb887'],
+  mugBody: '#f0e8e0', mugCoffee: '#6b4226', mugHandle: '#d0c0b0',
+  lampPole: '#9D4EDD', lampShade: '#FF7E5F',
+  rugColors: ['#9D4EDD','#bb6bfb','#ce91ff','#e0b6ff'],
   catBody: '#666', catEar: '#555',
-  posterFrame: '#5a4a3a',
-  coffeeMachine: '#444', coffeeMachineLight: '#22c55e',
+  posterFrame: '#5a3a6a',
+  coffeeMachine: '#333', coffeeMachineLight: '#00F5D4',
   // Tooltip
-  tooltipBg: 'rgba(30,22,16,0.92)',
-  tooltipBorder: 'rgba(255,228,190,0.18)',
-  tooltipAccent: '#3b82f6',
+  tooltipBg: 'rgba(40,20,60,0.92)',
+  tooltipBorder: 'rgba(157,78,221,0.30)',
+  tooltipAccent: '#9D4EDD',
 };
 
 const PAL_DARK = {
-  floorA: '#3a3040', floorB: '#322838',
-  floorLine: '#4a3e50',
-  backdropTop: '#1a1428', backdropBottom: '#12101e',
-  vignette: 'rgba(10,6,20,0.28)',
-  wallTop: '#3a4a5a', wallSide: '#2e3e4e', wallTrim: '#243444',
+  floorA: '#2a1e38', floorB: '#241830',
+  floorLine: '#3a2e48',
+  backdropTop: '#0B0E14', backdropBottom: '#14101e',
+  vignette: 'rgba(157,78,221,0.12)',
+  wallTop: '#2a4a4a', wallSide: '#1e3a3a', wallTrim: '#163030',
   deskTop: '#5a4838', deskFront: '#483828', deskSide: '#504030',
-  monFrame: '#1a1a1e', monScreen: '#3b82f6', monScreenIdle: '#22c55e', monScreenSleep: '#2a2a2e',
-  chairSeat: '#2a2a2e', chairBack: '#222', chairLeg: '#3a3a3e',
-  labelBg: 'rgba(16,12,24,0.92)', labelText: '#c8c0d8', labelBorder: 'rgba(140,120,180,0.28)',
-  statusWorking: '#22c55e', statusIdle: '#eab308', statusSleeping: '#4b5563',
-  plantPot: '#5a3e2c', leafDark: '#1a4a1a', leafLight: '#2a8a3a',
-  bookColors: ['#a03030','#2870a8','#c0a030','#208848','#7840a0','#b86020','#148870','#b83070'],
+  monFrame: '#1a1a1e', monScreen: '#9D4EDD', monScreenIdle: '#00F5D4', monScreenSleep: '#2a2a2e',
+  chairSeat: '#2a2030', chairBack: '#221828', chairLeg: '#3a2e40',
+  labelBg: 'rgba(16,8,28,0.92)', labelText: '#e0d0f0', labelBorder: 'rgba(157,78,221,0.35)',
+  statusWorking: '#00F5D4', statusIdle: '#F59E0B', statusSleeping: '#4b5563',
+  plantPot: '#5a3e2c', leafDark: '#004a3a', leafLight: '#00a38d',
+  bookColors: ['#FF7E5F','#3B82F6','#F59E0B','#00F5D4','#9D4EDD','#b86020','#10B981','#e84393'],
   shelfWood: '#4a3828', shelfSide: '#3a2818',
   mugBody: '#6a6060', mugCoffee: '#4a2a16', mugHandle: '#585050',
-  lampPole: '#666', lampShade: '#8a7840',
-  rugColors: ['#4a2810','#563018','#6a4828','#786040'],
+  lampPole: '#8433c4', lampShade: '#c55338',
+  rugColors: ['#6a0baa','#4c007d','#8433c4','#9f50df'],
   catBody: '#444', catEar: '#383838',
-  posterFrame: '#3a2e28',
-  coffeeMachine: '#2a2a2e', coffeeMachineLight: '#22c55e',
-  tooltipBg: 'rgba(12,8,20,0.95)',
-  tooltipBorder: 'rgba(120,100,180,0.22)',
-  tooltipAccent: '#60a5fa',
+  posterFrame: '#3a2040',
+  coffeeMachine: '#2a2a2e', coffeeMachineLight: '#00F5D4',
+  tooltipBg: 'rgba(12,4,24,0.95)',
+  tooltipBorder: 'rgba(157,78,221,0.28)',
+  tooltipAccent: '#bb6bfb',
 };
 
 var PAL = { ...PAL_LIGHT };
@@ -1162,7 +1162,7 @@ function drawNameLabel(x, y, agent) {
   const rawName = agent.name || 'Unknown';
   const maxLen = isMobileOffice ? 16 : 18;
   const name = rawName.length > maxLen ? rawName.slice(0, maxLen - 1) + '…' : rawName;
-  oCtx.font = isMobileOffice ? '600 13px -apple-system, system-ui, sans-serif' : '600 12px -apple-system, system-ui, sans-serif';
+  oCtx.font = isMobileOffice ? '600 14px -apple-system, system-ui, sans-serif' : '600 13px -apple-system, system-ui, sans-serif';
   oCtx.textAlign = 'center';
   const tw = oCtx.measureText(name).width;
   const padX = isMobileOffice ? 6 : (isRightRoom ? 6 : 7);
@@ -1740,9 +1740,9 @@ function drawSpeechBubble(x, y, text) {
   const clean = sanitizeAgentText(text);
   if (!clean) return;
   const isMob = window.innerWidth <= 480;
-  const maxLen = isMob ? 35 : 30;
+  const maxLen = isMob ? 40 : 45;
   const display = clean.length > maxLen ? clean.slice(0, maxLen) + '…' : clean;
-  oCtx.font = isMob ? '600 13px -apple-system, system-ui, sans-serif' : '600 12px -apple-system, system-ui, sans-serif';
+  oCtx.font = isMob ? '600 13px -apple-system, system-ui, sans-serif' : '600 13px -apple-system, system-ui, sans-serif';
   oCtx.textAlign = 'left';
   const tw = oCtx.measureText(display).width;
   const padX = 7, padY = 4;
@@ -2341,7 +2341,7 @@ function resizeCanvas() {
   // Use the SMALLER of width/height fit so nothing clips
   // On mobile, bias toward width-fit since there's extra vertical space
   // Mobile: use width-fit to fill the narrow viewport, desktop: balanced fit
-  const fit = isMobile ? fitH * 1.1 : Math.min(fitW, fitH) * 0.95;
+  const fit = isMobile ? fitH * 1.25 : Math.min(fitW, fitH) * 1.22;
 
   if (!_dragging && !_userPanned) {
     camZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
@@ -2349,7 +2349,7 @@ function resizeCanvas() {
     const sceneCenterX = (scene.minX + scene.maxX) / 2;
     const sceneCenterY = (scene.minY + scene.maxY) / 2;
     camPanX = sceneCenterX;
-    camPanY = sceneCenterY + (isMobile ? -300 : 0);
+    camPanY = sceneCenterY + (isMobile ? -300 : -40);
   }
 
   invalidateStaticCache();
