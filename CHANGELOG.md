@@ -30,7 +30,7 @@ All notable changes to Agent Space are documented here.
 ## [1.1.0] — 2026-03-19
 
 ### Added
-- **Office view toggle** — switch between `▦ Cards` and `🏢 Office` (isometric canvas) views
+- **Office view toggle** — switch between `▦ Cards` and `🏢 Office` (map) views
 - **Pinch-to-zoom & touch pan** on mobile office canvas
 - **Keyboard accessibility** — arrow-key navigation on agent cards, ARIA labels on tabs/nav/toggles
 - **CI pipeline** — GitHub Actions with Node 22/24 matrix, smoke tests (bash + mjs), secret scan
@@ -45,7 +45,7 @@ All notable changes to Agent Space are documented here.
 - **Broken office-view script** — malformed multiline regex prevented entire view-toggle script from loading
 - **Dark void self-heal** — canvas background fill + frame-level health checks prevent blank renders
 - **Static cache theme detection** — uses `data-theme` attribute instead of body class
-- **Label deconfliction** — reduced overlapping agent names in dense isometric scenes
+- **Label deconfliction** — reduced overlapping agent names in dense map scenes
 - **Speech bubble clamping** — bubbles no longer render outside canvas bounds
 - **SSE reconnect** — exponential backoff (1s→30s) with client heartbeat ping
 - **Light-mode canvas** — brighter floor palette for readable contrast
@@ -71,4 +71,4 @@ All notable changes to Agent Space are documented here.
 
 ## [1.0.0] — 2026-03-17
 
-Initial release with isometric pixel-art office, real-time SSE agent updates, and demo mode.
+Initial release with office map, real-time SSE agent updates, and demo mode.

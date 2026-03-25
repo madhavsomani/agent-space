@@ -128,7 +128,7 @@ async function refreshPerformance() {
             <span style="color:var(--dim)">${allDurations.length} samples</span>
           </div>
           <svg width="100%" viewBox="0 0 ${svgW} ${svgH}" style="display:block">${bars}</svg>
-          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;justify-content:center">${agentNames.map(n=>`<span style="display:flex;align-items:center;gap:4px;font-size:10px"><span style="width:8px;height:8px;border-radius:2px;background:${agentColors[n]}"></span>${n}</span>`).join('')}</div>`;
+          <div style="display:flex;gap:8px 12px;margin-top:8px;flex-wrap:wrap;justify-content:center;align-items:center;line-height:1.2">${agentNames.map(n=>`<span style="display:flex;align-items:center;gap:4px;font-size:9px;white-space:nowrap"><span style="width:8px;height:8px;border-radius:2px;background:${agentColors[n]}"></span>${n}</span>`).join('')}</div>`;
       } else {
         histBody.innerHTML = '<div style="color:var(--dim)">Not enough data for histogram</div>';
       }

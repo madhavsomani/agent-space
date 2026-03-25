@@ -2,8 +2,9 @@
 async function refreshTokens() {
   try {
     const r = await fetchWithTimeout(API+'/tokens', {}, 10000); const d = await r.json();
-    document.getElementById('ss-cost').textContent = '$' + d.estimatedCostUSD.toFixed(2);
-    const qsc = document.getElementById('qs-cost'); if(qsc) animateValue(qsc, '$' + d.estimatedCostUSD.toFixed(2));
+    const cost = parseFloat(d.estimatedCostUSD || 0) || 0;
+    document.getElementById('ss-cost').textContent = '$' + cost.toFixed(2);
+    const qsc = document.getElementById('qs-cost'); if(qsc) animateValue(qsc, '$' + cost.toFixed(2));
     const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n);
     const totalTok = (d.totals.input||0) + (d.totals.output||0);
     const tokLabel = totalTok >= 1e6 ? (totalTok/1e6).toFixed(1)+'M' : totalTok >= 1000 ? (totalTok/1000).toFixed(1)+'K' : String(totalTok);
@@ -48,11 +49,15 @@ async function refreshDailyCost() {
     if(!d.days?.length) { el.innerHTML='<h3>📈 Daily Cost Trend</h3><div class="sub">No data</div>'; return; }
     const maxCost = Math.max(...d.days.map(x=>x.cost), 0.01);
     const maxTok = Math.max(...d.days.map(x=>x.input+x.output), 1);
+    const isMobile = window.innerWidth <= 640;
     const agentColors = {};
     const palette = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#d946ef'];
     (d.agents||[]).forEach((a,i) => agentColors[a] = palette[i % palette.length]);
-    const barW = Math.max(20, Math.min(48, Math.floor(700 / d.days.length) - 4));
-    const chartH = 160;
+    const barW = isMobile ? Math.max(28, Math.min(48, Math.floor(520 / d.days.length) - 4)) : Math.max(24, Math.min(54, Math.floor(700 / d.days.length) - 4));
+    const chartH = 170;
+    const costFont = isMobile ? 17 : 9;
+    const labelFont = isMobile ? 15 : 8;
+    const showWeekday = !isMobile;
     const totalCost = d.days.reduce((s,x)=>s+x.cost, 0);
     const avgCost = totalCost / d.days.length;
     el.innerHTML = `
@@ -63,7 +68,7 @@ async function refreshDailyCost() {
             ${d.days.map(day => {
               const h = Math.max(2, (day.cost / maxCost) * (chartH - 20));
               const label = day.date.slice(5); // MM-DD
-              const weekday = new Date(day.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
+              const weekday = showWeekday ? new Date(day.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}) : '';
               // Stacked by agent
               const agents = Object.entries(day.byAgent).sort((a,b)=>(b[1].input+b[1].output)-(a[1].input+a[1].output));
               const totalDay = day.input+day.output||1;
@@ -77,9 +82,9 @@ async function refreshDailyCost() {
               }
               if(!agents.length) segments = `<div style="width:100%;height:${h}px;background:var(--border);border-radius:3px 3px 0 0"></div>`;
               return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:${barW}px;max-width:60px" title="${day.date}: $${day.cost.toFixed(2)}">
-                <div style="font-size:9px;color:var(--accent);font-weight:700;margin-bottom:2px;font-variant-numeric:tabular-nums">$${day.cost < 1 ? day.cost.toFixed(2) : day.cost.toFixed(1)}</div>
+                <div style="font-size:${costFont}px;color:var(--accent);font-weight:700;margin-bottom:2px;font-variant-numeric:tabular-nums">$${day.cost < 1 ? day.cost.toFixed(2) : day.cost.toFixed(1)}</div>
                 <div style="display:flex;flex-direction:column;width:100%;justify-content:flex-end;height:${chartH-30}px">${segments}</div>
-                <div style="font-size:8px;color:var(--dim);margin-top:3px;font-family:'SF Mono',Menlo,monospace;white-space:nowrap">${weekday}<br>${label}</div>
+                <div style="font-size:${labelFont}px;color:var(--dim);margin-top:3px;font-family:'SF Mono',Menlo,monospace;white-space:nowrap;font-weight:700;line-height:1.2;${isMobile ? 'padding:2px 4px;border-radius:6px;background:rgba(0,0,0,0.18);' : ''}">${showWeekday ? `${weekday}<br>${label}` : label}</div>
               </div>`;
             }).join('')}
           </div>
@@ -97,13 +102,17 @@ async function refreshDailyCost() {
     }
     if(d.days?.length >= 2) {
       const days = d.days;
-      const chartW = 700, chartH = 180, padL = 50, padR = 20, padT = 10, padB = 30;
+      const chartW = isMobile ? 520 : 700;
+      const chartH = isMobile ? 200 : 180;
+      const padL = isMobile ? 46 : 50;
+      const padR = 20, padT = 10, padB = isMobile ? 46 : 30;
       const w = chartW - padL - padR, h = chartH - padT - padB;
       const maxIn = Math.max(...days.map(x=>x.input), 1);
       const maxOut = Math.max(...days.map(x=>x.output), 1);
       const maxCached = Math.max(...days.map(x=>x.cached||0), 1);
       const maxVal = Math.max(maxIn, maxOut, maxCached);
       const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : String(n);
+      const axisFont = isMobile ? 16 : 8;
       const x = i => padL + (i / (days.length - 1)) * w;
       const y = v => padT + h - (v / maxVal) * h;
 
@@ -118,15 +127,15 @@ async function refreshDailyCost() {
         const yy = padT + h - frac * h;
         const val = fmtK(Math.round(frac * maxVal));
         return `<line x1="${padL}" y1="${yy}" x2="${padL+w}" y2="${yy}" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="${padL-6}" y="${yy+3}" text-anchor="end" fill="var(--dim)" font-size="8" font-family="'SF Mono',Menlo,monospace">${val}</text>`;
+          <text x="${padL-6}" y="${yy+3}" text-anchor="end" fill="var(--dim)" font-size="${axisFont}" font-family="'SF Mono',Menlo,monospace">${val}</text>`;
       }).join('');
 
       // X-axis labels (every 2-3 days)
-      const step = days.length <= 7 ? 1 : days.length <= 14 ? 2 : 3;
+      const step = isMobile ? (days.length <= 5 ? 1 : 3) : (days.length <= 7 ? 1 : days.length <= 14 ? 2 : 3);
       const xLabels = days.filter((_,i) => i % step === 0 || i === days.length-1).map((d,_,arr) => {
         const idx = days.indexOf(d);
         const label = d.date.slice(5);
-        return `<text x="${x(idx)}" y="${padT+h+16}" text-anchor="middle" fill="var(--dim)" font-size="8" font-family="'SF Mono',Menlo,monospace">${label}</text>`;
+        return `<text x="${x(idx)}" y="${padT+h+20}" text-anchor="middle" fill="var(--dim)" font-size="${axisFont}" font-family="'SF Mono',Menlo,monospace" font-weight="600">${label}</text>`;
       }).join('');
 
       // Totals for summary

@@ -19,22 +19,24 @@ function setLogFilter(f, btn) {
 
 function renderLiveLogs(logs) {
   const body = document.getElementById('live-logs-body');
-  const filtered = liveLogFilter === 'all' ? logs : logs.filter(l => l.role === liveLogFilter);
+  const filtered = liveLogFilter === 'all' ? logs : logs.filter(l => (l.role || 'system') === liveLogFilter);
   document.getElementById('live-logs-count').textContent = filtered.length;
   if (!filtered.length) {
-    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--dim);font-size:11px">No logs in the last 30 minutes</div>';
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--dim);font-size:11px">No logs in the last 6 hours</div>';
     return;
   }
   body.innerHTML = filtered.map(l => {
+    const role = l.role || 'system';
     const t = l.ts ? new Date(l.ts).toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '';
-    const roleIcon = l.role === 'assistant' ? '🤖' : l.role === 'user' ? '👤' : '⚙️';
-    const roleBg = l.role === 'assistant' ? 'rgba(34,197,94,0.08)' : 'rgba(59,130,246,0.08)';
-    const text = l.text.length > 200 ? l.text.slice(0,200) + '…' : l.text;
+    const roleIcon = role === 'assistant' ? '🤖' : role === 'user' ? '👤' : role === 'tool' ? '🔧' : '⚙️';
+    const roleBg = role === 'assistant' ? 'rgba(34,197,94,0.08)' : role === 'user' ? 'rgba(59,130,246,0.08)' : 'rgba(148,163,184,0.12)';
+    const rawText = (l.text || '').toString();
+    const text = rawText.length > 200 ? rawText.slice(0,200) + '…' : rawText;
     return `<div style="display:flex;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;background:${roleBg};border-radius:4px;margin-bottom:2px;align-items:flex-start;animation:feedSlideIn .2s ease">
       <span style="font-size:9px;color:var(--dim);font-family:'SF Mono',Menlo,monospace;white-space:nowrap;flex-shrink:0;margin-top:2px">${t}</span>
       <span style="flex-shrink:0">${roleIcon}</span>
-      <span style="font-weight:700;color:${l.color||'var(--accent)'};flex-shrink:0;font-size:10px;min-width:60px">${l.agent}</span>
-      <span style="color:var(--text);line-height:1.35;word-break:break-word;flex:1">${text}</span>
+      <span style="font-weight:700;color:${l.color||'var(--accent)'};flex-shrink:0;font-size:10px;min-width:60px">${l.agent || 'System'}</span>
+      <span style="color:var(--text);line-height:1.35;word-break:break-word;flex:1">${text || '(no message)'}</span>
     </div>`;
   }).join('');
 }
@@ -45,8 +47,13 @@ async function refreshLiveLogs() {
     const d = await r.json();
     liveLogsData = d.logs || [];
     renderLiveLogs(liveLogsData);
-  } catch {}
+  } catch (e) {
+    liveLogsData = [];
+    renderLiveLogs(liveLogsData);
+  }
 }
+
+setInterval(() => { refreshLiveLogs(); }, 15000);
 
 // Initial load: fast essentials first, then heavier widgets.
 (async function bootstrapDashboard() {

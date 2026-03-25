@@ -35,7 +35,7 @@ node --watch server.js   # auto-restart on changes
 
 ```
 server.js     — Express backend: API endpoints, SSE, agent discovery, caching
-index.html    — Single-file frontend: isometric office canvas, charts, all UI
+index.html    — Single-file frontend: office map, charts, all UI
 config.json   — Optional agent/office/auth/rate-limit configuration (gitignored)
 agent-space.db — SQLite database for events/history (gitignored, auto-created)
 ```
@@ -43,7 +43,7 @@ agent-space.db — SQLite database for events/history (gitignored, auto-created)
 ## Architecture
 
 - **Backend:** Node.js with `node:http`, `node:sqlite` (built-in) for persistence, zero `execSync` in request handlers
-- **Frontend:** Vanilla JS — no build step, no dependencies. Canvas-based isometric office with offscreen static layer caching at 8 FPS
+- **Frontend:** Vanilla JS — no build step, no dependencies. Leaflet-based office map plus charts and UI
 - **Data flow:** SSE (Server-Sent Events) for real-time updates, REST API for initial load
 - **Agent discovery:** Scans `~/.openclaw/agents/` directories, merges with optional `config.json`
 

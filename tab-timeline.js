@@ -152,10 +152,11 @@ function connectSSE() {
       agentData = newAgents;
       updateStatusStrip();
       buildLegend(); scheduleRenderAgentCards(); markUpdated();
-      // Feed 3D office with updated agent data
-      
-      // Update grid view
-      if (_officeView === 'grid') renderGridView();
+      // Update office views with new agent data (only when Office tab visible)
+      if (typeof isOfficeTabActive === 'function' && isOfficeTabActive()) {
+        if (_officeView === '2d' && typeof updateOfficeMap === 'function') updateOfficeMap(agentData);
+        if (_officeView === 'grid') renderGridView();
+      }
     } catch {}
   });
   es.addEventListener('activity', (e) => {

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan — Agent Space</title>
+<style>
+:root { --bg: #0d1117; --card: #161b22; --border: #21262d; --text: #e6edf3; --sub: #7d8590; --green: #3fb950; --blue: #58a6ff; --red: #f85149; --purple: #d2a8ff; --orange: #d29922; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif; }
+.header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 20px; position: sticky; top: 0; z-index: 10; }
+.header-inner { max-width: 720px; margin: 0 auto; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+.progress-wrap { max-width: 720px; margin: 0 auto; padding: 16px 20px 0; }
+.progress-stats { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.progress-num { font-size: 28px; font-weight: 700; color: var(--green); }
+.progress-label { font-size: 12px; color: var(--sub); }
+.bar { background: var(--border); border-radius: 99px; height: 8px; overflow: hidden; }
+.bar-fill { background: linear-gradient(90deg, var(--green), #2ea043); height: 100%; border-radius: 99px; transition: width 0.8s ease; }
+.content { max-width: 720px; margin: 0 auto; padding: 12px 20px 80px; }
+.project { margin-top: 24px; }
+.project-title { font-size: 15px; font-weight: 600; color: var(--blue); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.project-title .badge { background: var(--border); color: var(--sub); font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.phase { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+.phase-header { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.phase-header:hover { background: rgba(255,255,255,0.02); }
+.phase-name { font-size: 13px; font-weight: 600; }
+.phase-count { font-size: 11px; color: var(--sub); }
+.phase-bar { height: 3px; background: var(--border); }
+.phase-bar-fill { height: 100%; background: var(--green); transition: width 0.5s; }
+.phase-items { padding: 0 14px 10px; display: none; }
+.phase.open .phase-items { display: block; }
+.item { padding: 5px 0; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; line-height: 1.4; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.item:last-child { border-bottom: none; }
+.item-done { color: var(--green); }
+.item-todo { color: var(--sub); }
+.item-blocked { color: var(--red); }
+.icon { flex-shrink: 0; width: 16px; text-align: center; font-size: 11px; }
+.section-title { font-size: 13px; font-weight: 600; color: var(--purple); margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.info-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.info-card .label { font-size: 10px; color: var(--sub); text-transform: uppercase; letter-spacing: 0.5px; }
+.info-card .value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+.info-card .value.green { color: var(--green); }
+.info-card .value.blue { color: var(--blue); }
+.info-card .value.orange { color: var(--orange); }
+.refresh-note { text-align: center; color: var(--sub); font-size: 10px; padding: 16px; }
+.back { color: var(--blue); text-decoration: none; font-size: 12px; }
+@media (max-width: 600px) { .info-grid { grid-template-columns: 1fr; } .progress-num { font-size: 24px; } }
+</style>
+</head>
+<body>
+<div class="header"><div class="header-inner"><a class="back" href="/">← Dashboard</a><h1>📋 Master Plan</h1><div class="sub">Live roadmap · Auto-refreshes every 60s</div></div></div>
+<div class="progress-wrap">
+  <div class="progress-stats">
+    <div><span class="progress-num" id="p-num">--</span><span class="progress-label"> / <span id="p-total">--</span> tasks</span></div>
+    <div class="progress-label" id="p-pct">--%</div>
+  </div>
+  <div class="bar"><div class="bar-fill" id="p-bar" style="width:0%"></div></div>
+</div>
+<div class="content" id="content">Loading...</div>
+<div class="refresh-note" id="refresh-note"></div>
+
+<script>
+function parseMarkdown(md) {
+  const lines = md.split('\n');
+  let html = '';
+  let currentProject = '';
+  let currentPhase = '';
+  let phaseItems = [];
+  let phaseDone = 0;
+  let phaseTotal = 0;
+  
+  function flushPhase() {
+    if (!currentPhase) return;
+    const pct = phaseTotal > 0 ? Math.round(phaseDone / phaseTotal * 100) : 0;
+    const complete = phaseDone === phaseTotal && phaseTotal > 0;
+    const cls = complete ? 'open' : (phaseDone > 0 ? 'open' : '');
+    html += '<div class="phase ' + cls + '" onclick="this.classList.toggle(\'open\')">';
+    html += '<div class="phase-header"><span class="phase-name">' + currentPhase + '</span>';
+    html += '<span class="phase-count">' + phaseDone + '/' + phaseTotal + (complete ? ' ✅' : '') + '</span></div>';
+    html += '<div class="phase-bar"><div class="phase-bar-fill" style="width:' + pct + '%"></div></div>';
+    html += '<div class="phase-items">' + phaseItems.join('') + '</div></div>';
+    phaseItems = []; phaseDone = 0; phaseTotal = 0; currentPhase = '';
+  }
+  
+  for (const line of lines) {
+    // Project headers
+    if (line.startsWith('## Project')) {
+      flushPhase();
+      const name = line.replace(/^## /, '').replace(/\*\*/g, '');
+      html += '<div class="project"><div class="project-title">' + name + '</div>';
+      continue;
+    }
+    // Phase headers  
+    if (line.startsWith('### Phase')) {
+      flushPhase();
+      currentPhase = line.replace(/^### /, '').replace(/🔄.*$/, '🔄').replace(/✅.*$/, '✅');
+      continue;
+    }
+    // Done items
+    if (line.match(/^- \[x\]/)) {
+      const text = line.replace(/^- \[x\] /, '');
+      phaseItems.push('<div class="item item-done"><span class="icon">✅</span>' + text + '</div>');
+      phaseDone++; phaseTotal++;
+      continue;
+    }
+    // Blocked items
+    if (line.match(/^- \[ \].*⚠️|^- \[ \].*BLOCKED/)) {
+      const text = line.replace(/^- \[ \] /, '');
+      phaseItems.push('<div class="item item-blocked"><span class="icon">🔴</span>' + text + '</div>');
+      phaseTotal++;
+      continue;
+    }
+    // Todo items
+    if (line.match(/^- \[ \]/)) {
+      const text = line.replace(/^- \[ \] /, '');
+      phaseItems.push('<div class="item item-todo"><span class="icon">☐</span>' + text + '</div>');
+      phaseTotal++;
+      continue;
+    }
+    // Section titles (System Status, etc)
+    if (line.startsWith('## ') && !line.startsWith('## Project')) {
+      flushPhase();
+      const title = line.replace(/^## /, '');
+      html += '<div class="section-title">' + title + '</div>';
+      continue;
+    }
+  }
+  flushPhase();
+  return html;
+}
+
+async function loadPlan() {
+  try {
+    const r = await fetch('/api/plan');
+    const d = await r.json();
+    if (!d.ok) { document.getElementById('content').textContent = 'Error: ' + d.error; return; }
+    
+    document.getElementById('p-num').textContent = d.done;
+    document.getElementById('p-total').textContent = d.total;
+    document.getElementById('p-pct').textContent = d.percent + '%';
+    document.getElementById('p-bar').style.width = d.percent + '%';
+    
+    // Summary cards
+    const doneP1 = (d.markdown.match(/^- \[x\]/gm) || []).length;
+    const todoP = (d.markdown.match(/^- \[ \]/gm) || []).length;
+    const blockedP = (d.markdown.match(/BLOCKED/g) || []).length;
+    
+    let cardsHtml = '<div class="info-grid">';
+    cardsHtml += '<div class="info-card"><div class="label">Completed</div><div class="value green">' + d.done + '</div></div>';
+    cardsHtml += '<div class="info-card"><div class="label">Remaining</div><div class="value blue">' + d.todo + '</div></div>';
+    cardsHtml += '<div class="info-card"><div class="label">Blocked</div><div class="value orange">' + blockedP + '</div></div>';
+    cardsHtml += '<div class="info-card"><div class="label">Progress</div><div class="value green">' + d.percent + '%</div></div>';
+    cardsHtml += '</div>';
+    
+    // Live agent status
+    if (d.agents) {
+      cardsHtml += '<div class="section-title">⚡ Working Right Now</div>';
+      for (const [name, info] of Object.entries(d.agents)) {
+        const isActive = info.status.toLowerCase().includes('active') || info.status.toLowerCase().includes('working');
+        const dot = isActive ? '🟢' : (info.status.toLowerCase().includes('blocked') ? '🔴' : '⚪');
+        const label = name === 'coding-agent-1' ? 'CA1 — ItineraryWala' : 'CA2 — Agent Space';
+        const statusColor = isActive ? 'var(--green)' : 'var(--red)';
+        cardsHtml += '<div class="info-card" style="grid-column:1/-1;border-left:3px solid ' + statusColor + '">';
+        cardsHtml += '<div style="display:flex;justify-content:space-between;align-items:center"><div class="label">' + dot + ' ' + label + '</div>';
+        cardsHtml += '<div style="font-size:10px;padding:2px 8px;border-radius:99px;background:' + (isActive ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)') + ';color:' + statusColor + '">' + info.status + '</div></div>';
+        cardsHtml += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-top:6px">→ ' + info.item + '</div>';
+        cardsHtml += '<div style="font-size:11px;color:var(--sub);margin-top:3px">Phase: ' + info.phase + '</div></div>';
+      }
+    }
+    
+    document.getElementById('content').innerHTML = cardsHtml + parseMarkdown(d.markdown);
+    document.getElementById('refresh-note').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch(e) { document.getElementById('content').textContent = 'Failed: ' + e.message; }
+}
+loadPlan();
+setInterval(loadPlan, 60000);
+</script>
+</body>
+</html>

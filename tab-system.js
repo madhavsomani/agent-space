@@ -13,17 +13,19 @@ async function refreshHealthScore() {
     const breakdownHtml = (d.breakdown||[]).map(b =>
       `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)"><span>${b.label}</span><span style="color:var(--red);font-weight:700">${b.impact}</span></div>`
     ).join('') || '<div style="font-size:11px;color:var(--green);padding:4px 0">✅ All systems nominal</div>';
+    const updatedAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     el.innerHTML = `<h3>${emoji} System Health Score ${sparklineSVG(_healthHistory,80,20,d.score>=90?'#22c55e':d.score>=75?'#f59e0b':'#ef4444')}</h3>
       <div style="display:flex;align-items:center;gap:16px;margin:10px 0">
         <div style="font-size:48px;font-weight:900;color:${color};line-height:1">${d.score}</div>
         <div>
           <div style="font-size:24px;font-weight:800;color:${color}">${d.grade}</div>
-          <div style="font-size:11px;color:var(--dim)">CPU ${Number(d.cpu).toFixed(1)}% · MEM ${d.memPct}% · DISK ${d.diskPct}%</div>
+          <div style="font-size:11px;color:var(--dim)">CPU ${Number(d.cpu).toFixed(2)}% · MEM ${d.memPct}% · DISK ${d.diskPct}%</div>
           <div style="font-size:11px;color:var(--dim)">${d.working}/${d.total} agents working</div>
         </div>
       </div>
       <div class="bar-bg" style="height:8px"><div class="bar-fill ${d.score>=90?'green':d.score>=75?'orange':'red'}" style="width:${d.score}%"></div></div>
-      <div style="margin-top:10px">${breakdownHtml}</div>`;
+      <div style="margin-top:10px">${breakdownHtml}</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--dim)">Updated ${updatedAt}</div>`;
   } catch {}
 }
 

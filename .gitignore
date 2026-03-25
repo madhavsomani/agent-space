@@ -1,10 +1,28 @@
+# Runtime config / secrets
 config.json
 .env
+.env.*
+!.env.example
+
+# Dependencies
 node_modules/
+
+# Logs / runtime artifacts
 *.log
+logs/
+nohup.out
+
+# Local state caches
 memory-history.json
 agent-status.json
 agent-space.db
+agent-space.db-shm
+agent-space.db-wal
+
+# OS/editor noise
 .DS_Store
+*.swp
+
+# Local design exports (not source)
 stitch-export.html
 stitch-neon-orchard.html

@@ -51,8 +51,8 @@ await check('has view toggle buttons', () => {
   if (!html.includes('id="view-2d-btn"')) throw new Error('missing 2d button');
 });
 
-await check('has canvas element', () => {
-  if (!html.includes('id="office-canvas"')) throw new Error('missing canvas');
+await check('has office map container', () => {
+  if (!html.includes('id="office-map"')) throw new Error('missing office map');
 });
 
 await check('has agent search', () => {

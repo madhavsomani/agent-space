@@ -3,8 +3,14 @@ const fs = require('fs');
 const path = require('path');
 
 // Global error handling — keep server alive
-process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err.message); });
-process.on('unhandledRejection', (err) => { console.error('Unhandled rejection:', err); });
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message);
+  try { writeAppLog('error', 'uncaughtException', { error: err?.message || String(err) }); } catch {}
+});
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+  try { writeAppLog('error', 'unhandledRejection', { error: err?.message || String(err) }); } catch {}
+});
 const { execSync, exec: execAsync } = require('child_process');
 
 const DEMO_MODE = process.argv.includes('--demo');
@@ -12,6 +18,45 @@ const _portArgIdx = process.argv.indexOf('--port');
 const PORT = (_portArgIdx !== -1 && process.argv[_portArgIdx + 1]) ? parseInt(process.argv[_portArgIdx + 1], 10) : (parseInt(process.env.PORT, 10) || 18790);
 const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
 const WR_DIR = path.join(__dirname, '..', 'work_requests');
+
+// ===== APP LOGGING + ROTATION =====
+const LOG_DIR = path.join(__dirname, 'logs');
+const APP_LOG_FILE = path.join(LOG_DIR, 'agent-space.log');
+const LOG_MAX_BYTES = parseInt(process.env.AGENT_SPACE_LOG_MAX_BYTES || String(2 * 1024 * 1024), 10); // 2MB
+const LOG_KEEP_FILES = parseInt(process.env.AGENT_SPACE_LOG_KEEP_FILES || '5', 10);
+
+function ensureLogDir() {
+  try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch {}
+}
+
+function rotateAppLogIfNeeded() {
+  try {
+    if (!fs.existsSync(APP_LOG_FILE)) return;
+    const st = fs.statSync(APP_LOG_FILE);
+    if (st.size < LOG_MAX_BYTES) return;
+    // Shift .(n-1) -> .n
+    for (let i = LOG_KEEP_FILES - 1; i >= 1; i--) {
+      const src = `${APP_LOG_FILE}.${i}`;
+      const dst = `${APP_LOG_FILE}.${i + 1}`;
+      if (fs.existsSync(src)) fs.renameSync(src, dst);
+    }
+    fs.renameSync(APP_LOG_FILE, `${APP_LOG_FILE}.1`);
+  } catch {}
+}
+
+function writeAppLog(level, message, meta = {}) {
+  try {
+    ensureLogDir();
+    rotateAppLogIfNeeded();
+    const row = {
+      ts: new Date().toISOString(),
+      level,
+      msg: String(message || ''),
+      ...meta,
+    };
+    fs.appendFileSync(APP_LOG_FILE, JSON.stringify(row) + '\n');
+  } catch {}
+}
 
 // ===== PERSISTENT STORAGE (node:sqlite, zero deps) =====
 const sqlite = require('node:sqlite');
@@ -389,6 +434,16 @@ const DEMO_HANDLERS = {
   '/api/heatmap-calendar': demoHeatmap,
   '/api/live-logs': demoLiveLogs,
   '/api/weather': demoWeather,
+  '/api/plan': () => {
+    try {
+      const planPath = path.join(__dirname, '..', 'master-plan.md');
+      const raw = fs.readFileSync(planPath, 'utf8');
+      const lines = raw.split('\n');
+      const done = lines.filter(l => /^\- \[x\]/.test(l)).length;
+      const todo = lines.filter(l => /^\- \[ \]/.test(l)).length;
+      return { ok: true, markdown: raw, done, todo, total: done + todo, percent: done + todo > 0 ? Math.round(done / (done + todo) * 100) : 0 };
+    } catch (e) { return { ok: false, error: e.message }; }
+  },
 };
 
 // Crash handler
@@ -685,7 +740,15 @@ function getAgents() {
     let status = 'sleeping';
     // For cron-based agents, also check if next run is soon (within 2x cron interval)
     const nextRunSoon = extraInfo.nextRunAtMs && (extraInfo.nextRunAtMs - now) < 20 * 60 * 1000;
-    if (a.cronJobId && extraInfo.isRunning) {
+    const cronStatus = String(extraInfo.status || '').toLowerCase();
+    const msg = String(lastMessage || '').toLowerCase();
+    const hasErrorSignal =
+      ['error', 'failed', 'fail', 'timeout', 'exception', 'crash'].some(k => cronStatus.includes(k)) ||
+      [' error ', ' failed', ' exception', ' traceback', ' unhandled', ' crashed'].some(k => (` ${msg} `).includes(k));
+
+    if (hasErrorSignal) {
+      status = 'error';
+    } else if (a.cronJobId && extraInfo.isRunning) {
       status = 'working';
     } else if (lastActivity && ageSec < ACTIVE_THRESHOLD / 1000) {
       status = 'working';
@@ -697,8 +760,8 @@ function getAgents() {
 
     // Compute mood from recent performance data
     let mood = 'neutral'; // neutral | happy | stressed | tired
-    // Sleeping agents are "tired"
-    if (status === 'sleeping' && (!ageMin || ageMin > 60)) mood = 'tired';
+    if (status === 'error') mood = 'stressed';
+    else if (status === 'sleeping' && (!ageMin || ageMin > 60)) mood = 'tired';
     else if (status === 'working') mood = 'happy';
 
     // Remove cron 'status' field before spreading to avoid overwriting computed status
@@ -1455,14 +1518,14 @@ let _tlHeatCacheTime = 0;
 const TL_HEAT_CACHE_TTL = 300000;
 
 function getTimelineHeatmap() {
-  // Build a 6-hour activity heatmap per agent (15-min buckets = 24 slots)
+  // Build a 24-hour activity heatmap per agent (15-min buckets = 96 slots)
   const now = Date.now();
   if (_tlHeatCache && (now - _tlHeatCacheTime) < TL_HEAT_CACHE_TTL) return { ..._tlHeatCache, timestamp: now };
-  const SIX_HOURS = 6 * 3600 * 1000;
+  const WINDOW_MS = 24 * 3600 * 1000;
   const BUCKET_MS = 15 * 60 * 1000; // 15 min
-  const BUCKETS = 24;
+  const BUCKETS = 96;
   const agents = discoverAgents();
-  const result = { agents: [], bucketMinutes: 15, hours: 6, timestamp: now };
+  const result = { agents: [], bucketMinutes: 15, hours: 24, timestamp: now };
 
   for (const agent of agents) {
     const slots = new Array(BUCKETS).fill(0); // 0=no data, 1=active
@@ -1473,7 +1536,7 @@ function getTimelineHeatmap() {
       const cached = _cronCache[agent.cronJobId];
       if (cached.data) {
         const ts = cached.data.finishedTs || cached.data.startedTs || 0;
-        if (ts && (now - ts) < SIX_HOURS) {
+        if (ts && (now - ts) < WINDOW_MS) {
           const bucket = Math.floor((now - ts) / BUCKET_MS);
           if (bucket >= 0 && bucket < BUCKETS) { slots[BUCKETS - 1 - bucket] = 1; found = true; }
           if (cached.data.isRunning) { slots[BUCKETS - 1] = 1; found = true; }
@@ -1490,7 +1553,7 @@ function getTimelineHeatmap() {
           for (const f of files) {
             const fp = path.join(sessDir, f);
             const stat = fs.statSync(fp);
-            if (now - stat.mtimeMs > SIX_HOURS) continue;
+            if (now - stat.mtimeMs > WINDOW_MS) continue;
             // Read tail
             const readSize = Math.min(stat.size, 300000);
             const fd = fs.openSync(fp, 'r');
@@ -1506,7 +1569,7 @@ function getTimelineHeatmap() {
                 if (entry.timestamp) {
                   ts = typeof entry.timestamp === 'string' ? new Date(entry.timestamp).getTime() : entry.timestamp;
                 }
-                if (!ts || (now - ts) > SIX_HOURS) continue;
+                if (!ts || (now - ts) > WINDOW_MS) continue;
                 const bucket = Math.floor((now - ts) / BUCKET_MS);
                 if (bucket >= 0 && bucket < BUCKETS) slots[BUCKETS - 1 - bucket] = 1;
               } catch {}
@@ -1895,9 +1958,9 @@ function getDependencyGraph() {
       for (const f of files) {
         const fp = path.join(sessDir, f);
         const stat = fs.statSync(fp);
-        if (now - stat.mtimeMs > 7 * 24 * 3600 * 1000) continue;
+        if (now - stat.mtimeMs > 45 * 24 * 3600 * 1000) continue;
 
-        const readSize = Math.min(stat.size, 500000);
+        const readSize = Math.min(stat.size, 2000000);
         const fd = fs.openSync(fp, 'r');
         const buf = Buffer.alloc(readSize);
         fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
@@ -2012,13 +2075,13 @@ function getCommGraph() {
 
     try {
       const files = fs.readdirSync(sessDir).filter(f => f.endsWith('.jsonl') && !f.endsWith('.lock'));
-      // Only scan recent files (last 48h)
+      // Scan recent files (last 45d)
       for (const f of files) {
         const fp = path.join(sessDir, f);
         const stat = fs.statSync(fp);
-        if (now - stat.mtimeMs > 7 * 24 * 3600 * 1000) continue;
+        if (now - stat.mtimeMs > 45 * 24 * 3600 * 1000) continue;
 
-        const readSize = Math.min(stat.size, 500000);
+        const readSize = Math.min(stat.size, 2000000);
         const fd = fs.openSync(fp, 'r');
         const buf = Buffer.alloc(readSize);
         fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
@@ -2274,8 +2337,8 @@ function getLiveLogs() {
 
   const agents = discoverAgents();
   const logs = [];
-  const WINDOW = 30 * 60 * 1000; // last 30 min
-  const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|undefined|Agent Summary:?)$/i;
+  const WINDOW = 6 * 60 * 60 * 1000; // last 6 hours
+  const SKIP_RE = /^(ANNOUNCE_SKIP|NO_REPLY|undefined|Agent Summary:?|Coding Agent Summary:?|Coding Agent 2 Summary:?|Coding Agent 1 Summary:?)$/i;
 
   for (const agent of agents) {
     const sessDir = path.join(AGENTS_DIR, agent.sessionDir, 'sessions');
@@ -2306,34 +2369,38 @@ function getLiveLogs() {
           if (!msg.role || !msg.content) continue;
 
           let ts = 0;
-          if (entry.timestamp) {
-            ts = typeof entry.timestamp === 'string' ? new Date(entry.timestamp).getTime() : entry.timestamp;
-          }
+          const rawTs = entry.timestamp || entry.ts || entry.createdAt || msg.timestamp;
+          if (rawTs) ts = typeof rawTs === 'string' ? new Date(rawTs).getTime() : rawTs;
           if (!ts || (now - ts) > WINDOW) continue;
 
           const contents = Array.isArray(msg.content) ? msg.content : [msg.content];
+          let foundText = '';
+          let foundTool = null;
           for (const c of contents) {
-            const txt = typeof c === 'string' ? c : (c.type === 'text' && c.text ? c.text : '');
-            if (!txt || txt.trim().length < 5) continue;
-            const cleaned = txt.trim().replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, ' ').replace(/\s+/g, ' ').slice(0, 300);
-            if (SKIP_RE.test(cleaned.trim())) continue;
-
-            // Detect tool calls
-            let toolName = null;
-            if (typeof c === 'object' && (c.type === 'tool_use' || c.name)) {
-              toolName = c.name || 'tool';
+            if (typeof c === 'string') {
+              foundText = c;
+            } else if (c && typeof c === 'object') {
+              if (c.type === 'text' && c.text) foundText = c.text;
+              if (!foundTool && (c.type === 'tool_use' || c.type === 'toolCall' || c.type === 'tool_call' || c.name)) {
+                foundTool = c.name || c.toolName || c.tool || 'tool';
+                if (!foundText) foundText = `[tool] ${foundTool}`;
+              }
+              if (c.type === 'tool_result' && c.text && !foundText) foundText = c.text;
             }
-
-            logs.push({
-              agent: agent.name,
-              color: agent.color,
-              role: msg.role,
-              text: cleaned,
-              tool: toolName,
-              ts,
-            });
-            break;
+            if (foundText) break;
           }
+          if (!foundText || foundText.trim().length < 5) continue;
+          const cleaned = foundText.trim().replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, ' ').replace(/\s+/g, ' ').slice(0, 300);
+          if (SKIP_RE.test(cleaned.trim())) continue;
+
+          logs.push({
+            agent: agent.name,
+            color: agent.color,
+            role: msg.role,
+            text: cleaned,
+            tool: foundTool,
+            ts,
+          });
         } catch {}
       }
     } catch {}
@@ -2353,8 +2420,8 @@ try { _config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch {}
 // Auth: token-based. Set "auth" in config.json: { "auth": { "enabled": true, "tokens": { "admin-key": "admin", "viewer-key": "viewer" } } }
 // Roles: admin = full access, viewer = read-only (no POST/DELETE/PUT)
 const AUTH = _config.auth || {};
-const AUTH_ENABLED = AUTH.enabled === true;
 const AUTH_TOKENS = AUTH.tokens || {}; // { token: role }
+const AUTH_ENABLED = AUTH.enabled === true && Object.keys(AUTH_TOKENS).length > 0;
 
 function authenticate(req) {
   if (!AUTH_ENABLED) return { authenticated: true, role: 'admin' };
@@ -2553,6 +2620,28 @@ const server = http.createServer((req, res) => {
     const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
     return json(res, { history: _stmts.getCostHistory.all(since) });
   }
+
+  if (url === '/api/plan') {
+    try {
+      const planPath = path.join(__dirname, '..', 'master-plan.md');
+      const raw = fs.readFileSync(planPath, 'utf8');
+      const lines = raw.split('\n');
+      const done = lines.filter(l => /^\- \[x\]/.test(l)).length;
+      const todo = lines.filter(l => /^\- \[ \]/.test(l)).length;
+      // Read agent states
+      const agents = {};
+      for (const name of ['coding-agent-1', 'coding-agent-2']) {
+        try {
+          const s = fs.readFileSync(path.join(__dirname, '..', 'agents', name, 'memory', 'state.md'), 'utf8');
+          const status = (s.match(/## Status: (.+)/)||[])[1] || 'unknown';
+          const phase = (s.match(/## Current Phase: (.+)/)||[])[1] || 'unknown';
+          const item = (s.match(/## (?:Next|Current|Completed) Item: (.+)/)||[])[1] || 'unknown';
+          agents[name] = { status, phase, item };
+        } catch(e) { agents[name] = { status: 'error', phase: '-', item: e.message }; }
+      }
+      return json(res, { ok: true, markdown: raw, done, todo, total: done + todo, percent: done + todo > 0 ? Math.round(done / (done + todo) * 100) : 0, agents });
+    } catch (e) { return json(res, { ok: false, error: e.message }); }
+  }
   if (url === '/api/agent-events') {
     const since = Date.now() - 7 * 86400000; // last 7 days
     return json(res, { events: _stmts.getRecentEvents.all(since) });
@@ -2578,18 +2667,56 @@ const server = http.createServer((req, res) => {
     const working = (agents.agents || []).filter(a => a.status === 'working').length;
     const total = (agents.agents || []).length;
     const qdrantOk = _memoryCache?.status === 'online';
+    const uptimeSec = Math.round(process.uptime());
+    const rssMB = Math.round((mem.rss / (1024 * 1024)) * 100) / 100;
+    const heapUsedMB = Math.round((mem.heapUsed / (1024 * 1024)) * 100) / 100;
     return json(res, {
       ok: true,
-      uptime: Math.round(process.uptime()),
+      uptime: uptimeSec,
+      uptimeSec,
       version: require('./package.json').version,
+      agentCount: total,
+      workingCount: working,
       agents: { total, working },
-      memory: { rssKB: Math.round(mem.rss / 1024), heapUsedKB: Math.round(mem.heapUsed / 1024) },
+      memory: {
+        rssKB: Math.round(mem.rss / 1024),
+        heapUsedKB: Math.round(mem.heapUsed / 1024),
+        rssMB,
+        heapUsedMB,
+      },
       qdrant: qdrantOk ? 'online' : 'offline',
       sseClients: sseClients.size,
       timestamp: Date.now()
     });
   }
   if (url === '/api/health-score') return json(res, getHealthScore());
+  if (url === '/api/auth-status') {
+    return json(res, {
+      enabled: AUTH_ENABLED,
+      tokenCount: Object.keys(AUTH_TOKENS).length,
+      roles: Array.from(new Set(Object.values(AUTH_TOKENS))),
+      mode: AUTH_ENABLED ? 'token-rbac' : 'open',
+      timestamp: Date.now(),
+    });
+  }
+  if (url === '/api/log-status') {
+    let sizeBytes = 0;
+    let rotated = 0;
+    try { if (fs.existsSync(APP_LOG_FILE)) sizeBytes = fs.statSync(APP_LOG_FILE).size; } catch {}
+    try {
+      for (let i = 1; i <= LOG_KEEP_FILES + 1; i++) {
+        if (fs.existsSync(`${APP_LOG_FILE}.${i}`)) rotated++;
+      }
+    } catch {}
+    return json(res, {
+      file: APP_LOG_FILE,
+      maxBytes: LOG_MAX_BYTES,
+      keepFiles: LOG_KEEP_FILES,
+      sizeBytes,
+      rotatedFiles: rotated,
+      timestamp: Date.now(),
+    });
+  }
   if (url === '/api/latency') return json(res, { endpoints: getApiMetrics(), timestamp: Date.now() });
   if (url === '/api/system') { setImmediate(() => { try { const sys = getSystem(); if (sys.network) sys.netRate = computeNetRate(sys.network); json(res, sys); } catch(e) { json(res, {error:e.message}); } }); return; }
   if (url === '/api/processes') { return json(res, _processesCache); }
@@ -2700,6 +2827,7 @@ function warmHeavyCaches() {
 
 server.listen(PORT, BIND_HOST, () => {
   console.log(`Agent Space running on ${BIND_HOST}:${PORT} (${DEMO_MODE ? 'DEMO' : 'live'})`);
+  writeAppLog('info', 'server_start', { host: BIND_HOST, port: PORT, mode: DEMO_MODE ? 'demo' : 'live' });
   // Warm agents cache IMMEDIATELY (synchronous) so first request is fast
   try { getAgents(); } catch {}
   // Background system stats refresh (ZERO execSync in request path)
@@ -2723,6 +2851,8 @@ server.listen(PORT, BIND_HOST, () => {
   }, 60000); // every 60s (was 30s)
   // Persist snapshots every hour
   setInterval(() => { setImmediate(persistSnapshot); }, 3600000);
+  // Rotate app log guard every 2 min
+  setInterval(() => { try { rotateAppLogIfNeeded(); } catch {} }, 120000);
   // Initial snapshot after caches warm
   setTimeout(() => { setImmediate(persistSnapshot); }, 20000);
 });
@@ -2730,6 +2860,7 @@ server.listen(PORT, BIND_HOST, () => {
 // Graceful shutdown — drain SSE clients cleanly to avoid ERR_INCOMPLETE_CHUNKED_ENCODING
 function gracefulShutdown(signal) {
   console.log(`[shutdown] ${signal} received, draining ${sseClients.size} SSE clients...`);
+  writeAppLog('info', 'graceful_shutdown', { signal, sseClients: sseClients.size });
   for (const client of sseClients) {
     try { client.end(); } catch {}
   }

@@ -1,6 +1,6 @@
 # Agent Space
 
-A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI agent team — presented as an isometric pixel-art virtual office.
+A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI agent team — presented as an interactive office map.
 
 [![CI](https://github.com/madhavsomani/agent-space/actions/workflows/ci.yml/badge.svg)](https://github.com/madhavsomani/agent-space/actions/workflows/ci.yml)
 ![Agent Space](https://img.shields.io/badge/status-beta-blue)
@@ -9,13 +9,13 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template?referralCode=agent-space&template=https://github.com/madhavsomani/agent-space)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/madhavsomani/agent-space)
 
-### Isometric Office View (Dark)
+### Office Map View (Dark)
 ![Agent Space — Office View](screenshot-dark-office.jpg)
 
 ### Cards Dashboard View (Dark)
 ![Agent Space — Cards View](screenshot-dark-cards.jpg)
 
-### Office View (Light)
+### Office Map View (Light)
 ![Agent Space — Light Mode](screenshot-light-office.jpg)
 
 ### Cards Dashboard View (Light)
@@ -23,13 +23,13 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 
 ## Features
 
-- **Isometric pixel-art office** — 2D canvas office with zone-based layout, pixel-art agent sprites, and desk animations
+- **Office map** — Leaflet-powered office map with zone overlays, desk slots, and status markers
 - **Cards dashboard** — professional card-based view with KPI stats, activity timeline, uptime charts, and live logs
-- **View toggle** — switch between Office (isometric canvas) and Cards view with `V` key or buttons
-- **Light/dark theme** — full palette support for both canvas and card views
-- **Live agent status** — agents visually reflect their state (working → typing at desk, idle → off-desk, sleeping → desk sleep pose)
-- **Zone-based floor textures** — distinct tinted areas for Engineering, Content, Leadership, Support zones
-- **Click-to-inspect** — click any agent in the office to open a detail panel
+- **View toggle** — switch between Office (map) and Cards view with `V` key or buttons
+- **Light/dark theme** — full palette support for both map and card views
+- **Live agent status** — markers reflect agent state (working/idle/sleeping) with labels
+- **Zone-based layout** — distinct areas for Engineering, Content, Leadership, Support zones
+- **Click-to-inspect** — click any agent marker to open a detail panel
 - **System health** — CPU, memory, disk, services at a glance with sparklines
 - **Work request queue** — Kanban board for task tracking with real-time SSE updates
 - **Activity feed** — real-time log of agent actions
@@ -41,7 +41,6 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 - **SSE live updates** — no polling, instant UI updates
 - **Dynamic agent discovery** — persistent agents auto-appear at desks, sub-agents shown as visitors
 - **Mobile-friendly** — responsive layout optimized down to 375px width
-- **Minimap** — corner minimap with viewport indicator for zoomed views
 
 ## Quick Start
 

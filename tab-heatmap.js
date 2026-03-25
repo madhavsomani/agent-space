@@ -155,7 +155,8 @@ function renderHeatmapCalendar() {
 
 async function refreshDepGraph() {
   try {
-    const r = await fetchWithTimeout(API+'/dependency-graph', {}, 10000);
+    const fetchFn = (typeof fetchWithTimeout === 'function') ? fetchWithTimeout : (url, _opts, _ms) => fetch(url);
+    const r = await fetchFn(API+'/dependency-graph', {}, 10000);
     const d = await r.json();
     const svg = document.getElementById('dep-graph-svg');
     const details = document.getElementById('dep-graph-details');
@@ -163,10 +164,30 @@ async function refreshDepGraph() {
 
     const nodes = d.nodes || [];
     const edges = d.edges || [];
+    const edgeNodes = new Set();
+    edges.forEach(e => { if (e.from) edgeNodes.add(e.from); if (e.to) edgeNodes.add(e.to); });
+    const graphNodes = edges.length ? nodes.filter(n => edgeNodes.has(n.name)) : [];
+    const orphanNodes = edges.length ? nodes.filter(n => !edgeNodes.has(n.name)) : nodes;
 
     if (!nodes.length) {
-      svg.innerHTML = '<text x="50%" y="220" text-anchor="middle" fill="#64748b" font-size="14">No spawn relationships detected yet</text>';
-      details.innerHTML = '<h3>📊 Spawn Relationships</h3><div class="sub">No data — agents haven\'t spawned sub-agents recently</div>';
+      svg.innerHTML = '<rect x="12" y="12" width="96%" height="426" rx="16" fill="rgba(255,255,255,0.02)" stroke="rgba(148,163,184,0.25)" stroke-dasharray="6,6"/>' +
+        '<text x="50%" y="205" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="600">No spawn relationships detected yet</text>' +
+        '<text x="50%" y="228" text-anchor="middle" fill="#64748b" font-size="11">When agents spawn sub-agents, the tree will render here.</text>' +
+        '<circle cx="40%" cy="290" r="18" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="2" />' +
+        '<circle cx="60%" cy="330" r="14" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2" />' +
+        '<path d="M40% 308 C46% 320 54% 320 60% 316" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="4,4" />';
+      details.innerHTML = '<h3>📊 Spawn Relationships</h3><div class="sub">No spawn data yet — this section auto-populates once sub-agents are created.</div>';
+      return;
+    }
+
+    if (!edges.length) {
+      svg.innerHTML = '<rect x="12" y="12" width="96%" height="426" rx="16" fill="rgba(255,255,255,0.02)" stroke="rgba(148,163,184,0.25)" stroke-dasharray="6,6"/>' +
+        '<text x="50%" y="205" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="600">0 spawn relationships found (last 45d)</text>' +
+        '<text x="50%" y="228" text-anchor="middle" fill="#64748b" font-size="11">Agents discovered: ' + nodes.length + '</text>' +
+        '<circle cx="40%" cy="290" r="18" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="2" />' +
+        '<circle cx="60%" cy="330" r="14" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2" />' +
+        '<path d="M40% 308 C46% 320 54% 320 60% 316" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="4,4" />';
+      details.innerHTML = '<h3>📊 Spawn Relationships</h3><div class="sub">0 spawn relationships detected in the last 45 days.</div>';
       return;
     }
 
@@ -175,9 +196,8 @@ async function refreshDepGraph() {
 
     // Build tree structure: find roots (nodes not spawned by anyone)
     const childSet = new Set(edges.map(e => e.to));
-    const parentSet = new Set(edges.map(e => e.from));
-    const roots = nodes.filter(n => !childSet.has(n.name));
-    if (!roots.length) roots.push(nodes[0]); // fallback
+    const roots = graphNodes.filter(n => !childSet.has(n.name));
+    if (!roots.length && graphNodes.length) roots.push(graphNodes[0]); // fallback
 
     // Build adjacency: parent -> [children]
     const children = {};
@@ -193,8 +213,8 @@ async function refreshDepGraph() {
       (children[name] || []).forEach(c => assignLevel(c, level + 1));
     }
     roots.forEach(r => assignLevel(r.name, 0));
-    // Assign unvisited nodes
-    nodes.forEach(n => { if (!visited.has(n.name)) levels[n.name] = 0; });
+    // Assign unvisited nodes (edge nodes only)
+    graphNodes.forEach(n => { if (!visited.has(n.name)) levels[n.name] = 0; });
 
     const maxLevel = Math.max(...Object.values(levels), 0);
     const levelGroups = {};
@@ -220,11 +240,14 @@ async function refreshDepGraph() {
     }
 
     const nodeMap = {};
-    nodes.forEach(n => nodeMap[n.name] = n);
+    graphNodes.forEach(n => nodeMap[n.name] = n);
+
+    const typeCounts = { persistent: 0, cron: 0, subagent: 0, unknown: 0 };
+    nodes.forEach(n => { typeCounts[n.type || 'unknown'] = (typeCounts[n.type || 'unknown'] || 0) + 1; });
 
     let svgContent = '<defs>';
     // Arrow markers
-    nodes.forEach(n => {
+    graphNodes.forEach(n => {
       svgContent += `<marker id="dep-arrow-${n.name.replace(/[^a-zA-Z0-9]/g,'')}" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6 Z" fill="${n.color}" opacity="0.6"/></marker>`;
     });
     // Glow filter
@@ -258,7 +281,7 @@ async function refreshDepGraph() {
     }
 
     // Draw nodes
-    for (const n of nodes) {
+    for (const n of graphNodes) {
       const p = nodePos[n.name];
       if (!p) continue;
       const isRoot = !childSet.has(n.name);
@@ -288,9 +311,21 @@ async function refreshDepGraph() {
     // Details table
     if (edges.length) {
       const maxE = edges[0].count;
+      const orphanNote = orphanNodes.length ? ` · ${orphanNodes.length} agents with no spawns` : '';
+      const orphanList = orphanNodes.length ? `<div style="margin-top:10px;font-size:10px;color:var(--dim)">Other agents (no spawns): ${orphanNodes.map(o => esc(o.name)).join(', ')}</div>` : '';
       details.innerHTML = `<h3>📊 Spawn Relationships (${edges.length})</h3>
-        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <div class="sub" style="margin-top:-4px;margin-bottom:10px">Showing ${edges.length} relationships in last 45 days${orphanNote}</div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
           <span style="font-size:10px;color:var(--dim)">🏢 Persistent &nbsp;⏰ Cron &nbsp;🔧 Sub-agent</span>
+          <span style="margin-left:auto;font-size:10px;color:var(--dim)">Totals:</span>
+          <span style="font-size:10px;background:rgba(34,197,94,0.15);color:#86efac;padding:2px 6px;border-radius:10px">🏢 ${typeCounts.persistent || 0}</span>
+          <span style="font-size:10px;background:rgba(59,130,246,0.15);color:#93c5fd;padding:2px 6px;border-radius:10px">⏰ ${typeCounts.cron || 0}</span>
+          <span style="font-size:10px;background:rgba(245,158,11,0.15);color:#fbbf24;padding:2px 6px;border-radius:10px">🔧 ${typeCounts.subagent || 0}</span>
+          ${typeCounts.unknown ? `<span style="font-size:10px;background:rgba(148,163,184,0.15);color:#cbd5f5;padding:2px 6px;border-radius:10px">• ${typeCounts.unknown}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin:6px 0 10px">
+          <input id="dep-graph-filter" type="search" placeholder="Filter by agent or task..." style="flex:1;min-width:180px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-size:11px" />
+          <span id="dep-graph-filter-count" style="font-size:10px;color:var(--dim);white-space:nowrap">${edges.length}</span>
         </div>
         <ul class="service-list">${edges.map(e => {
           const fromColor = nodeMap[e.from]?.color || 'var(--dim)';
@@ -300,11 +335,49 @@ async function refreshDepGraph() {
           const taskHtml = e.tasks?.length ? `<div style="margin-top:4px;font-size:10px;color:var(--dim)">${e.tasks.map(t => `<div style="margin:2px 0;padding:2px 6px;background:rgba(255,255,255,0.03);border-radius:4px;border-left:2px solid ${fromColor}">${t.slice(0,80)}</div>`).join('')}</div>` : '';
           const relLabel = e.baseline && e.count === 0 ? `→ ${e.label || 'manages'} →` : '→ spawns →';
           const countLabel = e.baseline && e.count === 0 ? '<span style="font-size:10px;color:var(--dim)">config</span>' : `${e.count}x`;
-          return `<li style="flex-wrap:wrap"><div style="display:flex;align-items:center;gap:6px;width:100%"><span style="color:${fromColor};font-weight:700">${e.from}</span><span style="color:var(--dim)">${relLabel}</span><span style="color:${toColor};font-weight:700">${e.to}</span><span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums">${countLabel}</span>${ago ? `<span style="color:var(--dim);font-size:10px;margin-left:6px">${ago}</span>` : ''}</div>${e.count > 0 ? `<div class="bar-bg" style="width:100%;margin-top:3px"><div class="bar-fill green" style="width:${pct}%;background:${fromColor}"></div></div>` : ''}${taskHtml}</li>`;
-        }).join('')}</ul>`;
+          const searchText = `${e.from} ${e.to} ${(e.tasks || []).join(' ')}`.toLowerCase();
+          const searchAttr = esc(searchText);
+          return `<li style="flex-wrap:wrap" data-search="${searchAttr}"><div style="display:flex;align-items:center;gap:6px;width:100%"><span style="color:${fromColor};font-weight:700">${e.from}</span><span style="color:var(--dim)">${relLabel}</span><span style="color:${toColor};font-weight:700">${e.to}</span><span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums">${countLabel}</span>${ago ? `<span style="color:var(--dim);font-size:10px;margin-left:6px">${ago}</span>` : ''}</div>${e.count > 0 ? `<div class="bar-bg" style="width:100%;margin-top:3px"><div class="bar-fill green" style="width:${pct}%;background:${fromColor}"></div></div>` : ''}${taskHtml}</li>`;
+        }).join('')}</ul>${orphanList}`;
+
+      const filterInput = document.getElementById('dep-graph-filter');
+      const filterCount = document.getElementById('dep-graph-filter-count');
+      if (filterInput) {
+        const applyFilter = () => {
+          const q = (filterInput.value || '').trim().toLowerCase();
+          let visible = 0;
+          document.querySelectorAll('#dep-graph-details .service-list li').forEach(li => {
+            const hay = (li.dataset.search || '').toLowerCase();
+            const show = !q || hay.includes(q);
+            li.style.display = show ? '' : 'none';
+            if (show) visible++;
+          });
+          if (filterCount) filterCount.textContent = q ? `${visible}/${edges.length}` : `${edges.length}`;
+        };
+        filterInput.addEventListener('input', applyFilter);
+        applyFilter();
+      }
     } else {
       details.innerHTML = '<h3>📊 Spawn Relationships</h3><div class="sub">No spawn relationships detected yet</div>';
     }
-  } catch {}
+  } catch {
+    const svg = document.getElementById('dep-graph-svg');
+    const details = document.getElementById('dep-graph-details');
+    if (svg) {
+      svg.innerHTML = '<rect x="12" y="12" width="96%" height="426" rx="16" fill="rgba(255,255,255,0.02)" stroke="rgba(148,163,184,0.25)" stroke-dasharray="6,6"/>' +
+        '<text x="50%" y="210" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="600">Dependency graph unavailable</text>' +
+        '<text x="50%" y="232" text-anchor="middle" fill="#64748b" font-size="11">API did not respond — will retry on refresh.</text>';
+    }
+    if (details) {
+      details.innerHTML = '<h3>📊 Spawn Relationships</h3><div class="sub">Unable to load dependency data right now.</div>';
+    }
+  }
 }
+
+// If the page loaded directly on this tab before scripts were ready, hydrate now
+setTimeout(() => {
+  if (location.hash === '#dep-graph') {
+    try { refreshDepGraph(); } catch {}
+  }
+}, 0);
 
