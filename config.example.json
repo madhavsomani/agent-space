@@ -76,5 +76,19 @@
     "enabled": true,
     "windowSeconds": 60,
     "maxRequests": 120
-  }
+  },
+  "webhooks": {
+    "slack": { "url": "" },
+    "discord": { "url": "" }
+  },
+  "plugins": [
+    {
+      "id": "sample-plugin",
+      "name": "Sample Plugin",
+      "type": "panel",
+      "entry": "https://example.com/plugin.js",
+      "enabled": false,
+      "description": "Example external plugin entry"
+    }
+  ]
 }

@@ -3,8 +3,13 @@ services:
     build: .
     ports:
       - "18790:18790"
+    environment:
+      - PORT=18790
+      - BIND_HOST=0.0.0.0
     volumes:
-      - ${OPENCLAW_HOME:-~/.openclaw}:/root/.openclaw:ro
+      - ${OPENCLAW_HOME:-${HOME}/.openclaw}:/root/.openclaw:ro
+    depends_on:
+      - qdrant
     restart: unless-stopped
 
   qdrant:

@@ -15,11 +15,19 @@ async function refreshTokens() {
       <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Output Tokens</h3><div class="metric blue">${fmtK(d.totals.output)}</div>${totalTok > 0 ? `<div class="sub">I/O ratio: ${d.totals.input > 0 ? (d.totals.output / d.totals.input).toFixed(1) : '—'}x</div>` : '<div class="sub" style="color:var(--dim)">No session data yet</div>'}</div>
       <div class="card" style="padding:16px 18px"><h3 style="margin-bottom:6px">Estimated Cost</h3><div class="metric green">$${d.estimatedCostUSD.toFixed(2)}</div><div class="sub">${d.note||'Live estimate for current tracked usage'}</div></div>`;
     const agents=Object.entries(d.byAgent).sort((a,b)=>(b[1].input+b[1].output)-(a[1].input+a[1].output));
+    const byCost = Object.entries(d.byAgent).sort((a,b)=>(b[1].cost||0)-(a[1].cost||0));
+    const totalCostByAgent = byCost.reduce((s,[,v]) => s + (v.cost || 0), 0);
     document.getElementById('tok-agents').innerHTML=`<h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>💰 Usage by Agent</span><span style="font-size:10px;color:var(--dim);font-weight:600">Ranked by total token volume</span></h3>${agents.length?`<ul class="service-list" style="margin-top:10px">${agents.map(([n,v])=>{
       const total = v.input+v.output;
       const pct = d.totals.input+d.totals.output > 0 ? Math.round(total/(d.totals.input+d.totals.output)*100) : 0;
       return `<li style="flex-wrap:wrap"><div style="display:flex;align-items:center;gap:8px;width:100%"><span>${esc(n)}</span><span style="margin-left:auto;font-weight:600">${fmtK(total)}</span><span style="color:var(--dim);margin-left:8px;font-size:11px">${pct}%</span></div><div class="bar-bg" style="width:100%;margin-top:4px"><div class="bar-fill green" style="width:${Math.max(pct,2)}%"></div></div></li>`;
-    }).join('')}</ul>`:'<div class="sub">No per-agent data</div>'}`;
+    }).join('')}</ul>`:'<div class="sub">No per-agent data</div>'}
+      <h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px"><span>🧾 Cost by Agent</span><span style="font-size:10px;color:var(--dim);font-weight:600">Share of estimated spend</span></h3>
+      ${byCost.length ? `<ul class="service-list" style="margin-top:10px">${byCost.map(([n,v]) => {
+        const c = Number(v.cost||0);
+        const pct = totalCostByAgent > 0 ? Math.round((c/totalCostByAgent)*100) : 0;
+        return `<li style="flex-wrap:wrap"><div style="display:flex;align-items:center;gap:8px;width:100%"><span>${esc(n)}</span><span style="margin-left:auto;font-weight:700;color:var(--green)">$${c.toFixed(2)}</span><span style="color:var(--dim);margin-left:8px;font-size:11px">${pct}%</span></div><div class="bar-bg" style="width:100%;margin-top:4px"><div class="bar-fill green" style="width:${Math.max(pct,2)}%"></div></div></li>`;
+      }).join('')}</ul>` : '<div class="sub">No cost data by agent yet</div>'}`;
     // Model pricing reference
     let pricingEl = document.getElementById('tok-pricing');
     if(d.pricing && Object.keys(d.pricing).length) {

@@ -1,0 +1,9 @@
+file '01-office.jpg'
+duration 1.6
+file '02-queue.jpg'
+duration 1.6
+file '03-tokens.jpg'
+duration 1.6
+file '04-comm.jpg'
+duration 1.6
+file '04-comm.jpg'

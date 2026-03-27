@@ -1,68 +1,66 @@
 # Contributing to Agent Space
 
-Thanks for your interest in Agent Space! Here's how to get started.
+Thanks for contributing to Agent Space ⚡
 
-## Quick Setup
+## Development Principles
+
+- Keep runtime dependency-free where possible (prefer Node built-ins and vanilla JS).
+- Keep dashboard responsive and readable in both dark/light themes.
+- Preserve live behavior: SSE should stay stable and lightweight.
+- Prefer small, reviewable PRs with clear before/after impact.
+
+## Local Setup
 
 ```bash
 git clone https://github.com/madhavsomani/agent-space.git
 cd agent-space
-node server.js --demo    # runs with mock data, no OpenClaw needed
+
+# Optional custom config
+cp config.example.json config.json
+
+# Run
+node server.js
+# http://localhost:18790
 ```
 
-Open http://localhost:18790
+## Required Checks Before PR
 
-## Development
+1. Restart server after backend/frontend edits.
+2. Verify health endpoint:
+   - `curl -sf http://localhost:18790/api/health`
+3. Smoke-check key tabs:
+   - Office, Queue, Tokens, Comm Graph, System
+4. If UI changed, include at least one screenshot.
+5. If API changed, update README endpoint table.
 
-```bash
-node --watch server.js   # auto-restart on changes
-```
+## Coding Conventions
 
-### Environment Variables
+- Use clear function names and short comments for non-obvious logic.
+- Avoid introducing global state unless necessary.
+- Keep endpoint responses backward-compatible when possible.
+- Prefer feature flags/config over hard-coded behavior for operational limits.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BIND_HOST` | `127.0.0.1` | Network interface to bind. Use `0.0.0.0` for LAN access. |
-| `HOME` | System home | Used to locate `~/.openclaw/agents/` for agent discovery. |
+## Reporting Bugs
 
-### CLI Flags
+Please include:
+- What tab/endpoint failed
+- Repro steps
+- Expected vs actual behavior
+- Screenshot/log snippet
+- Browser/OS details (for UI issues)
 
-| Flag | Description |
-|------|-------------|
-| `--demo` | Run with mock agent data (no OpenClaw installation needed) |
+## Security / Secrets
 
-## Project Structure
+- Never commit secrets (`config.json`, `.env`, tokens).
+- Use `.gitignore` rules and sample config files.
+- If you find a vulnerability, report privately before public disclosure.
 
-```
-server.js     — Express backend: API endpoints, SSE, agent discovery, caching
-index.html    — Single-file frontend: office map, charts, all UI
-config.json   — Optional agent/office/auth/rate-limit configuration (gitignored)
-agent-space.db — SQLite database for events/history (gitignored, auto-created)
-```
+## Pull Request Template (Recommended)
 
-## Architecture
+- **What changed:**
+- **Why:**
+- **How tested:**
+- **Screenshots / evidence:**
+- **Risk / rollback plan:**
 
-- **Backend:** Node.js with `node:http`, `node:sqlite` (built-in) for persistence, zero `execSync` in request handlers
-- **Frontend:** Vanilla JS — no build step, no dependencies. Leaflet-based office map plus charts and UI
-- **Data flow:** SSE (Server-Sent Events) for real-time updates, REST API for initial load
-- **Agent discovery:** Scans `~/.openclaw/agents/` directories, merges with optional `config.json`
-
-## Guidelines
-
-- **No build step.** The frontend is a single `index.html`. Keep it that way.
-- **Zero npm dependencies.** Uses only Node.js built-in modules (`node:http`, `node:sqlite`, `node:fs`, etc.).
-- **Test after changes:** `curl http://localhost:18790/api/health` should return `{"ok":true}`
-- **Performance matters:** No synchronous shell commands in request handlers. Use background caches.
-- **Canvas rendering:** Static elements (floor, walls, furniture) are cached in an offscreen canvas. Only animated elements (agents, clocks, plants) redraw each frame.
-
-## Submitting Changes
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b my-feature`)
-3. Make your changes
-4. Test with both `--demo` mode and live OpenClaw (if available)
-5. Submit a PR with a clear description of what changed and why
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+Thanks for helping make Agent Space production-grade and open-source friendly.

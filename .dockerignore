@@ -1,6 +1,22 @@
+# Git / local metadata
+.git
+.github
+
+# Local runtime state
 node_modules
 config.json
 .env
+.env.*
 *.log
+logs/
 agent-space.db
-.git
+agent-space.db-shm
+agent-space.db-wal
+memory-history.json
+
+# OS noise
+.DS_Store
+
+# Large local artifacts not needed in image
+stitch-export.html
+stitch-neon-orchard.html

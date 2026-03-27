@@ -9,6 +9,9 @@ A real-time dashboard for monitoring your [OpenClaw](https://openclaw.com) AI ag
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template?referralCode=agent-space&template=https://github.com/madhavsomani/agent-space)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/madhavsomani/agent-space)
 
+### Demo GIF
+![Agent Space Demo](assets/demo/demo.gif)
+
 ### Office Map View (Dark)
 ![Agent Space — Office View](screenshot-dark-office.jpg)
 
@@ -104,9 +107,14 @@ docker run -p 18790:18790 -v ~/.openclaw:/root/.openclaw:ro agent-space
 
 ```bash
 cp config.example.json config.json  # customize agents
-docker compose up -d
+OPENCLAW_HOME=$HOME/.openclaw docker compose up -d
 # → http://localhost:18790
 ```
+
+Notes:
+- Container binds `0.0.0.0:18790` by default.
+- Compose mounts `${OPENCLAW_HOME:-$HOME/.openclaw}` read-only into `/root/.openclaw`.
+- Local secrets/state files are excluded from image via `.dockerignore`.
 
 ### Deploy to Fly.io
 
@@ -122,8 +130,20 @@ Or use the deploy button at the top of this README.
 
 - **`server.js`** — Node.js HTTP server with REST API + SSE (zero npm deps)
 - **`index.html`** — Single-file frontend (vanilla JS, no build step)
-- **`sprites.js`** — Pixel-art sprite system for agent characters
+- **`tab-*.js`** — modular tab renderers (queue, tokens, comm graph, system, timeline, etc.)
+- **`office-map.js` / `office-view.js`** — Leaflet office map + card/map view orchestration
 - **No dependencies** — zero npm packages required
+
+## Production Notes
+
+- **Auth / RBAC**: token-based auth with admin/viewer roles (see `config.json` → `auth`)
+- **Rate limiting**: API sliding-window limiter enabled by default (`rateLimit` in config)
+- **Log rotation**: built-in rotating app logs under `logs/agent-space.log`
+  - env override: `AGENT_SPACE_LOG_MAX_BYTES`
+  - env override: `AGENT_SPACE_LOG_KEEP_FILES`
+- **Health endpoint**: `/api/health` includes uptime, agent counts, memory metrics, qdrant state
+- **Auth status endpoint**: `/api/auth-status`
+- **Log status endpoint**: `/api/log-status`
 
 ## API Endpoints
 
@@ -140,6 +160,17 @@ Or use the deploy button at the top of this README.
 | `GET /api/performance` | Cron agent performance metrics |
 | `GET /api/comm-graph` | Agent communication graph data |
 | `GET /api/events` | SSE stream for live updates |
+| `GET /api/auth-status` | Auth mode, token-role summary |
+| `GET /api/users` | Multi-user role catalog (token-derived) |
+| `GET /api/user/me` | Current auth context |
+| `GET /api/webhooks/status` | Slack/Discord webhook config status |
+| `POST /api/webhooks/test` | Send test webhook notification |
+| `GET /api/log-status` | App log rotation/size status |
+| `GET /api/export/agents` | Export agents (JSON/CSV) |
+| `GET /api/export/tokens` | Export token data (JSON/CSV) |
+| `GET /api/export/activity` | Export activity feed (JSON/CSV) |
+| `GET /api/export/logs` | Export live logs (JSON/CSV) |
+| `GET /api/export/queue` | Export queue board data (JSON/CSV) |
 | `GET /api/agent-detail/:id` | Detailed agent info |
 | `POST /api/queue` | Create a new work request |
 | `POST /api/wake-agent` | Trigger a cron agent manually |

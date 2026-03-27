@@ -459,6 +459,36 @@ function json(res, data) {
   res.end(JSON.stringify(data));
 }
 
+function parseJsonBody(req, res, maxBytes = 256 * 1024, onData) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: 'Payload too large', code: 'PAYLOAD_TOO_LARGE', maxBytes }));
+        try { req.destroy(); } catch {}
+        reject(new Error('payload-too-large'));
+        return;
+      }
+      body += chunk;
+      if (typeof onData === 'function') onData(chunk);
+    });
+    req.on('end', () => {
+      try {
+        const parsed = JSON.parse(body || '{}');
+        resolve(parsed);
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: 'Invalid JSON body', code: 'BAD_JSON' }));
+        reject(e);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 // Agent metadata: loaded from config.json (user-customizable) or auto-discovered
 // See config.example.json for customization options
 const CONFIG_FILE = path.join(__dirname, 'config.json');
@@ -471,6 +501,96 @@ if (USER_CONFIG.agents) {
   for (const [key, val] of Object.entries(USER_CONFIG.agents)) {
     KNOWN_AGENTS[key] = { ...val };
   }
+}
+
+// Optional webhook integrations (Slack/Discord)
+const WEBHOOKS_CFG = USER_CONFIG.webhooks || {};
+function _webhookUrl(provider) {
+  const p = String(provider || '').toLowerCase();
+  if (p === 'slack') return WEBHOOKS_CFG.slack?.url || WEBHOOKS_CFG.slackUrl || '';
+  if (p === 'discord') return WEBHOOKS_CFG.discord?.url || WEBHOOKS_CFG.discordUrl || '';
+  return '';
+}
+function _maskWebhook(url) {
+  const s = String(url || '');
+  if (!s) return '';
+  return s.length <= 16 ? '***' : `${s.slice(0, 12)}...${s.slice(-6)}`;
+}
+async function sendWebhook(provider, text, extra = {}) {
+  const url = _webhookUrl(provider);
+  if (!url) return { ok: false, provider, error: 'not_configured' };
+  try {
+    const p = String(provider || '').toLowerCase();
+    const payload = p === 'discord'
+      ? { content: String(text || ''), ...extra }
+      : { text: String(text || ''), ...extra };
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 4500);
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctl.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) return { ok: false, provider, status: r.status, error: 'webhook_http_error' };
+    return { ok: true, provider };
+  } catch (e) {
+    return { ok: false, provider, error: e.message || 'webhook_send_failed' };
+  }
+}
+function notifyWebhooks(text, extra = {}) {
+  const jobs = [];
+  if (_webhookUrl('slack')) jobs.push(sendWebhook('slack', text, extra));
+  if (_webhookUrl('discord')) jobs.push(sendWebhook('discord', text, extra));
+  return Promise.all(jobs);
+}
+
+// Plugin system (custom views/extensions)
+const PLUGINS_CFG = USER_CONFIG.plugins || [];
+const _runtimePlugins = new Map();
+
+function _normalizePlugins(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw).map(([id, p]) => ({ id, ...(p || {}) }));
+  }
+  return [];
+}
+
+function listPlugins() {
+  const fromConfig = _normalizePlugins(PLUGINS_CFG).map((p, idx) => ({
+    id: p.id || `plugin-${idx + 1}`,
+    name: p.name || p.id || `Plugin ${idx + 1}`,
+    type: p.type || 'panel',
+    description: p.description || '',
+    entry: p.entry || p.url || '',
+    enabled: p.enabled !== false,
+    source: 'config',
+  }));
+
+  const merged = new Map(fromConfig.map(p => [p.id, p]));
+  for (const [id, p] of _runtimePlugins.entries()) {
+    merged.set(id, { ...p, id, source: p.source || 'runtime' });
+  }
+  return Array.from(merged.values());
+}
+
+function registerPluginRuntime(plugin) {
+  const id = String(plugin.id || '').trim();
+  if (!id) return { ok: false, error: 'Missing plugin id' };
+  const entry = String(plugin.entry || plugin.url || '').trim();
+  _runtimePlugins.set(id, {
+    id,
+    name: String(plugin.name || id),
+    type: String(plugin.type || 'panel'),
+    description: String(plugin.description || ''),
+    entry,
+    enabled: plugin.enabled !== false,
+    source: 'runtime',
+    registeredAt: Date.now(),
+  });
+  return { ok: true, id };
 }
 
 // Auto-generate colors for unknown agents
@@ -851,6 +971,26 @@ function getQueue() {
   } catch { result.wrs = []; }
 
   return result;
+}
+
+function assignQueueOwner(file, owner) {
+  try {
+    const safe = path.basename(String(file || ''));
+    if (!safe || !safe.endsWith('.md')) return { ok: false, error: 'Invalid file' };
+    const fp = path.join(WR_DIR, safe);
+    if (!fs.existsSync(fp)) return { ok: false, error: 'Work request not found' };
+    let content = fs.readFileSync(fp, 'utf8');
+    const ownerLine = `- **Owner:** ${owner || ''}`;
+    if (/^- \*\*Owner:\*\*.*$/m.test(content)) {
+      content = content.replace(/^- \*\*Owner:\*\*.*$/m, ownerLine);
+    } else {
+      content += `\n${ownerLine}\n`;
+    }
+    fs.writeFileSync(fp, content);
+    return { ok: true, file: safe, owner: owner || '' };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 }
 
 // Memory growth history — append a snapshot every 15 min
@@ -1608,6 +1748,9 @@ function getCalendar() {
 
 // --- SSE (Server-Sent Events) ---
 const sseClients = new Set();
+const SSE_MAX_CLIENTS = parseInt(process.env.AGENT_SPACE_SSE_MAX_CLIENTS || '60', 10);
+const SSE_MAX_PER_IP = parseInt(process.env.AGENT_SPACE_SSE_MAX_PER_IP || '6', 10);
+const _sseByIp = new Map();
 let _lastAgentHash = '';
 let _lastActivityHash = '';
 let _lastSystemHash = '';
@@ -2423,9 +2566,7 @@ const AUTH = _config.auth || {};
 const AUTH_TOKENS = AUTH.tokens || {}; // { token: role }
 const AUTH_ENABLED = AUTH.enabled === true && Object.keys(AUTH_TOKENS).length > 0;
 
-function authenticate(req) {
-  if (!AUTH_ENABLED) return { authenticated: true, role: 'admin' };
-  // Check Authorization header: Bearer <token> or X-API-Key header or ?token= query param
+function getTokenFromReq(req) {
   let token = null;
   const authHeader = req.headers['authorization'];
   if (authHeader && authHeader.startsWith('Bearer ')) token = authHeader.slice(7).trim();
@@ -2434,8 +2575,14 @@ function authenticate(req) {
     const qIdx = req.url.indexOf('?token=');
     if (qIdx !== -1) token = req.url.slice(qIdx + 7).split('&')[0];
   }
-  if (!token || !AUTH_TOKENS[token]) return { authenticated: false, role: null };
-  return { authenticated: true, role: AUTH_TOKENS[token] || 'viewer' };
+  return token;
+}
+
+function authenticate(req) {
+  if (!AUTH_ENABLED) return { authenticated: true, role: 'admin', token: null };
+  const token = getTokenFromReq(req);
+  if (!token || !AUTH_TOKENS[token]) return { authenticated: false, role: null, token: null };
+  return { authenticated: true, role: AUTH_TOKENS[token] || 'viewer', token };
 }
 
 // Rate limiting: sliding window per IP
@@ -2466,6 +2613,12 @@ setInterval(() => {
 }, 300000);
 
 const STATIC_DIR = __dirname;
+
+// Graceful shutdown state
+let _isShuttingDown = false;
+const SHUTDOWN_GRACE_MS = parseInt(process.env.AGENT_SPACE_SHUTDOWN_GRACE_MS || '5000', 10);
+const _activeSockets = new Set();
+
 // --- API response time tracking ---
 const _apiMetrics = {}; // { endpoint: { count, totalMs, samples: [] } }
 const API_SAMPLE_MAX = 100; // keep last N samples per endpoint for percentile calc
@@ -2496,6 +2649,12 @@ function getApiMetrics() {
 }
 
 const server = http.createServer((req, res) => {
+  if (_isShuttingDown) {
+    res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil(SHUTDOWN_GRACE_MS / 1000)) });
+    res.end(JSON.stringify({ error: 'Server shutting down', code: 'SHUTTING_DOWN' }));
+    return;
+  }
+
   const _reqStart = Date.now();
   const _reqUrl = (req.url || '/').split('?')[0];
   res.on('finish', () => {
@@ -2537,8 +2696,21 @@ const server = http.createServer((req, res) => {
 
   // SSE endpoint
   if (url === '/api/events') {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const ipCount = _sseByIp.get(ip) || 0;
+    if (sseClients.size >= SSE_MAX_CLIENTS) {
+      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '15' });
+      res.end(JSON.stringify({ error: 'Too many SSE clients', code: 'SSE_MAX_CLIENTS', max: SSE_MAX_CLIENTS }));
+      return;
+    }
+    if (ipCount >= SSE_MAX_PER_IP) {
+      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '15' });
+      res.end(JSON.stringify({ error: 'Too many SSE clients from this IP', code: 'SSE_MAX_PER_IP', maxPerIp: SSE_MAX_PER_IP }));
+      return;
+    }
+
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*', 'X-Accel-Buffering': 'no' });
-    res.write(`event: connected\ndata: {"ok":true}\n\n`);
+    res.write(`event: connected\ndata: {"ok":true,"clients":${sseClients.size + 1}}\n\n`);
     // Send initial state burst so reconnecting clients don't miss anything
     try {
       const agents = DEMO_MODE ? demoAgents() : getAgents();
@@ -2546,10 +2718,19 @@ const server = http.createServer((req, res) => {
       const activity = DEMO_MODE ? demoActivity() : getActivity();
       res.write(`event: activity\ndata: ${JSON.stringify(activity)}\n\n`);
     } catch {}
+
     sseClients.add(res);
-    req.on('close', () => sseClients.delete(res));
-    req.on('error', () => sseClients.delete(res));
-    res.on('error', () => sseClients.delete(res));
+    _sseByIp.set(ip, ipCount + 1);
+
+    const cleanup = () => {
+      sseClients.delete(res);
+      const n = (_sseByIp.get(ip) || 1) - 1;
+      if (n <= 0) _sseByIp.delete(ip);
+      else _sseByIp.set(ip, n);
+    };
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+    res.on('error', cleanup);
     return;
   }
 
@@ -2613,6 +2794,24 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="logs.json"', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(data, null, 2));
   }
+  if (url === '/api/export/queue') {
+    const fmt = (req.url.split('?')[1] || '').includes('format=csv') ? 'csv' : 'json';
+    const data = getQueue();
+    if (fmt === 'csv') {
+      const header = 'bucket,file,title,type,priority,owner,status,since,complete\n';
+      const buckets = [['active', data.active || []], ['review', data.review || []], ['nextUp', data.nextUp || []], ['parked', data.parked || []]];
+      const rows = [];
+      for (const [bucket, items] of buckets) {
+        for (const w of items) {
+          rows.push(`"${bucket}","${(w.file||'').replace(/"/g,'""')}","${(w.title||'').replace(/"/g,'""')}","${(w.type||'').replace(/"/g,'""')}","${(w.priority||'').replace(/"/g,'""')}","${(w.owner||'').replace(/"/g,'""')}","${(w.status||'').replace(/"/g,'""')}","${(w.since||'').replace(/"/g,'""')}",${w.complete ? 1 : 0}`);
+        }
+      }
+      res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="queue.csv"', 'Access-Control-Allow-Origin': '*' });
+      return res.end(header + rows.join('\n'));
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="queue.json"', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(data, null, 2));
+  }
 
   // Persistent data endpoints
   if (url === '/api/cost-history') {
@@ -2623,23 +2822,24 @@ const server = http.createServer((req, res) => {
 
   if (url === '/api/plan') {
     try {
-      const planPath = path.join(__dirname, '..', 'master-plan.md');
-      const raw = fs.readFileSync(planPath, 'utf8');
-      const lines = raw.split('\n');
-      const done = lines.filter(l => /^\- \[x\]/.test(l)).length;
-      const todo = lines.filter(l => /^\- \[ \]/.test(l)).length;
-      // Read agent states
-      const agents = {};
-      for (const name of ['coding-agent-1', 'coding-agent-2']) {
-        try {
-          const s = fs.readFileSync(path.join(__dirname, '..', 'agents', name, 'memory', 'state.md'), 'utf8');
-          const status = (s.match(/## Status: (.+)/)||[])[1] || 'unknown';
-          const phase = (s.match(/## Current Phase: (.+)/)||[])[1] || 'unknown';
-          const item = (s.match(/## (?:Next|Current|Completed) Item: (.+)/)||[])[1] || 'unknown';
-          agents[name] = { status, phase, item };
-        } catch(e) { agents[name] = { status: 'error', phase: '-', item: e.message }; }
+      const agents = ['coding-agent-1', 'coding-agent-2', 'qa', 'writer'];
+      const result = { ok: true, agents: {} };
+      for (const name of agents) {
+        const agentDir = path.join(__dirname, '..', 'agents', name, 'memory');
+        let plan = '', state = '';
+        try { plan = fs.readFileSync(path.join(agentDir, 'plan.md'), 'utf8'); } catch(e) { plan = 'No plan.md found'; }
+        try { state = fs.readFileSync(path.join(agentDir, 'state.md'), 'utf8'); } catch(e) { state = 'No state.md found'; }
+        const done = (plan.match(/^\- \[x\]/gm) || []).length;
+        const todo = (plan.match(/^\- \[ \]/gm) || []).length;
+        result.agents[name] = { plan, state, done, todo, total: done + todo, percent: done + todo > 0 ? Math.round(done / (done + todo) * 100) : 0 };
       }
-      return json(res, { ok: true, markdown: raw, done, todo, total: done + todo, percent: done + todo > 0 ? Math.round(done / (done + todo) * 100) : 0, agents });
+      const totalDone = Object.values(result.agents).reduce((s, a) => s + a.done, 0);
+      const totalTodo = Object.values(result.agents).reduce((s, a) => s + a.todo, 0);
+      result.totalDone = totalDone;
+      result.totalTodo = totalTodo;
+      result.totalAll = totalDone + totalTodo;
+      result.totalPercent = totalDone + totalTodo > 0 ? Math.round(totalDone / (totalDone + totalTodo) * 100) : 0;
+      return json(res, result);
     } catch (e) { return json(res, { ok: false, error: e.message }); }
   }
   if (url === '/api/agent-events') {
@@ -2686,6 +2886,7 @@ const server = http.createServer((req, res) => {
       },
       qdrant: qdrantOk ? 'online' : 'offline',
       sseClients: sseClients.size,
+      sseLimits: { maxClients: SSE_MAX_CLIENTS, maxPerIp: SSE_MAX_PER_IP },
       timestamp: Date.now()
     });
   }
@@ -2695,6 +2896,92 @@ const server = http.createServer((req, res) => {
       enabled: AUTH_ENABLED,
       tokenCount: Object.keys(AUTH_TOKENS).length,
       roles: Array.from(new Set(Object.values(AUTH_TOKENS))),
+      mode: AUTH_ENABLED ? 'token-rbac' : 'open',
+      timestamp: Date.now(),
+    });
+  }
+  if (url === '/api/webhooks/status') {
+    return json(res, {
+      enabled: !!(_webhookUrl('slack') || _webhookUrl('discord')),
+      slack: { configured: !!_webhookUrl('slack'), urlPreview: _maskWebhook(_webhookUrl('slack')) },
+      discord: { configured: !!_webhookUrl('discord'), urlPreview: _maskWebhook(_webhookUrl('discord')) },
+      timestamp: Date.now(),
+    });
+  }
+  if (url === '/api/webhooks/test' && req.method === 'POST') {
+    parseJsonBody(req, res, 64 * 1024)
+      .then(async (d) => {
+        const provider = String(d.provider || 'all').toLowerCase();
+        const text = d.message || `Agent Space test webhook @ ${new Date().toISOString()}`;
+        let results = [];
+        if (provider === 'all') results = await notifyWebhooks(text, {});
+        else results = [await sendWebhook(provider, text, {})];
+        json(res, { ok: results.some(r => r.ok), results, timestamp: Date.now() });
+      })
+      .catch((e) => {
+        if (e.message === 'payload-too-large') return;
+        writeAppLog('warn', 'webhook_test_failed', { error: e.message });
+      });
+    return;
+  }
+  if (url === '/api/plugins') {
+    const plugins = listPlugins();
+    return json(res, { plugins, count: plugins.length, timestamp: Date.now() });
+  }
+  if (url === '/api/plugins/register' && req.method === 'POST') {
+    parseJsonBody(req, res, 64 * 1024)
+      .then((d) => {
+        const r = registerPluginRuntime(d || {});
+        if (!r.ok) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: r.error || 'Plugin registration failed' }));
+          return;
+        }
+        json(res, { ok: true, plugin: listPlugins().find(p => p.id === r.id) });
+      })
+      .catch((e) => {
+        if (e.message === 'payload-too-large') return;
+        writeAppLog('warn', 'plugin_register_failed', { error: e.message });
+      });
+    return;
+  }
+  if (url === '/api/plugins/unregister' && req.method === 'POST') {
+    parseJsonBody(req, res, 64 * 1024)
+      .then((d) => {
+        const id = String(d.id || '').trim();
+        if (!id) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Missing plugin id' }));
+          return;
+        }
+        _runtimePlugins.delete(id);
+        json(res, { ok: true, id });
+      })
+      .catch((e) => {
+        if (e.message === 'payload-too-large') return;
+        writeAppLog('warn', 'plugin_unregister_failed', { error: e.message });
+      });
+    return;
+  }
+  if (url === '/api/users') {
+    const users = Object.entries(AUTH_TOKENS).map(([token, role], idx) => ({
+      id: `user-${idx + 1}`,
+      role: role || 'viewer',
+      tokenPreview: `${String(token).slice(0, 4)}...${String(token).slice(-2)}`,
+    }));
+    return json(res, {
+      multiUser: AUTH_ENABLED,
+      users,
+      roles: ['admin', 'viewer'],
+      timestamp: Date.now(),
+    });
+  }
+  if (url === '/api/user/me') {
+    const token = getTokenFromReq(req);
+    const role = token && AUTH_TOKENS[token] ? AUTH_TOKENS[token] : (AUTH_ENABLED ? null : 'admin');
+    return json(res, {
+      authenticated: !!role,
+      role,
       mode: AUTH_ENABLED ? 'token-rbac' : 'open',
       timestamp: Date.now(),
     });
@@ -2732,20 +3019,40 @@ const server = http.createServer((req, res) => {
   if (url === '/api/performance') { setImmediate(() => { try { json(res, getPerformance()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }
   if (url === '/api/completion-stats') { setImmediate(() => { try { json(res, getCompletionStats()); } catch(e) { json(res, {completed:0,total:0,error:e.message}); } }); return; }
   if (url === '/api/uptime') { setImmediate(() => { try { json(res, getUptime()); } catch(e) { json(res, {agents:[],error:e.message}); } }); return; }
+  if (url === '/api/queue/assign' && req.method === 'POST') {
+    parseJsonBody(req, res, 64 * 1024)
+      .then((d) => {
+        const r = assignQueueOwner(d.file, d.owner || '');
+        if (!r.ok) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: r.error || 'Assignment failed' }));
+          return;
+        }
+        json(res, r);
+        notifyWebhooks(`🎯 Queue assignment: ${r.file} → ${r.owner || 'Unassigned'}`).catch(() => {});
+      })
+      .catch((e) => {
+        if (e.message === 'payload-too-large') return;
+        writeAppLog('warn', 'queue_assign_failed', { error: e.message });
+      });
+    return;
+  }
+
   if (url === '/api/queue' && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const d = JSON.parse(body);
+    parseJsonBody(req, res, 256 * 1024)
+      .then((d) => {
         const date = new Date().toISOString().split('T')[0];
         const slug = (d.title || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60);
         const filename = `${date}_${slug}.md`;
         const content = `# WR: ${d.title || 'Untitled'}\n- **ID:** ${filename}\n- **Type:** ${d.type || 'task'}\n- **Priority:** ${d.priority || 'medium'}\n- **Status:** created\n- **Created:** ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}\n- **Owner:** ${d.owner || ''}\n\n## Description\n${d.description || 'No description provided.'}\n`;
         fs.writeFileSync(path.join(WR_DIR, filename), content);
         json(res, { ok: true, file: filename });
-      } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify({ error: e.message })); }
-    });
+        notifyWebhooks(`📋 New WR created: ${d.title || 'Untitled'} (${filename})`).catch(() => {});
+      })
+      .catch((e) => {
+        if (e.message === 'payload-too-large') return;
+        writeAppLog('warn', 'queue_post_failed', { error: e.message });
+      });
     return;
   }
   if (url === '/api/queue') return json(res, getQueue());
@@ -2768,11 +3075,8 @@ const server = http.createServer((req, res) => {
 
   // Wake/trigger agent cron job
   if (url === '/api/wake-agent' && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const d = JSON.parse(body);
+    parseJsonBody(req, res, 64 * 1024)
+      .then((d) => {
         const cronJobId = d.cronJobId;
         if (!cronJobId) { res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify({ error: 'Missing cronJobId' })); return; }
         execAsync(`openclaw cron run --id ${cronJobId} --timeout 5000 2>&1`, { timeout: 8000, encoding: 'utf8' }, (err, stdout, stderr) => {
@@ -2780,9 +3084,13 @@ const server = http.createServer((req, res) => {
           _discoveredAgents = null;
           if (err) { json(res, { ok: false, error: (stderr || stdout || err.message || '').slice(0, 200) }); return; }
           json(res, { ok: true, output: (stdout || '').slice(0, 300) });
+          notifyWebhooks(`⚡ Agent wake triggered for cron job ${cronJobId}`).catch(() => {});
         });
-      } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify({ error: e.message })); }
-    });
+      })
+      .catch((e) => {
+        if (e.message === 'payload-too-large') return;
+        writeAppLog('warn', 'wake_agent_failed', { error: e.message });
+      });
     return;
   }
 
@@ -2825,6 +3133,11 @@ function warmHeavyCaches() {
   setTimeout(() => { setImmediate(() => { try { getHeatmapCalendar(); } catch {} }); }, 2000);
 }
 
+server.on('connection', (socket) => {
+  _activeSockets.add(socket);
+  socket.on('close', () => _activeSockets.delete(socket));
+});
+
 server.listen(PORT, BIND_HOST, () => {
   console.log(`Agent Space running on ${BIND_HOST}:${PORT} (${DEMO_MODE ? 'DEMO' : 'live'})`);
   writeAppLog('info', 'server_start', { host: BIND_HOST, port: PORT, mode: DEMO_MODE ? 'demo' : 'live' });
@@ -2859,14 +3172,35 @@ server.listen(PORT, BIND_HOST, () => {
 
 // Graceful shutdown — drain SSE clients cleanly to avoid ERR_INCOMPLETE_CHUNKED_ENCODING
 function gracefulShutdown(signal) {
+  if (_isShuttingDown) return;
+  _isShuttingDown = true;
   console.log(`[shutdown] ${signal} received, draining ${sseClients.size} SSE clients...`);
-  writeAppLog('info', 'graceful_shutdown', { signal, sseClients: sseClients.size });
+  writeAppLog('info', 'graceful_shutdown', { signal, sseClients: sseClients.size, sockets: _activeSockets.size, graceMs: SHUTDOWN_GRACE_MS });
+
   for (const client of sseClients) {
-    try { client.end(); } catch {}
+    try {
+      client.write('event: shutdown\ndata: {"ok":false,"reason":"shutdown"}\n\n');
+      client.end();
+    } catch {}
   }
   sseClients.clear();
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(1), 3000);
+
+  // Stop accepting keep-alive quickly while allowing in-flight requests to drain
+  for (const sock of _activeSockets) {
+    try { sock.setKeepAlive(false); } catch {}
+  }
+
+  server.close(() => {
+    writeAppLog('info', 'shutdown_complete', { signal });
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    for (const sock of _activeSockets) {
+      try { sock.destroy(); } catch {}
+    }
+    process.exit(1);
+  }, SHUTDOWN_GRACE_MS);
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));

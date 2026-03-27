@@ -16,7 +16,7 @@
     <div class="help-row"><span>Switch tabs</span><span><span class="help-key">1</span> – <span class="help-key">9</span></span></div>
     <div class="help-row"><span>Refresh all data</span><span class="help-key">R</span></div>
     <div class="help-row"><span>Pause / resume auto-refresh</span><span class="help-key">P</span></div>
-    <div class="help-row"><span>Toggle dark / light theme</span><span class="help-key">T</span></div>
+    <div class="help-row"><span>Cycle theme (dark / light / system)</span><span class="help-key">T</span></div>
     <div class="help-row"><span>Toggle ambient sounds</span><span class="help-key">S</span></div>
     <div class="help-row"><span>Toggle notification sounds</span><span class="help-key">N</span></div>
     <div class="help-row"><span>Notification center</span><span class="help-key">I</span></div>
@@ -61,7 +61,7 @@
   </select>
   <button class="refresh-btn" id="refresh-btn" title="Refresh all data (R)" aria-label="Refresh all data"><span class="icon">⟳</span> Refresh</button>
   <button class="refresh-btn" id="pause-btn" title="Pause/resume auto-refresh (P)" aria-label="Pause or resume auto-refresh" style="gap:4px"><span class="icon" id="pause-icon">⏸</span> <span id="pause-label">Auto</span></button>
-  <button class="refresh-btn" id="theme-btn" title="Toggle dark/light theme (T)" aria-label="Toggle dark or light theme" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
+  <button class="refresh-btn" id="theme-btn" title="Theme: System. Press T to cycle" aria-label="Theme mode system. Press T to cycle" onclick="toggleTheme()"><span id="theme-icon">🖥️</span></button>
   <button class="refresh-btn" title="Command Palette (⌘K)" onclick="document.getElementById('cmd-palette-overlay').classList.add('visible');document.getElementById('cmd-input').focus()" style="font-size:10px;gap:3px"><span>⌘K</span></button>
   <button class="refresh-btn" id="sound-btn" title="Toggle ambient sounds (S)" onclick="toggleAmbientSound()"><span id="sound-icon">🔇</span></button>
   <button class="refresh-btn" id="notif-sound-btn" title="Toggle status change notifications (N)" onclick="toggleNotifSounds()"><span id="notif-sound-icon">🔔</span></button>
@@ -106,6 +106,18 @@
 <div id="alerts-banner" style="display:none;padding:6px 20px;background:var(--red-dim);border-bottom:1px solid rgba(255,51,102,0.3);font-size:12px;overflow:hidden;white-space:nowrap">
   <div id="alerts-content" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap"></div>
 </div>
+<div id="alerts-drawer" style="display:none;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--border)">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:10px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:0.6px">Alert Details</span>
+    <span id="alerts-drawer-count" style="font-size:10px;color:var(--dim);margin-left:auto"></span>
+    <button onclick="dismissAllAlerts()" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer">Dismiss all</button>
+    <button onclick="closeAlertsDrawer()" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer">Close</button>
+  </div>
+  <div id="alerts-drawer-filters" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+  <div id="alerts-drawer-sort" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+  <div id="alerts-drawer-presets" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+  <div id="alerts-drawer-list" style="display:grid;gap:6px"></div>
+</div>
 
 <nav id="tabs-nav" role="tablist" aria-label="Dashboard sections">
   <button data-tab="office" class="active" role="tab" aria-selected="true" aria-label="Office">🏢 Office</button>
@@ -140,6 +152,13 @@
     <span style="flex-shrink:0;font-size:13px">📡</span>
     <span id="office-ticker-text">Waiting for activity...</span>
     <span id="office-ticker-time" style="margin-left:auto;font-family:'SF Mono',Menlo,monospace;font-size:10px;flex-shrink:0"></span>
+  </div>
+  <div id="live-now-panel" style="max-width:100%;margin:10px auto 0;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.9px;font-weight:700">
+      <span style="font-size:12px">🎯</span>
+      Who's doing what right now
+    </div>
+    <div id="live-now-board" style="display:grid;gap:8px"></div>
   </div>
   <div id="office-quickstats" style="max-width:100%;margin:12px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
     <div class="card" style="padding:10px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s" onclick="document.querySelector('[data-tab=tokens]').click()" onmouseenter="this.style.transform='translateY(-2px)';this.style.borderColor='var(--accent)'" onmouseleave="this.style.transform='';this.style.borderColor=''"><div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Tokens</div><div style="font-size:18px;font-weight:800;color:var(--accent)" id="qs-tokens">--</div></div>
@@ -404,6 +423,10 @@
     <h3>⏱ API Response Times</h3>
     <div class="sub" id="latency-body">Loading...</div>
   </div>
+  <div class="card" style="margin-top:12px" id="sys-plugins">
+    <h3>🧩 Plugin Registry</h3>
+    <div class="sub" id="plugins-body">Loading...</div>
+  </div>
 </div>
 
 <div class="tab" role="tabpanel" id="tab-dep-graph">
@@ -457,16 +480,16 @@
 </div>
 
 <script src="tab-heatmap.js?v=20260323c"></script>
-<script src="app.js?v=20260325e"></script>
-<script src="alerts.js?v=20260319c"></script>
+<script src="app.js?v=20260325f"></script>
+<script src="alerts.js?v=20260327c"></script>
 <script src="live-logs.js?v=20260319c"></script>
-<script src="tab-tokens.js?v=20260321a"></script>
+<script src="tab-tokens.js?v=20260325b"></script>
 <script src="tab-comm-graph.js?v=20260325e"></script>
 <script src="tab-performance.js?v=20260319c"></script>
 <script src="tab-timeline.js?v=20260324a"></script>
 <script src="sounds.js?v=20260319c"></script>
-<script src="tab-system.js?v=20260325a"></script>
-<script src="tab-queue.js?v=20260322a"></script>
+<script src="tab-system.js?v=20260325c"></script>
+<script src="tab-queue.js?v=20260325b"></script>
 <script src="tab-memory.js?v=20260319c"></script>
 <script src="agent-detail.js?v=20260319c"></script>
 

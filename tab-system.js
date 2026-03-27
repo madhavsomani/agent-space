@@ -111,6 +111,9 @@ async function refreshSystem() {
     } else {
       document.getElementById('network-body').innerHTML = '<span style="color:var(--dim)">No network data available</span>';
     }
+
+    // Plugin registry panel
+    refreshPlugins();
   } catch(e){
     const el = document.getElementById('live-status');
     el.className = 'live offline'; el.innerHTML = '<span class="pulse"></span>OFFLINE';
@@ -174,5 +177,82 @@ async function refreshLatency() {
     html += '</div>';
     body.innerHTML = html;
   } catch {}
+}
+
+async function refreshPlugins() {
+  try {
+    const r = await fetchWithTimeout(API + '/plugins', {}, 5000);
+    const d = await r.json();
+    const body = document.getElementById('plugins-body');
+    if (!body) return;
+    const plugins = d.plugins || [];
+    const toolbar = `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0 10px">
+      <span style="font-size:10px;color:var(--dim)">${plugins.length} plugin(s) registered</span>
+      <button onclick="registerPluginPrompt()" style="padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--accent);font-size:10px;font-weight:700;cursor:pointer">+ Register plugin</button>
+    </div>`;
+    if (!plugins.length) {
+      body.innerHTML = toolbar + '<span style="color:var(--dim)">No plugins configured. Add `plugins` in config.json or register via API.</span>';
+      return;
+    }
+    body.innerHTML = toolbar + plugins.map(p => {
+      const stateColor = p.enabled ? 'var(--green)' : 'var(--dim)';
+      const stateText = p.enabled ? 'enabled' : 'disabled';
+      const src = p.source || 'config';
+      const canRemove = src === 'runtime';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">${esc(p.name || p.id)}</div>
+          <div style="font-size:10px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.entry || p.description || 'no entry')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;white-space:nowrap">
+          <div style="text-align:right">
+            <div style="font-size:10px;color:${stateColor};font-weight:700">${stateText}</div>
+            <div style="font-size:9px;color:var(--dim)">${esc(src)}</div>
+          </div>
+          ${canRemove ? `<button onclick="unregisterPlugin(decodeURIComponent('${encodeURIComponent(p.id)}'))" style="padding:4px 8px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--red);font-size:10px;font-weight:700;cursor:pointer">Remove</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch {
+    const body = document.getElementById('plugins-body');
+    if (body) body.innerHTML = '<span style="color:var(--red)">Failed to load plugin registry</span>';
+  }
+}
+
+async function registerPluginPrompt() {
+  const id = (prompt('Plugin ID (e.g. custom-panel)') || '').trim();
+  if (!id) return;
+  const name = (prompt('Plugin name', id) || id).trim();
+  const entry = (prompt('Plugin entry path/URL', '/plugins/' + id + '.js') || '').trim();
+  try {
+    const r = await fetchWithTimeout(API + '/plugins/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, entry, type: 'panel', enabled: true })
+    }, 8000);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'registration failed');
+    if (typeof showToast === 'function') showToast('🧩', `Plugin ${name} registered`, '#22c55e');
+    refreshPlugins();
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('⚠️', `Plugin register failed: ${e.message}`, '#ef4444');
+  }
+}
+
+async function unregisterPlugin(id) {
+  if (!id) return;
+  try {
+    const r = await fetchWithTimeout(API + '/plugins/unregister', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    }, 8000);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'unregister failed');
+    if (typeof showToast === 'function') showToast('🧩', `Plugin ${id} removed`, '#f59e0b');
+    refreshPlugins();
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('⚠️', `Plugin remove failed: ${e.message}`, '#ef4444');
+  }
 }
 

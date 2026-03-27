@@ -62,6 +62,7 @@ header .live.offline .pulse { background:var(--red); }
 #office-quickstats .card { padding:18px 20px !important; border-radius:12px; }
 #office-quickstats .card div:nth-child(2) { font-size:22px !important; }
 #office-ticker { display:flex; }
+#live-now-board { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 #agent-search-bar { display:flex; }
 #agent-status-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:22px !important; }
 #office-legend, #office-ticker { display:none; }
@@ -386,6 +387,7 @@ body[data-theme="dark"] #tab-queue .queue-pill {
   .kanban { grid-template-columns:1fr; }
   #office-map { border-radius:12px; min-height:200px; }
   #office-quickstats { grid-template-columns:repeat(2,1fr) !important; gap:6px !important; }
+  #live-now-board { grid-template-columns:1fr !important; }
   #agent-status-cards { grid-template-columns:1fr !important; }
   #agent-status-cards .team-group > div:last-child { grid-template-columns:1fr !important; }
   #agent-filter-buttons { flex-wrap:wrap; }
@@ -398,7 +400,9 @@ body[data-theme="dark"] #tab-queue .queue-pill {
   .agent-detail-panel { max-width:100%; width:100%; border-radius:12px 12px 0 0; max-height:80vh; }
   .notif-center-panel { width:100%; max-width:100%; }
   #alerts-banner { font-size:11px; padding:4px 10px; }
+  #alerts-drawer { padding:8px 10px !important; }
 }
+
 @media(max-width:400px) {
   header { padding:6px 8px; gap:4px; }
   header .logo { font-size:14px; }
@@ -422,6 +426,8 @@ body[data-theme="dark"] #tab-queue .queue-pill {
   #agent-search-bar { margin-top:8px !important; gap:5px !important; }
   #agent-search-bar input, #agent-search-bar select, #agent-search-bar button { min-height:34px !important; font-size:10px !important; }
   .status-strip { padding:4px 8px; font-size:10px; }
+  #alerts-drawer { padding:7px 8px !important; }
+  #alerts-drawer button { font-size:9px !important; padding:2px 6px !important; }
   #ss-working-names, #ss-countdown { display:none !important; }
   #office-legend { display:none !important; }
   .zone-header { margin:12px 0 6px !important; }

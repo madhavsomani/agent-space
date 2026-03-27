@@ -2,16 +2,71 @@
 let _tabLoaded = {};
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function sanitizeAgentText(text) { const s = String(text || '').replace(/\[\[\s*reply_to(?:_[^\]]+|:[^\]]+)?\s*\]\]/gi, '').replace(/\s+/g, ' ').trim(); if (/^(HEARTBEAT_OK|NO_REPLY)$/i.test(s)) return ''; return s; }
-function getTheme() { return localStorage.getItem('hq-theme') || 'dark'; }
-window.invalidateStaticCache = window.invalidateStaticCache || function(){};
-function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  document.body.setAttribute('data-theme', t); // keep body/html in sync for CSS variable inheritance
-  document.getElementById('theme-icon').textContent = t === 'dark' ? '🌙' : '☀️';
-  if (typeof invalidateStaticCache === 'function') invalidateStaticCache();
+const THEME_KEY = 'hq-theme';
+const THEME_PREFS = ['dark', 'light', 'system'];
+function getThemePref() {
+  const t = (localStorage.getItem(THEME_KEY) || 'system').toLowerCase();
+  return THEME_PREFS.includes(t) ? t : 'system';
 }
-function toggleTheme() { const t = getTheme() === 'dark' ? 'light' : 'dark'; localStorage.setItem('hq-theme', t); applyTheme(t); }
-applyTheme(getTheme());
+function getSystemTheme() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function resolveTheme(pref) {
+  return pref === 'system' ? getSystemTheme() : (pref === 'dark' ? 'dark' : 'light');
+}
+function getTheme() { return resolveTheme(getThemePref()); }
+window.invalidateStaticCache = window.invalidateStaticCache || function(){};
+
+function setThemeColorMeta(t) {
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+  meta.content = t === 'dark' ? '#0c0c0e' : '#f0f2f5';
+}
+
+function updateThemeButton(pref, resolved) {
+  const iconEl = document.getElementById('theme-icon');
+  const btn = document.getElementById('theme-btn');
+  if (iconEl) {
+    if (pref === 'system') iconEl.textContent = '🖥️';
+    else iconEl.textContent = resolved === 'dark' ? '🌙' : '☀️';
+  }
+  if (btn) {
+    const modeLabel = pref === 'system' ? `System (${resolved})` : pref[0].toUpperCase() + pref.slice(1);
+    btn.title = `Theme: ${modeLabel}. Press T to cycle`;
+    btn.setAttribute('aria-label', `Theme mode ${modeLabel}. Press T to cycle`);
+  }
+}
+
+function applyTheme(pref = getThemePref()) {
+  const preference = THEME_PREFS.includes(pref) ? pref : getThemePref();
+  const resolved = resolveTheme(preference);
+  document.documentElement.setAttribute('data-theme', resolved);
+  document.documentElement.setAttribute('data-theme-pref', preference);
+  document.body.setAttribute('data-theme', resolved); // keep body/html in sync for CSS variable inheritance
+  document.body.setAttribute('data-theme-pref', preference);
+  updateThemeButton(preference, resolved);
+  setThemeColorMeta(resolved);
+  if (typeof invalidateStaticCache === 'function') invalidateStaticCache();
+  window.dispatchEvent(new CustomEvent('hq-theme-changed', { detail: { theme: resolved, preference } }));
+}
+function toggleTheme() {
+  const current = getThemePref();
+  const idx = THEME_PREFS.indexOf(current);
+  const next = THEME_PREFS[(idx + 1) % THEME_PREFS.length];
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+applyTheme(getThemePref());
+if (window.matchMedia) {
+  const _themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  const _syncSystemTheme = () => { if (getThemePref() === 'system') applyTheme('system'); };
+  if (typeof _themeMedia.addEventListener === 'function') _themeMedia.addEventListener('change', _syncSystemTheme);
+  else if (typeof _themeMedia.addListener === 'function') _themeMedia.addListener(_syncSystemTheme);
+}
 
 const API = '/api';
 
@@ -51,6 +106,26 @@ setInterval(updateClock, 1000); updateClock();
 // Tabs
 const _tabOrder = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
 let _currentTab = 'office';
+
+window.addEventListener('hq-theme-changed', () => {
+  // Repaint tab-specific visuals that cache explicit colors/SVG backgrounds
+  try {
+    if (_currentTab === 'comm-graph' && typeof refreshCommGraph === 'function') refreshCommGraph();
+    if (_currentTab === 'queue' && typeof refreshQueue === 'function') refreshQueue();
+    if (_currentTab === 'tokens') {
+      if (typeof refreshTokens === 'function') refreshTokens();
+      if (typeof refreshDailyCost === 'function') refreshDailyCost();
+    }
+    if (_currentTab === 'office' && typeof updateOfficeMap === 'function') updateOfficeMap(agentData || []);
+  } catch (e) {
+    console.warn('theme repaint failed', e);
+  }
+});
+
+window.addEventListener('storage', (e) => {
+  if (e.key === THEME_KEY) applyTheme(e.newValue || 'system');
+});
+
 function switchTab(tabName) {
   // Always scroll to top — even when re-clicking the same tab (fixes canvas appearing off-screen)
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -283,6 +358,64 @@ function updateStatusStrip() {
   if(namesEl) namesEl.textContent = workingNames.length ? '(' + workingNames.join(', ') + ')' : '';
 }
 
+function summarizeNowTask(text, status = 'working') {
+  const fallback = status === 'working' ? 'Processing current task…' : 'No active task';
+  let msg = sanitizeAgentText(text || '');
+  if (!msg) return fallback;
+  msg = msg
+    .replace(/^\s*(heartbeat(?:_ok)?|status)\s*[:\-]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!msg) return fallback;
+  msg = msg.split(/(?:\.\s+|\n|;\s+)/)[0].trim() || msg;
+  if (msg.length > 96) msg = msg.slice(0, 95).trimEnd() + '…';
+  return msg;
+}
+
+function updateLiveNowBoard() {
+  const board = document.getElementById('live-now-board');
+  if (!board) return;
+
+  if (!agentData.length) {
+    board.innerHTML = `<div style="grid-column:1/-1;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;color:var(--dim);font-size:11px">Waiting for agent status…</div>`;
+    return;
+  }
+
+  const working = agentData
+    .filter(a => a.status === 'working')
+    .sort((a, b) => (a.ageMin || 0) - (b.ageMin || 0));
+
+  if (!working.length) {
+    board.innerHTML = `<div style="grid-column:1/-1;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;color:var(--dim);font-size:11px">No agents are actively working right now.</div>`;
+    return;
+  }
+
+  const staleThresholdMin = 15;
+  const cards = working.slice(0, 6).map(a => {
+    const ageMin = Math.max(0, Number(a.ageMin || 0));
+    const isStale = ageMin >= staleThresholdMin;
+    const freshnessText = ageMin < 1 ? 'live' : `${Math.round(ageMin)}m`;
+    const freshnessColor = isStale ? 'var(--orange)' : ageMin >= 5 ? 'var(--dim)' : 'var(--green)';
+    const task = summarizeNowTask(a.lastMessage, a.status);
+    const safeName = a.name.replace(/'/g, String.fromCharCode(92) + String.fromCharCode(39));
+    const quietBadge = isStale ? `<span style="margin-left:6px;font-size:9px;color:var(--orange);font-weight:700">⚠ quiet</span>` : '';
+
+    return `<div tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="openAgentDetail('${safeName}')" title="${esc(task)}" style="background:var(--glass);border:1px solid var(--border);border-left:3px solid ${a.color};border-radius:8px;padding:8px 9px;cursor:pointer;transition:transform .12s,border-color .12s" onmouseenter="this.style.transform='translateY(-1px)';this.style.borderColor='${a.color}'" onmouseleave="this.style.transform='';this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:center;gap:6px;min-width:0">
+        <span style="font-size:10px;color:${a.color};font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%">${esc(a.name)}</span>
+        <span style="margin-left:auto;font-size:9px;color:${freshnessColor};font-family:'SF Mono',Menlo,monospace">${freshnessText}</span>${quietBadge}
+      </div>
+      <div style="margin-top:4px;font-size:10px;color:var(--text);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(task)}</div>
+    </div>`;
+  });
+
+  if (working.length > 6) {
+    cards.push(`<div style="display:flex;align-items:center;justify-content:center;padding:8px;border:1px dashed var(--border);border-radius:8px;font-size:10px;color:var(--dim)">+${working.length - 6} more working agents</div>`);
+  }
+
+  board.innerHTML = cards.join('');
+}
+
 // ===== AGENTS =====
 async function refreshAgents() {
   try {
@@ -311,6 +444,7 @@ async function refreshAgents() {
   }
   updateStatusStrip();
   renderAgentCards();
+  updateLiveNowBoard();
 }
 
 // ===== AGENT SEARCH & FILTER =====

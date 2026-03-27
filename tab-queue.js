@@ -72,6 +72,13 @@ async function refreshQueue() {
       </div>
     </div>`;
 
+    const assignOwners = ['Unassigned', ...Array.from(new Set((agentData || []).map(a => a.name))).sort()];
+    html += `<div class="queue-section"><div class="card" style="padding:14px 16px"><h3 class="queue-title" style="margin-bottom:8px"><span>🎯 Task Assignment</span><span class="queue-pill">Drag card → owner</span></h3><div class="sub" style="margin-bottom:10px">Drag work cards from the board onto an owner lane to assign instantly.</div><div style="display:flex;gap:8px;flex-wrap:wrap">${assignOwners.map(owner => {
+      const key = owner === 'Unassigned' ? '__unassigned__' : encodeURIComponent(owner);
+      const tone = owner === 'Unassigned' ? 'var(--dim)' : ((agentData.find(a => a.name === owner) || {}).color || 'var(--accent)');
+      return `<button ondragover="allowWrDrop(event)" ondrop="dropWrToOwner(event,'${key}')" style="padding:6px 10px;border-radius:999px;border:1px dashed ${tone};background:color-mix(in srgb, ${tone} 12%, transparent);color:${tone};font-size:11px;font-weight:700;cursor:copy;white-space:nowrap">${owner}</button>`;
+    }).join('')}</div></div></div>`;
+
     if(d.active?.length) {
       html += `<div class="queue-section"><div class="card" style="padding:18px 20px"><h3 class="queue-title"><span>🔥 Active Work</span><span class="queue-pill">Live queue</span></h3><div class="sub" style="margin-bottom:10px">Current work running across the agent fleet</div>`;
       d.active.forEach(w => {
@@ -108,7 +115,7 @@ async function refreshQueue() {
       Object.entries(buckets).forEach(([name,items])=>{
         const visible = items.slice(0,7);
         const extra = items.length - visible.length;
-        html += `<div><div class="card" style="padding:14px 16px;max-height:420px;display:flex;flex-direction:column"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-shrink:0"><span>${icons[name]||''} ${name}</span><span style="font-size:11px;color:var(--dim);font-weight:700">${items.length}</span></h3><div class="kanban-col" style="overflow-y:auto;flex:1;scrollbar-width:thin">${visible.map(w=>`<div class="wr-card"><div class="title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.title}</div><div class="meta">${w.type} ${w.priority?`· ${w.priority}`:''}</div></div>`).join('')||'<div style="color:var(--dim);font-size:12px;text-align:center;padding:16px;border:1px dashed var(--border);border-radius:10px">Empty</div>'}${extra > 0 ? `<div class="kanban-more">+${extra} more in ${name}</div>` : ''}</div></div></div>`;
+        html += `<div><div class="card" style="padding:14px 16px;max-height:420px;display:flex;flex-direction:column"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-shrink:0"><span>${icons[name]||''} ${name}</span><span style="font-size:11px;color:var(--dim);font-weight:700">${items.length}</span></h3><div class="kanban-col" style="overflow-y:auto;flex:1;scrollbar-width:thin">${visible.map(w=>`<div class="wr-card" draggable="true" ondragstart="startWrDrag(event,'${encodeURIComponent(w.file || '')}')" title="Drag to assign owner"><div class="title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.title}</div><div class="meta">${w.type} ${w.priority?`· ${w.priority}`:''}${w.owner?` · 👤 ${w.owner}`:''}</div></div>`).join('')||'<div style="color:var(--dim);font-size:12px;text-align:center;padding:16px;border:1px dashed var(--border);border-radius:10px">Empty</div>'}${extra > 0 ? `<div class="kanban-more">+${extra} more in ${name}</div>` : ''}</div></div></div>`;
       });
       html += `</div></div>`;
     }
@@ -121,5 +128,39 @@ async function refreshQueue() {
     document.getElementById('queue-content').innerHTML = html || '<div class="card"><h3>Queue Empty</h3><div class="sub">No active work requests</div></div>';
     renderWorkload(d.wrs);
   } catch {}
+}
+
+function allowWrDrop(ev) {
+  ev.preventDefault();
+}
+
+function startWrDrag(ev, encodedFile) {
+  try {
+    ev.dataTransfer.setData('text/plain', encodedFile || '');
+    ev.dataTransfer.effectAllowed = 'move';
+  } catch {}
+}
+
+async function dropWrToOwner(ev, ownerKey) {
+  ev.preventDefault();
+  const encodedFile = ev.dataTransfer.getData('text/plain');
+  if (!encodedFile) return;
+  const file = decodeURIComponent(encodedFile);
+  const owner = ownerKey === '__unassigned__' ? '' : decodeURIComponent(ownerKey || '');
+  try {
+    const r = await fetchWithTimeout(API + '/queue/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file, owner })
+    }, 10000);
+    const d = await r.json();
+    if (!d.ok && d.error) throw new Error(d.error);
+    if (typeof showToast === 'function') {
+      showToast('🎯', owner ? `Assigned to ${owner}` : 'Moved to Unassigned', '#22c55e');
+    }
+    refreshQueue();
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('⚠️', `Assignment failed: ${e.message}`, '#ef4444');
+  }
 }
 
