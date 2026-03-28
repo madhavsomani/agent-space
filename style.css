@@ -260,6 +260,18 @@ body[data-theme="dark"] #tab-queue .queue-pill {
 .activity-filter:hover { color:var(--text); border-color:var(--accent); background:var(--accent-glow); }
 .activity-filter.active { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
 
+/* Activity timeline (24h per agent) */
+.activity-timeline-agent { border:1px solid var(--border); border-radius:10px; padding:8px 10px; margin-bottom:8px; background:var(--glass); }
+.activity-timeline-agent .head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+.activity-timeline-agent .name { font-size:11px; font-weight:700; color:var(--text); }
+.activity-timeline-agent .ago { font-size:10px; color:var(--dim); font-family:'SF Mono',Menlo,monospace; }
+.activity-timeline-agent .entries { display:flex; flex-direction:column; gap:4px; }
+.activity-timeline-entry { display:flex; align-items:flex-start; gap:7px; padding:4px 0; border-bottom:1px dashed var(--border); }
+.activity-timeline-entry:last-child { border-bottom:none; }
+.activity-timeline-entry .dot { width:7px; height:7px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+.activity-timeline-entry .txt { color:var(--text); font-size:10px; line-height:1.35; flex:1; }
+.activity-timeline-entry .when { color:var(--dim); font-size:9px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; }
+
 /* (toast styles consolidated above in #toast-container block) */
 
 /* Help overlay */

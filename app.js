@@ -600,11 +600,13 @@ function buildLegend() {
 let activityFilter = 'all';
 let activityAgentFilter = '';
 let activityCache = [];
+let activityEventCache = [];
 let lastActivityTs = null;
 
 function setActivityAgentFilter(val) {
   activityAgentFilter = val;
   renderActivityFeed(activityCache);
+  renderActivityTimeline24h(activityCache, activityEventCache);
 }
 
 let timelineData = null; // cached timeline heatmap for sparklines
@@ -700,6 +702,89 @@ function renderActivityFeed(items) {
     }).join('') + '</div>';
 }
 
+function normalizeEventTs(raw) {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === 'number') {
+    if (raw > 1e12) return raw; // ms
+    if (raw > 1e9) return raw * 1000; // seconds
+    return null;
+  }
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
+  const body = document.getElementById('activity-timeline-24h-body');
+  const meta = document.getElementById('activity-timeline-24h-meta');
+  if (!body || !meta) return;
+
+  const now = Date.now();
+  const cutoff = now - 24 * 3600000;
+  const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
+
+  const merged = [];
+  (activityItems || []).forEach(i => {
+    const ts = normalizeEventTs(i.ts);
+    if (!ts || ts < cutoff) return;
+    const agent = String(i.agent || 'system').trim() || 'system';
+    const text = String(i.text || '').trim();
+    if (!text) return;
+    merged.push({ ts, agent, text, type: i.type || 'agent', source: 'activity' });
+  });
+
+  (agentEvents || []).forEach(e => {
+    const ts = normalizeEventTs(e.ts);
+    if (!ts || ts < cutoff) return;
+    const agent = String(e.agent || 'system').trim() || 'system';
+    const detail = String(e.detail || '').trim();
+    const evt = String(e.event || 'event').trim();
+    const text = detail ? `${evt}: ${detail}` : evt;
+    merged.push({ ts, agent, text, type: 'system', source: 'eventdb' });
+  });
+
+  const dedup = new Map();
+  merged.sort((a, b) => b.ts - a.ts);
+  for (const e of merged) {
+    const key = `${e.agent.toLowerCase()}|${e.text.slice(0,90).toLowerCase()}|${Math.floor(e.ts / 60000)}`;
+    if (!dedup.has(key)) dedup.set(key, e);
+  }
+  let rows = Array.from(dedup.values());
+
+  if (activityAgentFilter) rows = rows.filter(r => r.agent === activityAgentFilter);
+
+  const groups = {};
+  rows.forEach(r => {
+    if (!groups[r.agent]) groups[r.agent] = [];
+    if (groups[r.agent].length < 8) groups[r.agent].push(r);
+  });
+
+  const agentNames = Object.keys(groups).sort((a, b) => {
+    const ta = groups[a][0]?.ts || 0;
+    const tb = groups[b][0]?.ts || 0;
+    return tb - ta;
+  });
+
+  meta.textContent = `${rows.length} events · ${agentNames.length} agents`;
+
+  if (!agentNames.length) {
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--dim)">No timeline events in last 24h.</div>';
+    return;
+  }
+
+  body.innerHTML = agentNames.map(name => {
+    const entries = groups[name];
+    const lastTs = entries[0]?.ts;
+    const lastAgo = lastTs ? timeAgo(new Date(lastTs)) : '';
+    const itemsHtml = entries.map(e => {
+      const ago = timeAgo(new Date(e.ts));
+      const color = typeColors[e.type] || '#64748b';
+      const stamp = new Date(e.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      return `<div class="activity-timeline-entry"><span class="dot" style="background:${color}"></span><div class="txt">${esc(e.text)}</div><span class="when" title="${stamp}">${ago}</span></div>`;
+    }).join('');
+    return `<div class="activity-timeline-agent"><div class="head"><span class="name">${esc(name)}</span><span class="ago">${lastAgo}</span></div><div class="entries">${itemsHtml}</div></div>`;
+  }).join('');
+}
+
 // ===== ACTIVITY FEED =====
 async function refreshActivity() {
   try {
@@ -707,6 +792,15 @@ async function refreshActivity() {
     const d = await r.json();
     const items = d.activity || [];
     activityCache = items;
+
+    let agentEvents = [];
+    try {
+      const er = await fetchWithTimeout(API + '/agent-events', {}, 8000);
+      const ed = await er.json();
+      agentEvents = ed.events || [];
+    } catch {}
+    activityEventCache = agentEvents;
+
     // Toast for new activity items
     const typeIcons = { wr:'📋', agent:'🤖', commit:'💾', system:'⚙️' };
     const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
@@ -719,6 +813,7 @@ async function refreshActivity() {
     if(items.length && items[0].ts) lastActivityTs = new Date(items[0].ts).getTime();
     if(!items.length) {
       document.getElementById('activity-feed').innerHTML = '<h3>Agent Activity Feed</h3><div style="text-align:center;padding:48px 16px;color:var(--dim)"><div style="font-size:40px;margin-bottom:12px;opacity:0.5">📡</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">No recent activity</div><div style="font-size:12px;opacity:0.7">Activity will appear here as agents start working.</div></div>';
+      renderActivityTimeline24h([], agentEvents);
       return;
     }
     const colors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
@@ -734,6 +829,7 @@ async function refreshActivity() {
       document.getElementById('office-ticker-time').textContent = latest.ts ? timeAgo(new Date(latest.ts)) : '';
     }
     renderActivityFeed(items);
+    renderActivityTimeline24h(items, agentEvents);
     // Update 3D activity overlay
     const overlay = document.getElementById('activity-overlay');
     if (overlay && items.length) {
@@ -1320,42 +1416,64 @@ async function loadPlan() {
   try {
     const r = await fetch('/api/plan');
     const d = await r.json();
-    if (!d.ok) { container.innerHTML = `<div class="card">Error: ${escHtml(d.error)}</div>`; return; }
+    if (!d.ok) { container.innerHTML = '<div class="card">Error loading plan</div>'; return; }
 
-    document.getElementById('plan-progress-text').textContent = `${d.done}/${d.total} done (${d.percent}%)`;
-    document.getElementById('plan-progress-bar').style.width = `${d.percent}%`;
+    document.getElementById('plan-progress-text').textContent = d.totalDone + '/' + d.totalAll + ' done (' + d.totalPercent + '%)';
+    document.getElementById('plan-progress-bar').style.width = d.totalPercent + '%';
 
-    const parsed = parsePlanMarkdown(d.markdown || '');
-    const projectCards = parsed.projects.map(project => {
-      const currentIdx = project.phases.findIndex(p => /IN PROGRESS/i.test(p.title) || p.items.some(i => !i.done));
-      const body = project.phases.map((p, idx) => phaseHtml(p, idx === (currentIdx < 0 ? 0 : currentIdx))).join('');
-      return `
-        <div class="card" style="min-height:220px">
-          <h3 style="margin-bottom:6px">${escHtml(project.title)}</h3>
-          ${project.vision ? `<div class="sub" style="margin-bottom:4px"><strong>Vision:</strong> ${escHtml(project.vision)}</div>` : ''}
-          ${project.model ? `<div class="sub" style="margin-bottom:8px"><strong>Model/Agent:</strong> ${escHtml(project.model)}</div>` : ''}
-          ${body || '<div class="sub">No phases found.</div>'}
-        </div>`;
-    }).join('');
+    const LABELS = { 'coding-agent-1': '\U0001f528 CA1 — ItineraryWala', 'coding-agent-2': '\U0001f5a5 CA2 — Agent Space', 'qa': '\U0001f50d QA Agent', 'writer': '\u270d Writer Agent' };
 
-    let agentStatusHtml = '';
-    if (parsed.agentStatusTable.length > 1) {
-      const header = parsed.agentStatusTable[0];
-      const rows = parsed.agentStatusTable.slice(1).map(cols => `<tr>${cols.map((c, i) => `<td style="padding:8px;border-top:1px solid var(--border);font-size:12px;color:${i===3 && /Active|Running|Working|✅|🔄/.test(c) ? 'var(--green)' : 'var(--text)'}">${escHtml(c)}</td>`).join('')}</tr>`).join('');
-      agentStatusHtml = `
-        <div class="card" style="grid-column:1/-1;overflow:auto">
-          <h3>🤖 Agent Status</h3>
-          <table style="width:100%;border-collapse:collapse;min-width:620px">
-            <thead><tr>${header.map(h => `<th style="text-align:left;padding:8px;color:var(--dim);font-size:11px;border-bottom:1px solid var(--border)">${escHtml(h)}</th>`).join('')}</tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>`;
+    function renderPlanMd(md) {
+      return md.split('\n').map(function(l) {
+        if (/^- \[x\]/.test(l)) return '<div style="color:var(--green);font-size:12px;padding:2px 0">\u2705 ' + l.replace(/^- \[x\] /,'') + '</div>';
+        if (/^- \[ \].*BLOCKED|^- \[ \].*\u26a0/.test(l)) return '<div style="color:var(--red);font-size:12px;padding:2px 0">\U0001f534 ' + l.replace(/^- \[ \] /,'') + '</div>';
+        if (/^- \[ \]/.test(l)) return '<div style="color:var(--dim);font-size:12px;padding:2px 0">\u2610 ' + l.replace(/^- \[ \] /,'') + '</div>';
+        if (/^## /.test(l)) return '<div style="font-weight:600;color:var(--text);margin-top:8px;font-size:12px">' + l.replace(/^## /,'') + '</div>';
+        if (/^### /.test(l)) return '<div style="font-weight:600;color:var(--accent);margin-top:6px;font-size:11px">' + l.replace(/^### /,'') + '</div>';
+        return '';
+      }).filter(Boolean).join('');
     }
 
-    container.innerHTML = projectCards + agentStatusHtml;
+    function renderStateMd(md) {
+      return md.split('\n').map(function(l) {
+        if (/^## /.test(l)) {
+          var parts = l.replace(/^## /,'').split(':');
+          if (parts.length >= 2) return '<div style="font-size:12px;line-height:1.5"><span style="color:var(--accent);font-weight:600">' + parts[0].trim() + ':</span> ' + parts.slice(1).join(':').trim() + '</div>';
+          return '<div style="font-weight:600;color:var(--text);font-size:12px;margin-top:4px">' + parts[0] + '</div>';
+        }
+        if (/^- /.test(l)) return '<div style="font-size:12px;padding-left:12px;color:var(--text)">' + l + '</div>';
+        return '';
+      }).filter(Boolean).join('');
+    }
+
+    var html = '';
+    for (var name in d.agents) {
+      var a = d.agents[name];
+      var label = LABELS[name] || name;
+      var statusMatch = a.state.match(/## Status: (.+)/);
+      var itemMatch = a.state.match(/## Current Item: (.+)/);
+      var status = statusMatch ? statusMatch[1] : '?';
+      var item = itemMatch ? itemMatch[1] : '?';
+      var dot = status.toLowerCase().indexOf('active') >= 0 ? '\U0001f7e2' : '\u26aa';
+      var statusColor = status.toLowerCase().indexOf('active') >= 0 ? 'var(--green)' : 'var(--dim)';
+      html += '<div class="card" style="min-height:100px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<h3 style="font-size:14px;margin:0">' + dot + ' ' + label + '</h3>';
+      html += '<span style="font-size:12px;color:var(--green);font-weight:600">' + a.done + '/' + a.total + ' (' + a.percent + '%)</span>';
+      html += '</div>';
+      html += '<div style="background:var(--surface);border-radius:4px;height:4px;margin-bottom:8px;overflow:hidden"><div style="background:var(--green);height:100%;width:' + a.percent + '%"></div></div>';
+      html += '<div style="border-left:3px solid ' + statusColor + ';padding-left:8px;margin-bottom:8px">';
+      html += '<div style="font-size:12px;color:var(--text);font-weight:600">\u2192 ' + item + '</div>';
+      html += '<div style="font-size:11px;color:var(--dim)">' + status + '</div>';
+      html += '</div>';
+      html += '<details style="margin-top:4px"><summary style="font-size:11px;color:var(--dim);cursor:pointer">State</summary>' + renderStateMd(a.state) + '</details>';
+      html += '<details style="margin-top:4px"><summary style="font-size:11px;color:var(--dim);cursor:pointer">Plan</summary>' + renderPlanMd(a.plan) + '</details>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
   } catch (e) {
-    container.innerHTML = `<div class="card">Failed to load: ${escHtml(e.message)}</div>`;
+    container.innerHTML = '<div class="card">Failed to load: ' + e.message + '</div>';
   }
 }
 loadPlan();
-setInterval(loadPlan, 60000);
+setInterval(loadPlan, 30000);
