@@ -236,14 +236,14 @@ document.querySelectorAll('#tabs-nav button').forEach(btn => {
 // Restore tab from URL hash on load
 (function(){
   const hash = location.hash.replace('#','');
-  const validTabs = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
+  const validTabs = ['office','activity','queue','memory','tokens','sessions','performance','comm-graph','dep-graph','system','plan'];
   if(hash && validTabs.includes(hash)) switchTab(hash);
 })();
 
 // Keyboard shortcuts: 1-6 for tabs, R for refresh
 document.addEventListener('keydown', e => {
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-  const tabs = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
+  const tabs = ['office','activity','queue','memory','tokens','sessions','performance','comm-graph','dep-graph','system','plan'];
   const idx = parseInt(e.key) - 1;
   if(idx >= 0 && idx < tabs.length) {
     switchTab(tabs[idx]);
@@ -303,7 +303,7 @@ document.addEventListener('keydown', e => {
 // Swipe navigation for mobile
 (function() {
   let touchStartX = 0, touchStartY = 0;
-  const tabs = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
+  const tabs = ['office','activity','queue','memory','tokens','sessions','performance','comm-graph','dep-graph','system','plan'];
   document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive:true});
   document.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - touchStartX;
@@ -326,6 +326,7 @@ async function refreshAll() {
     refreshMemory(),
     refreshTokens(),
     refreshDailyCost(),
+    refreshSessionOptions(),
     refreshActivity(),
     refreshTimeline(),
     refreshPerformance(),
@@ -429,6 +430,7 @@ function updateStatusStrip() {
   document.getElementById('ss-sleeping').textContent = counts.sleeping;
   const namesEl = document.getElementById('ss-working-names');
   if(namesEl) namesEl.textContent = workingNames.length ? '(' + workingNames.join(', ') + ')' : '';
+  populateSessionOptions();
 }
 
 function summarizeNowTask(text, status = 'working') {
@@ -1049,6 +1051,103 @@ async function submitWr() {
     setTimeout(() => msg.style.display = 'none', 4000);
   } finally { btn.disabled = false; btn.textContent = 'Create WR'; }
 }
+// ===== SESSION HISTORY =====
+let sessionHistoryCache = [];
+let sessionHistoryLoadedKey = '';
+
+function getSessionKey(agent) {
+  return agent?.sessionKey || agent?.key || agent?.id || agent?.sessionId || agent?.name || '';
+}
+
+function normalizeSessionHistoryItems(payload) {
+  const raw = payload?.messages || payload?.items || payload?.history || payload?.transcript || payload?.data?.messages || payload?.data?.items || [];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, index) => {
+    const role = String(item.role || item.type || item.kind || item.author || 'message').toLowerCase();
+    const toolName = item.toolName || item.name || item.function?.name || item.tool || '';
+    const content = item.content || item.text || item.message || item.output || item.input || item.summary || '';
+    const ts = normalizeEventTs(item.ts || item.timestamp || item.createdAt || item.updatedAt);
+    const isTool = role.includes('tool') || Boolean(toolName) || item.toolCall || item.toolResult;
+    return {
+      index,
+      role: isTool ? 'tool' : role,
+      label: isTool ? (toolName || 'tool') : role,
+      text: typeof content === 'string' ? content : JSON.stringify(content || item, null, 2),
+      ts,
+      raw: item,
+    };
+  });
+}
+
+function populateSessionOptions() {
+  const sel = document.getElementById('session-history-agent');
+  if (!sel) return;
+  const current = sel.value;
+  const options = (agentData || []).map(a => {
+    const key = getSessionKey(a);
+    if (!key) return '';
+    const label = `${a.name || key}${a.sessionType ? ` · ${a.sessionType}` : ''}`;
+    return `<option value="${esc(key)}"${key === current ? ' selected' : ''}>${esc(label)}</option>`;
+  }).filter(Boolean).join('');
+  sel.innerHTML = '<option value="">Select session…</option>' + options;
+}
+
+async function refreshSessionOptions() {
+  if (!agentData.length) await refreshAgents();
+  populateSessionOptions();
+}
+
+async function refreshSessionHistory() {
+  const sel = document.getElementById('session-history-agent');
+  const body = document.getElementById('session-history-body');
+  const meta = document.getElementById('session-history-meta');
+  if (!sel || !body || !meta) return;
+  const key = sel.value;
+  if (!key) { sessionHistoryCache = []; sessionHistoryLoadedKey = ''; meta.textContent = 'Select session'; body.textContent = 'Select an agent session to load history.'; return; }
+  body.innerHTML = '<div class="session-history-empty">Loading session history…</div>';
+  meta.textContent = 'Loading…';
+  const paths = [`${API}/sessions/${encodeURIComponent(key)}/history`, `${API}/session-history?sessionKey=${encodeURIComponent(key)}`, `${API}/history?sessionKey=${encodeURIComponent(key)}`];
+  const errors = [];
+  for (const path of paths) {
+    try {
+      const r = await fetchWithTimeout(path, {}, 10000);
+      const d = await r.json();
+      sessionHistoryCache = normalizeSessionHistoryItems(d);
+      sessionHistoryLoadedKey = key;
+      renderSessionHistory();
+      return;
+    } catch (e) {
+      errors.push(e.message || String(e));
+      if (Gateway?.isConnected?.() && (e.status === 401 || e.status === 403)) break;
+    }
+  }
+  sessionHistoryCache = [];
+  sessionHistoryLoadedKey = key;
+  meta.textContent = 'Unavailable';
+  body.innerHTML = `<div class="session-history-empty">No session history endpoint returned data for <b>${esc(key)}</b>. Agent Space did not add a backend/proxy; connect a Gateway that exposes session history to view transcripts.</div>`;
+}
+
+function renderSessionHistory() {
+  const body = document.getElementById('session-history-body');
+  const meta = document.getElementById('session-history-meta');
+  if (!body || !meta) return;
+  const q = String(document.getElementById('session-history-search')?.value || '').toLowerCase().trim();
+  const filter = document.getElementById('session-history-filter')?.value || 'all';
+  let rows = sessionHistoryCache || [];
+  if (filter !== 'all') rows = rows.filter(i => i.role.includes(filter) || i.label.toLowerCase().includes(filter));
+  if (q) rows = rows.filter(i => `${i.role} ${i.label} ${i.text}`.toLowerCase().includes(q));
+  meta.textContent = `${rows.length}/${sessionHistoryCache.length} items${sessionHistoryLoadedKey ? ` · ${sessionHistoryLoadedKey}` : ''}`;
+  if (!rows.length) {
+    body.innerHTML = '<div class="session-history-empty">No transcript items match the current filters.</div>';
+    return;
+  }
+  body.innerHTML = rows.map(i => {
+    const icon = i.role.includes('user') ? '👤' : i.role.includes('assistant') ? '🤖' : i.role.includes('tool') ? '🛠️' : '⚙️';
+    const stamp = i.ts ? new Date(i.ts).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    return `<article class="session-history-item ${esc(i.role)}"><div class="session-history-item-head"><span>${icon} ${esc(i.label)}</span><span>${stamp}</span></div><pre>${esc(i.text).slice(0, 6000)}</pre></article>`;
+  }).join('');
+}
+
 // ===== QUEUE ===== (extracted to tab-queue.js)
 // ===== MEMORY ===== (extracted to tab-memory.js)
 // ===== TOKENS + DAILY COST ===== (extracted to tab-tokens.js)
@@ -1186,6 +1285,7 @@ setInterval(() => {
       { icon:'📋', label:'Queue / WRs', action:()=>document.querySelector('[data-tab="queue"]')?.click(), hint:'tab' },
       { icon:'🧠', label:'Memory', action:()=>document.querySelector('[data-tab="memory"]')?.click(), hint:'tab' },
       { icon:'💰', label:'Tokens & Cost', action:()=>document.querySelector('[data-tab="tokens"]')?.click(), hint:'tab' },
+      { icon:'🧵', label:'Session History', action:()=>document.querySelector('[data-tab="sessions"]')?.click(), hint:'tab' },
       { icon:'📊', label:'Performance', action:()=>document.querySelector('[data-tab="performance"]')?.click(), hint:'tab' },
       { icon:'🔗', label:'Comm Graph', action:()=>document.querySelector('[data-tab="comm-graph"]')?.click(), hint:'tab' },
       { icon:'🌳', label:'Dependencies', action:()=>document.querySelector('[data-tab="dep-graph"]')?.click(), hint:'tab' },

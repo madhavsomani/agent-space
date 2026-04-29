@@ -76,6 +76,7 @@
     <option value="queue">📋 Queue</option>
     <option value="memory">🧠 Memory</option>
     <option value="tokens">💰 Tokens</option>
+    <option value="sessions">🧵 Sessions</option>
     <option value="performance">📊 Performance</option>
     <option value="comm-graph">🔗 Comm Graph</option>
     <option value="dep-graph">🌳 Dependencies</option>
@@ -148,6 +149,7 @@
   <button data-tab="queue" role="tab" aria-selected="false" aria-label="Work Queue">📋 Queue</button>
   <button data-tab="memory" role="tab" aria-selected="false" aria-label="Memory">🧠 Memory</button>
   <button data-tab="tokens" role="tab" aria-selected="false" aria-label="Token Usage">💰 Tokens</button>
+  <button data-tab="sessions" role="tab" aria-selected="false" aria-label="Session History">🧵 Sessions</button>
   <button data-tab="performance" role="tab" aria-selected="false" aria-label="Performance">📊 Performance</button>
   <button data-tab="comm-graph" role="tab" aria-selected="false" aria-label="Communication Graph">🔗 Comm Graph</button>
   <button data-tab="dep-graph" role="tab" aria-selected="false" aria-label="Dependencies">🌳 Dependencies</button>
@@ -307,6 +309,31 @@
       <span id="activity-timeline-24h-meta" style="font-size:10px;color:var(--dim)">Loading...</span>
     </div>
     <div id="activity-timeline-24h-body" style="margin-top:10px;font-size:11px;color:var(--dim)">Loading...</div>
+  </div>
+</div>
+
+<div class="tab" role="tabpanel" id="tab-sessions">
+  <div class="card session-history-card">
+    <div class="session-history-header">
+      <div>
+        <h3>🧵 Session History Viewer</h3>
+        <div class="sub">View transcripts and tool calls for any agent session via the configured Gateway token.</div>
+      </div>
+      <span id="session-history-meta" class="session-history-meta">Not loaded</span>
+    </div>
+    <div class="session-history-controls">
+      <select id="session-history-agent" onchange="refreshSessionHistory()"><option value="">Select session…</option></select>
+      <input id="session-history-search" type="search" placeholder="Search transcript text, role, or tool…" oninput="renderSessionHistory()">
+      <select id="session-history-filter" onchange="renderSessionHistory()">
+        <option value="all">All items</option>
+        <option value="user">User</option>
+        <option value="assistant">Assistant</option>
+        <option value="tool">Tool calls/results</option>
+        <option value="system">System</option>
+      </select>
+      <button class="agent-reset-btn" onclick="refreshSessionHistory()">Refresh</button>
+    </div>
+    <div id="session-history-body" class="session-history-body">Select an agent session to load history.</div>
   </div>
 </div>
 
@@ -530,6 +557,7 @@
     <button data-tab="activity" onclick="switchTab('activity');syncMobileNav('activity')"><span class="mob-icon">📡</span><span class="mob-label">Activity</span></button>
     <button data-tab="queue" onclick="switchTab('queue');syncMobileNav('queue')"><span class="mob-icon">📋</span><span class="mob-label">Queue</span></button>
     <button data-tab="tokens" onclick="switchTab('tokens');syncMobileNav('tokens')"><span class="mob-icon">💰</span><span class="mob-label">Tokens</span></button>
+    <button data-tab="sessions" onclick="switchTab('sessions');syncMobileNav('sessions')"><span class="mob-icon">🧵</span><span class="mob-label">Sessions</span></button>
     <button data-tab="performance" onclick="switchTab('performance');syncMobileNav('performance')"><span class="mob-icon">📊</span><span class="mob-label">Perf</span></button>
     <button data-tab="system" onclick="switchTab('system');syncMobileNav('system')"><span class="mob-icon">⚙️</span><span class="mob-label">System</span></button>
   </div>

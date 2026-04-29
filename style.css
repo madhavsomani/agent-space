@@ -303,6 +303,23 @@ body[data-theme="dark"] #tab-queue .queue-pill {
 .activity-timeline-entry .duration { color:var(--accent); font-size:9px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; }
 .activity-timeline-entry .when { color:var(--dim); font-size:9px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; }
 
+/* Session history */
+.session-history-card h3 { margin:0 0 4px; }
+.session-history-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.session-history-meta { font-size:10px; color:var(--dim); font-family:'SF Mono',Menlo,monospace; white-space:nowrap; }
+.session-history-controls { display:grid; grid-template-columns:minmax(180px, 260px) 1fr minmax(120px, 160px) auto; gap:8px; margin-bottom:12px; }
+.session-history-controls input, .session-history-controls select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; font-size:11px; outline:none; }
+.session-history-controls input:focus, .session-history-controls select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.session-history-body { display:grid; gap:8px; max-height:calc(100vh - 260px); overflow:auto; padding-right:2px; }
+.session-history-empty { color:var(--dim); border:1px dashed var(--border); border-radius:10px; padding:18px; text-align:center; font-size:12px; }
+.session-history-item { border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:10px; padding:9px 10px; background:var(--glass); }
+.session-history-item.user { border-left-color:var(--green); }
+.session-history-item.assistant { border-left-color:var(--accent); }
+.session-history-item.tool { border-left-color:var(--orange); }
+.session-history-item-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; color:var(--dim); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.session-history-item pre { margin:0; white-space:pre-wrap; word-break:break-word; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.45; color:var(--text); }
+@media(max-width:760px){ .session-history-header { flex-direction:column; } .session-history-controls { grid-template-columns:1fr; } }
+
 /* (toast styles consolidated above in #toast-container block) */
 
 /* Help overlay */

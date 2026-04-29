@@ -7,7 +7,7 @@
     "start": "node server.js",
     "demo": "node server.js --demo",
     "dev": "node --watch server.js",
-    "test": "node test/gateway-client.mjs && node test/agent-normalizer.mjs && node test/activity-timeline.mjs && node test/smoke.mjs",
+    "test": "node test/gateway-client.mjs && node test/agent-normalizer.mjs && node test/activity-timeline.mjs && node test/session-history.mjs && node test/smoke.mjs",
     "test:gateway": "node test/gateway-client.mjs",
     "test:ci": "bash test/smoke.sh"
   },
