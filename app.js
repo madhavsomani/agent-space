@@ -833,33 +833,32 @@ function normalizeEventTs(raw) {
   return Number.isFinite(t) ? t : null;
 }
 
-function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
-  const body = document.getElementById('activity-timeline-24h-body');
-  const meta = document.getElementById('activity-timeline-24h-meta');
-  if (!body || !meta) return;
-
-  const now = Date.now();
+function normalizeActivityTimelineEvents(activityItems = [], agentEvents = [], now = Date.now()) {
   const cutoff = now - 24 * 3600000;
-  const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
-
   const merged = [];
   (activityItems || []).forEach(i => {
-    const ts = normalizeEventTs(i.ts);
+    const ts = normalizeEventTs(i.ts || i.timestamp || i.createdAt || i.updatedAt);
     if (!ts || ts < cutoff) return;
-    const agent = String(i.agent || 'system').trim() || 'system';
-    const text = String(i.text || '').trim();
+    const agent = String(i.agent || i.agentName || i.sessionKey || 'system').trim() || 'system';
+    const text = String(i.text || i.message || i.summary || i.activity || '').trim();
     if (!text) return;
-    merged.push({ ts, agent, text, type: i.type || 'agent', source: 'activity' });
+    const startedAt = normalizeEventTs(i.startedAt || i.startTime || i.start);
+    const endedAt = normalizeEventTs(i.endedAt || i.endTime || i.end);
+    const durationMs = Number.isFinite(i.durationMs) ? i.durationMs : (startedAt && endedAt && endedAt >= startedAt ? endedAt - startedAt : null);
+    merged.push({ ts, agent, text, type: i.type || 'agent', source: i.source || 'activity', durationMs });
   });
 
   (agentEvents || []).forEach(e => {
-    const ts = normalizeEventTs(e.ts);
+    const ts = normalizeEventTs(e.ts || e.timestamp || e.createdAt || e.updatedAt || e.startedAt);
     if (!ts || ts < cutoff) return;
-    const agent = String(e.agent || 'system').trim() || 'system';
-    const detail = String(e.detail || '').trim();
-    const evt = String(e.event || 'event').trim();
+    const agent = String(e.agent || e.agentName || e.sessionKey || 'system').trim() || 'system';
+    const detail = String(e.detail || e.message || e.summary || '').trim();
+    const evt = String(e.event || e.type || 'event').trim();
     const text = detail ? `${evt}: ${detail}` : evt;
-    merged.push({ ts, agent, text, type: 'system', source: 'eventdb' });
+    const startedAt = normalizeEventTs(e.startedAt || e.startTime || e.start);
+    const endedAt = normalizeEventTs(e.endedAt || e.endTime || e.end);
+    const durationMs = Number.isFinite(e.durationMs) ? e.durationMs : (startedAt && endedAt && endedAt >= startedAt ? endedAt - startedAt : null);
+    merged.push({ ts, agent, text, type: e.type || 'system', source: e.source || 'eventdb', durationMs });
   });
 
   const dedup = new Map();
@@ -868,7 +867,26 @@ function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
     const key = `${e.agent.toLowerCase()}|${e.text.slice(0,90).toLowerCase()}|${Math.floor(e.ts / 60000)}`;
     if (!dedup.has(key)) dedup.set(key, e);
   }
-  let rows = Array.from(dedup.values());
+  return Array.from(dedup.values());
+}
+
+function formatDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
+  const body = document.getElementById('activity-timeline-24h-body');
+  const meta = document.getElementById('activity-timeline-24h-meta');
+  if (!body || !meta) return;
+
+  const now = Date.now();
+  const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
+  let rows = normalizeActivityTimelineEvents(activityItems, agentEvents, now);
 
   if (activityAgentFilter) rows = rows.filter(r => r.agent === activityAgentFilter);
 
@@ -895,13 +913,26 @@ function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
     const entries = groups[name];
     const lastTs = entries[0]?.ts;
     const lastAgo = lastTs ? timeAgo(new Date(lastTs)) : '';
+    const latest = entries[0]?.ts || now;
+    const earliest = entries[entries.length - 1]?.ts || latest;
+    const spanMs = Math.max(1, now - (now - 24 * 3600000));
+    const ticks = ['24h ago', '18h', '12h', '6h', 'now'].map((label, i) => `<span style="left:${i * 25}%">${label}</span>`).join('');
+    const bars = entries.map(e => {
+      const pct = Math.max(0, Math.min(100, ((e.ts - (now - 24 * 3600000)) / spanMs) * 100));
+      const durPct = e.durationMs ? Math.max(1.2, Math.min(18, (e.durationMs / spanMs) * 100)) : 1.2;
+      const color = typeColors[e.type] || '#64748b';
+      const stamp = new Date(e.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      const dur = formatDuration(e.durationMs);
+      return `<span class="activity-timeline-bar" style="left:${pct}%;width:${durPct}%;background:${color}" title="${esc(name)} · ${stamp}${dur ? ` · ${dur}` : ''} · ${esc(e.text)}"></span>`;
+    }).join('');
     const itemsHtml = entries.map(e => {
       const ago = timeAgo(new Date(e.ts));
       const color = typeColors[e.type] || '#64748b';
       const stamp = new Date(e.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-      return `<div class="activity-timeline-entry"><span class="dot" style="background:${color}"></span><div class="txt">${esc(e.text)}</div><span class="when" title="${stamp}">${ago}</span></div>`;
+      const dur = formatDuration(e.durationMs);
+      return `<div class="activity-timeline-entry"><span class="dot" style="background:${color}"></span><div class="txt">${esc(e.text)}</div>${dur ? `<span class="duration" title="Duration">${dur}</span>` : ''}<span class="when" title="${stamp}">${ago}</span></div>`;
     }).join('');
-    return `<div class="activity-timeline-agent"><div class="head"><span class="name">${esc(name)}</span><span class="ago">${lastAgo}</span></div><div class="entries">${itemsHtml}</div></div>`;
+    return `<div class="activity-timeline-agent"><div class="head"><span class="name">${esc(name)}</span><span class="ago">${lastAgo}</span></div><div class="activity-timeline-chart" aria-label="${esc(name)} activity timeline"><div class="ticks">${ticks}</div>${bars}</div><div class="entries">${itemsHtml}</div></div>`;
   }).join('');
 }
 
@@ -917,8 +948,12 @@ async function refreshActivity() {
     try {
       const er = await fetchWithTimeout(API + '/agent-events', {}, 8000);
       const ed = await er.json();
-      agentEvents = ed.events || [];
+      agentEvents = ed.events || ed.agentEvents || ed.data?.events || [];
     } catch {}
+    if (Gateway?.isConnected?.()) {
+      const derived = normalizeActivityTimelineEvents(items, agentEvents);
+      if (!agentEvents.length && derived.length) agentEvents = derived;
+    }
     activityEventCache = agentEvents;
 
     // Toast for new activity items

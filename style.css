@@ -289,10 +289,18 @@ body[data-theme="dark"] #tab-queue .queue-pill {
 .activity-timeline-agent .name { font-size:11px; font-weight:700; color:var(--text); }
 .activity-timeline-agent .ago { font-size:10px; color:var(--dim); font-family:'SF Mono',Menlo,monospace; }
 .activity-timeline-agent .entries { display:flex; flex-direction:column; gap:4px; }
+.activity-timeline-chart { position:relative; height:34px; border:1px solid var(--border); border-radius:8px; background:linear-gradient(90deg, rgba(255,255,255,0.025), rgba(255,255,255,0.055)); margin:4px 0 8px; overflow:hidden; }
+.activity-timeline-chart::before { content:''; position:absolute; inset:14px 8px auto 8px; height:1px; background:var(--border); opacity:.9; }
+.activity-timeline-chart .ticks { position:absolute; inset:3px 8px auto 8px; height:10px; font-size:7px; color:var(--dim); font-family:'SF Mono',Menlo,monospace; }
+.activity-timeline-chart .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+.activity-timeline-chart .ticks span:first-child { transform:translateX(0); }
+.activity-timeline-chart .ticks span:last-child { transform:translateX(-100%); }
+.activity-timeline-bar { position:absolute; top:16px; height:9px; min-width:6px; border-radius:999px; box-shadow:0 0 10px currentColor; opacity:.88; transform:translateX(-50%); }
 .activity-timeline-entry { display:flex; align-items:flex-start; gap:7px; padding:4px 0; border-bottom:1px dashed var(--border); }
 .activity-timeline-entry:last-child { border-bottom:none; }
 .activity-timeline-entry .dot { width:7px; height:7px; border-radius:50%; margin-top:5px; flex-shrink:0; }
 .activity-timeline-entry .txt { color:var(--text); font-size:10px; line-height:1.35; flex:1; }
+.activity-timeline-entry .duration { color:var(--accent); font-size:9px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; }
 .activity-timeline-entry .when { color:var(--dim); font-size:9px; white-space:nowrap; font-family:'SF Mono',Menlo,monospace; }
 
 /* (toast styles consolidated above in #toast-container block) */
