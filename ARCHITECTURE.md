@@ -1,5 +1,8 @@
 # Architecture
 
+For the gateway-token-only product architecture and migration plan, see [`docs/agent-space-architecture.md`](docs/agent-space-architecture.md).
+
+
 Quick guide to the Agent Space codebase for contributors.
 
 ## Overview
