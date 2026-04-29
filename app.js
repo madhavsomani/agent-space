@@ -490,14 +490,61 @@ function updateLiveNowBoard() {
 }
 
 // ===== AGENTS =====
+function normalizeGatewayStatus(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (['active', 'running', 'busy', 'working', 'in_progress'].some(v => s.includes(v))) return 'working';
+  if (['idle', 'queued', 'waiting', 'ready'].some(v => s.includes(v))) return 'idle';
+  if (['error', 'failed', 'crashed', 'blocked'].some(v => s.includes(v))) return 'error';
+  return 'sleeping';
+}
+
+function normalizeGatewayTimestamp(value, now = Date.now()) {
+  if (!value) return 0;
+  if (typeof value === 'number') return value > 1e12 ? value : value * 1000;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeGatewayAgent(raw, now = Date.now()) {
+  const sessionKey = raw.sessionKey || raw.key || raw.id || raw.sessionId || '';
+  const name = raw.name || raw.label || raw.title || raw.agentName || (sessionKey ? sessionKey.split(':').filter(Boolean).slice(-2, -1)[0] || sessionKey : 'Unknown agent');
+  const lastActivity = normalizeGatewayTimestamp(raw.lastActivity || raw.lastActiveAt || raw.updatedAt || raw.lastMessageAt || raw.createdAt, now);
+  const ageMin = lastActivity ? Math.max(0, Math.round((now - lastActivity) / 60000)) : null;
+  const sessionType = raw.sessionType || raw.kind || raw.type || (sessionKey.includes(':cron:') ? 'cron' : sessionKey.includes(':main') ? 'persistent' : raw.discovered ? 'discovered' : 'unknown');
+  const status = normalizeGatewayStatus(raw.status || raw.state || raw.lifecycle || raw.activityStatus);
+  const role = raw.role || raw.description || (sessionType === 'cron' ? 'Cron agent' : sessionType === 'persistent' ? 'Persistent agent session' : 'Agent session');
+  return {
+    ...raw,
+    name: String(name),
+    role: String(role),
+    color: raw.color || '#5b5fc7',
+    status,
+    lastActivity,
+    lastMessage: sanitizeAgentText(raw.lastMessage || raw.preview || raw.activity || raw.summary || ''),
+    ageMin,
+    sessionKey,
+    sessionDir: raw.sessionDir || raw.dir || String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    sessionType,
+    discovered: raw.discovered ?? sessionType !== 'persistent',
+    source: 'gateway',
+  };
+}
+
+function normalizeGatewayAgents(payload, now = Date.now()) {
+  const candidates = payload?.agents || payload?.sessions || payload?.data?.agents || payload?.data?.sessions || [];
+  if (!Array.isArray(candidates)) return [];
+  return candidates.map(a => normalizeGatewayAgent(a, now));
+}
+
 async function refreshAgents() {
   try {
     const r = await fetchWithTimeout(API + '/agents', {}, 8000);
     const d = await r.json();
+    const nextAgents = Gateway?.isConnected?.() ? normalizeGatewayAgents(d) : (d.agents || []);
     if (typeof checkStatusChanges === 'function') {
-      try { checkStatusChanges(d.agents); } catch (err) { console.warn('checkStatusChanges failed', err); }
+      try { checkStatusChanges(nextAgents); } catch (err) { console.warn('checkStatusChanges failed', err); }
     }
-    agentData = d.agents || [];
+    agentData = nextAgents;
     window.agentData = agentData;
     
     if (isOfficeTabActive()) {
@@ -1269,7 +1316,9 @@ function renderAgentCards() {
     const borderL = a.status === 'working' ? a.color : a.status === 'idle' ? 'var(--orange)' : a.status === 'error' ? 'var(--red)' : 'transparent';
     const cronInfo = a.cronStatus ? `<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.05);color:var(--dim);margin-left:4px">${a.cronStatus}</span>` : '';
     const durInfo = a.durationMs ? `<span style="font-size:9px;color:var(--dim);margin-left:4px" title="Last run duration">⏱${(a.durationMs/1000).toFixed(0)}s</span>` : '';
-    const type = a.cronJobId ? 'cron' : a.discovered ? 'visitor' : 'core';
+    const type = a.sessionType === 'cron' || a.cronJobId ? 'cron' : a.sessionType === 'persistent' || !a.discovered ? 'core' : 'visitor';
+    const sessionTypeLabel = esc(a.sessionType || type || 'unknown');
+    const lastActiveLabel = a.lastActivity ? new Date(a.lastActivity).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'unknown';
     // Live countdown for cron agents
     const nextRunHtml = a.nextRunAtMs ? (() => {
       const d = a.nextRunAtMs - Date.now();
@@ -1314,7 +1363,8 @@ function renderAgentCards() {
           </div>
         </div>
       </div>
-      <div class="agent-card-message" style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>${nextRunHtml ? `<div class="agent-card-next-run" style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div class="agent-card-spark" style="padding-left:50px">${sparkHtml}</div>` : ''}<div class="agent-card-activity-bar">${activityBar}</div>
+      <div class="agent-card-message" style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>
+      <div class="agent-card-meta-row" style="padding-left:50px;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;font-size:9px;color:var(--dim)"><span title="Session type">${sessionTypeLabel}</span><span>•</span><span title="Last active">Last active ${lastActiveLabel}</span>${a.source === 'gateway' ? '<span>•</span><span title="Loaded from Gateway API">Gateway API</span>' : ''}</div>${nextRunHtml ? `<div class="agent-card-next-run" style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div class="agent-card-spark" style="padding-left:50px">${sparkHtml}</div>` : ''}<div class="agent-card-activity-bar">${activityBar}</div>
     </div>`;
   }).join('');
     html += `</div></div>`;
