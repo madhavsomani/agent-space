@@ -18,6 +18,29 @@
 body { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
 body::before { content:''; position:fixed; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:0; }
 
+/* Gateway auth */
+.gateway-auth-overlay { position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:24px; background:rgba(0,0,0,0.62); backdrop-filter:blur(18px); }
+.gateway-auth-overlay.visible { display:flex; }
+.gateway-auth-card { width:min(520px, 100%); background:var(--card); border:1px solid var(--border); border-radius:18px; padding:24px; box-shadow:0 24px 80px rgba(0,0,0,0.45); }
+.gateway-auth-eyebrow { font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:1px; font-weight:800; margin-bottom:8px; }
+.gateway-auth-card h2 { font-size:22px; margin-bottom:8px; color:var(--text); }
+.gateway-auth-card p { font-size:12px; color:var(--dim); line-height:1.5; margin-bottom:18px; }
+.gateway-auth-card label, .gateway-auth-fieldset legend { display:block; font-size:11px; color:var(--dim); font-weight:700; margin:10px 0 6px; }
+.gateway-auth-card input[type="url"], .gateway-auth-card input[type="password"] { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; font-size:13px; outline:none; }
+.gateway-auth-card input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.gateway-auth-fieldset { border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:14px 0; display:grid; gap:8px; }
+.gateway-auth-fieldset label { display:flex; align-items:center; gap:8px; margin:0; font-weight:500; color:var(--text); }
+.gateway-auth-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.gateway-auth-primary, .gateway-auth-secondary, .gateway-connection-btn { border:1px solid var(--border); border-radius:10px; padding:8px 12px; cursor:pointer; font:inherit; font-size:12px; transition:all .2s; }
+.gateway-auth-primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; }
+.gateway-auth-secondary, .gateway-connection-btn { background:transparent; color:var(--dim); }
+.gateway-auth-secondary:hover, .gateway-connection-btn:hover { color:var(--text); border-color:var(--accent); background:var(--accent-glow); }
+.gateway-auth-status { min-height:18px; margin-top:12px; font-size:12px; color:var(--dim); }
+.gateway-auth-status.error { color:var(--red); }
+.gateway-auth-status.ok { color:var(--green); }
+.gateway-connection-btn.connected { color:var(--green); border-color:rgba(45,167,122,0.35); background:var(--green-dim); }
+.gateway-connection-btn.error { color:var(--orange); border-color:rgba(212,160,48,0.35); background:var(--orange-dim); }
+
 /* Header */
 header { display:flex; align-items:center; gap:12px; padding:10px 20px; border-bottom:1px solid var(--border); background:var(--glass); backdrop-filter:blur(20px); position:sticky; top:0; z-index:100; }
 header .logo { font-size:20px; }

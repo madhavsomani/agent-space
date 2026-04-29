@@ -61,6 +61,8 @@ function toggleTheme() {
   applyTheme(next);
 }
 applyTheme(getThemePref());
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGatewayAuth);
+else initGatewayAuth();
 if (window.matchMedia) {
   const _themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   const _syncSystemTheme = () => { if (getThemePref() === 'system') applyTheme('system'); };
@@ -69,25 +71,96 @@ if (window.matchMedia) {
 }
 
 const API = '/api';
+const Gateway = window.AgentSpaceGateway || null;
+let _authToken = Gateway?.getConnection?.().token || new URLSearchParams(window.location.search).get('token') || localStorage.getItem('agent-space-token') || '';
+
+function getApiUrl(path) {
+  const conn = Gateway?.getConnection?.();
+  if (conn?.gatewayUrl && conn?.token) return `${conn.gatewayUrl}${path}`;
+  return path;
+}
+
+function updateGatewayConnectionUI(state = {}) {
+  const btn = document.getElementById('gateway-connection-btn');
+  const overlay = document.getElementById('gateway-auth-overlay');
+  const status = document.getElementById('gateway-auth-status');
+  const conn = Gateway?.getConnection?.() || {};
+  if (btn) {
+    btn.classList.toggle('connected', Boolean(conn.gatewayUrl && conn.token));
+    btn.classList.toggle('error', state.error === true);
+    btn.textContent = conn.gatewayUrl && conn.token ? `Gateway: ${new URL(conn.gatewayUrl).host}` : 'Gateway: local';
+    btn.onclick = () => showGatewayAuth();
+  }
+  if (status && state.message) {
+    status.textContent = state.message;
+    status.className = `gateway-auth-status ${state.error ? 'error' : state.ok ? 'ok' : ''}`;
+  }
+  if (overlay && state.hideOverlay) overlay.classList.remove('visible');
+}
+
+function showGatewayAuth() {
+  const overlay = document.getElementById('gateway-auth-overlay');
+  const conn = Gateway?.getConnection?.() || {};
+  const urlInput = document.getElementById('gateway-url-input');
+  const tokenInput = document.getElementById('gateway-token-input');
+  if (urlInput) urlInput.value = conn.gatewayUrl || '';
+  if (tokenInput) tokenInput.value = conn.token || '';
+  overlay?.classList.add('visible');
+}
+
+function initGatewayAuth() {
+  const form = document.getElementById('gateway-auth-form');
+  const demo = document.getElementById('gateway-demo-dismiss');
+  const conn = Gateway?.getConnection?.() || {};
+  if (form && Gateway) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const candidate = {
+        gatewayUrl: data.get('gatewayUrl'),
+        token: data.get('gatewayToken'),
+        persistence: data.get('gatewayPersistence') || 'local'
+      };
+      updateGatewayConnectionUI({ message: 'Validating gateway…' });
+      const result = await Gateway.validate(candidate);
+      if (!result.ok) {
+        updateGatewayConnectionUI({ error: true, message: Gateway.redactToken(result.message || 'Gateway validation failed.') });
+        return;
+      }
+      Gateway.setConnection(candidate);
+      _authToken = Gateway.getConnection().token;
+      updateGatewayConnectionUI({ ok: true, hideOverlay: true, message: `Connected via ${result.probe}` });
+      refreshAll();
+    });
+  }
+  if (demo) demo.onclick = () => {
+    document.getElementById('gateway-auth-overlay')?.classList.remove('visible');
+    updateGatewayConnectionUI({ message: 'Using local demo/static mode.' });
+  };
+  if (!conn.gatewayUrl || !conn.token) {
+    // Keep current local/demo dashboard usable, but make the gateway-token setup obvious.
+    setTimeout(() => updateGatewayConnectionUI({ message: 'Gateway not connected. Local/static mode is active.' }), 0);
+  }
+  updateGatewayConnectionUI();
+}
 
 // Data export helper
 function exportData(type, format = 'csv') {
-  const tokenParam = _authToken ? `&token=${encodeURIComponent(_authToken)}` : '';
-  const url = `${API}/export/${type}?format=${format}${tokenParam}`;
+  const conn = Gateway?.getConnection?.() || {};
+  const tokenParam = (!conn.gatewayUrl && _authToken) ? `&token=${encodeURIComponent(_authToken)}` : '';
+  const url = `${getApiUrl(`${API}/export/${type}`)}?format=${format}${tokenParam}`;
   const a = document.createElement('a');
   a.href = url; a.download = `${type}.${format}`; a.click();
 }
-// Fetch with timeout — prevents widgets hanging forever on slow/stalled requests
-// Auth: reads token from localStorage or ?token= URL param
-const _authToken = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('agent-space-token') || '';
-if (_authToken && !localStorage.getItem('agent-space-token')) localStorage.setItem('agent-space-token', _authToken);
-
+// Fetch with timeout — prevents widgets hanging forever on slow/stalled requests.
+// When connected, every API call goes to the configured OpenClaw Gateway with Authorization: Bearer <token>.
 function fetchWithTimeout(url, opts = {}, timeoutMs = 10000) {
+  if (Gateway?.isConnected?.() && String(url).startsWith(API)) {
+    return Gateway.request(url, opts, timeoutMs);
+  }
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), timeoutMs);
-  if (_authToken) {
-    opts.headers = { ...(opts.headers || {}), 'X-API-Key': _authToken };
-  }
+  if (_authToken) opts.headers = { ...(opts.headers || {}), 'X-API-Key': _authToken };
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(tid));
 }
 let agentData = [];
