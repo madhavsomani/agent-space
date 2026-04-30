@@ -62,6 +62,12 @@ await check('security headers', '/', async r => {
 
 // Static
 await check('index.html', '/', async r => { const t = await r.text(); if (!t.includes('Agent Space')) throw new Error('missing title'); });
+for (const privatePath of ['/server.js', '/package.json', '/test/smoke.mjs']) {
+  await check(`does not serve ${privatePath}`, privatePath, async r => {
+    if (r.status !== 404) throw new Error(`expected 404, got ${r.status}`);
+    await r.text();
+  });
+}
 await check('404 page', '/nonexistent', async r => { if (r.status !== 404) throw new Error(`expected 404, got ${r.status}`); });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
