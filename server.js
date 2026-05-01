@@ -2613,6 +2613,54 @@ setInterval(() => {
 }, 300000);
 
 const STATIC_DIR = __dirname;
+const STATIC_ASSET_FILES = new Set([
+  'index.html',
+  'plan.html',
+  'stitch-export.html',
+  'style.css',
+  'leaflet.css',
+  'app.js',
+  'alerts.js',
+  'live-logs.js',
+  'tab-tokens.js',
+  'tab-comm-graph.js',
+  'tab-performance.js',
+  'tab-timeline.js',
+  'sounds.js',
+  'tab-system.js',
+  'tab-queue.js',
+  'tab-memory.js',
+  'tab-heatmap.js',
+  'agent-detail.js',
+  'mobile-nav.js',
+  'leaflet.js',
+  'office-map.js',
+  'office-view.js',
+  'sprites.js',
+  'screenshot-dark-office.jpg',
+  'screenshot-dark-cards.jpg',
+  'screenshot-light-office.jpg',
+  'screenshot-light-cards.jpg',
+]);
+const STATIC_DEMO_ASSET_RE = /^assets\/demo\/[a-zA-Z0-9._/-]+\.(?:gif|html|jpe?g|png|txt|webp)$/i;
+
+function getStaticAssetPath(urlPath) {
+  let rel;
+  try {
+    rel = decodeURIComponent(urlPath === '/' ? '/index.html' : urlPath);
+  } catch {
+    return null;
+  }
+  rel = rel.replace(/^\/+/, '');
+  const normalized = path.posix.normalize(rel);
+  if (!normalized || normalized === '.' || normalized.startsWith('../') || normalized.includes('/../')) return null;
+  if (!STATIC_ASSET_FILES.has(normalized) && !STATIC_DEMO_ASSET_RE.test(normalized)) return null;
+
+  const fullPath = path.resolve(STATIC_DIR, normalized);
+  const staticRoot = path.resolve(STATIC_DIR) + path.sep;
+  if (!fullPath.startsWith(staticRoot)) return null;
+  return fullPath;
+}
 
 // Graceful shutdown state
 let _isShuttingDown = false;
@@ -3094,9 +3142,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  let filePath = path.join(STATIC_DIR, url === '/' ? 'index.html' : url);
+  let filePath = getStaticAssetPath(url);
+  if (!filePath) {
+    res.writeHead(404, { 'Content-Type': 'text/html' });
+    res.end('<!DOCTYPE html><html><head><title>404 — Agent Space</title><style>body{font-family:system-ui;background:#1a1a2e;color:#e0e0e0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}div{text-align:center}h1{font-size:4em;margin:0;opacity:.6}p{opacity:.5}a{color:#60a5fa;text-decoration:none}</style></head><body><div><h1>404</h1><p>Nothing here.</p><a href="/">← Back to Agent Space</a></div></body></html>');
+    return;
+  }
   const ext = path.extname(filePath);
-  const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+  const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.webp': 'image/webp' };
   try {
     const content = fs.readFileSync(filePath);
     const headers = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' };
