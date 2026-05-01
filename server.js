@@ -2658,7 +2658,7 @@ function getStaticAssetPath(urlPath) {
 
   const fullPath = path.resolve(STATIC_DIR, normalized);
   const staticRoot = path.resolve(STATIC_DIR) + path.sep;
-  if (fullPath !== path.resolve(STATIC_DIR, 'index.html') && !fullPath.startsWith(staticRoot)) return null;
+  if (!fullPath.startsWith(staticRoot)) return null;
   return fullPath;
 }
 
@@ -3149,7 +3149,7 @@ const server = http.createServer((req, res) => {
     return;
   }
   const ext = path.extname(filePath);
-  const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.webp': 'image/webp' };
+  const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.webp': 'image/webp' };
   try {
     const content = fs.readFileSync(filePath);
     const headers = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' };

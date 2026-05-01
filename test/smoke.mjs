@@ -62,7 +62,16 @@ await check('security headers', '/', async r => {
 
 // Static
 await check('index.html', '/', async r => { const t = await r.text(); if (!t.includes('Agent Space')) throw new Error('missing title'); });
-for (const privatePath of ['/server.js', '/package.json', '/test/smoke.mjs']) {
+for (const privatePath of [
+  '/server.js',
+  '/package.json',
+  '/test/smoke.mjs',
+  '/config.json',
+  '/logs/agent-space.log',
+  '/%2e%2e/server.js',
+  '/assets/demo/%2e%2e/%2e%2e/server.js',
+  '/assets/demo/../../../server.js',
+]) {
   await check(`does not serve ${privatePath}`, privatePath, async r => {
     if (r.status !== 404) throw new Error(`expected 404, got ${r.status}`);
     await r.text();
