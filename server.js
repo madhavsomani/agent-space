@@ -2572,8 +2572,9 @@ function getTokenFromReq(req) {
   if (authHeader && authHeader.startsWith('Bearer ')) token = authHeader.slice(7).trim();
   if (!token) token = req.headers['x-api-key'];
   if (!token) {
-    const qIdx = req.url.indexOf('?token=');
-    if (qIdx !== -1) token = req.url.slice(qIdx + 7).split('&')[0];
+    try {
+      token = new URL(req.url, 'http://agent-space.local').searchParams.get('token');
+    } catch {}
   }
   return token;
 }
@@ -2719,26 +2720,31 @@ const server = http.createServer((req, res) => {
 
   // Rate limiting on API routes (exempt core endpoints needed for canvas/SSE)
   const RATE_EXEMPT = new Set(['/api/health', '/api/agents', '/api/events', '/api/health-score']);
-  if (url.startsWith('/api/') && !RATE_EXEMPT.has(url)) {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
-    if (!checkRateLimit(ip)) {
-      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil(RATE_WINDOW_MS / 1000)) });
-      res.end(JSON.stringify({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfter: Math.ceil(RATE_WINDOW_MS / 1000) }));
-      return;
+  const AUTH_EXEMPT = new Set(['/api/health']);
+  if (url.startsWith('/api/')) {
+    if (!RATE_EXEMPT.has(url)) {
+      const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+      if (!checkRateLimit(ip)) {
+        res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil(RATE_WINDOW_MS / 1000)) });
+        res.end(JSON.stringify({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfter: Math.ceil(RATE_WINDOW_MS / 1000) }));
+        return;
+      }
     }
 
-    // Authentication
-    const auth = authenticate(req);
-    if (!auth.authenticated) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Unauthorized', code: 'AUTH_REQUIRED', message: 'Provide token via Authorization: Bearer <token>, X-API-Key header, or ?token= query param' }));
-      return;
-    }
-    // RBAC: viewers can only GET
-    if (auth.role === 'viewer' && req.method !== 'GET') {
-      res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE', message: 'Viewer role is read-only' }));
-      return;
+    if (!AUTH_EXEMPT.has(url)) {
+      // Authentication
+      const auth = authenticate(req);
+      if (!auth.authenticated) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized', code: 'AUTH_REQUIRED', message: 'Provide token via Authorization: Bearer <token>, X-API-Key header, or ?token= query param' }));
+        return;
+      }
+      // RBAC: viewers can only GET
+      if (auth.role === 'viewer' && req.method !== 'GET') {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE', message: 'Viewer role is read-only' }));
+        return;
+      }
     }
   }
 

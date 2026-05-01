@@ -37,5 +37,8 @@ jobs:
       - name: Run smoke tests
         run: node test/smoke.mjs
 
+      - name: Run auth tests
+        run: npm run test:auth -- 19998
+
       - name: Run E2E tests
         run: node test/e2e.mjs
