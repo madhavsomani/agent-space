@@ -17,8 +17,11 @@ const previousConfig = fs.existsSync(CONFIG_PATH) ? fs.readFileSync(CONFIG_PATH)
 let child = null;
 let pass = 0;
 let fail = 0;
+let restored = false;
 
 function restoreConfig() {
+  if (restored) return;
+  restored = true;
   if (previousConfig) fs.writeFileSync(CONFIG_PATH, previousConfig);
   else {
     try { fs.unlinkSync(CONFIG_PATH); } catch {}
@@ -28,6 +31,23 @@ function restoreConfig() {
 function stopServer() {
   if (child && !child.killed) child.kill();
 }
+
+function cleanup() {
+  stopServer();
+  restoreConfig();
+}
+
+// The test temporarily writes config.json because the server loads auth config at startup.
+// Keep cleanup idempotent so normal exits and signal exits restore local developer config.
+process.once('exit', cleanup);
+process.once('SIGINT', () => {
+  cleanup();
+  process.exit(130);
+});
+process.once('SIGTERM', () => {
+  cleanup();
+  process.exit(143);
+});
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -81,9 +101,31 @@ try {
     if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
   });
 
+  await check('agents rejects invalid token', async () => {
+    const res = await fetch(`${BASE}/api/agents`, {
+      headers: { Authorization: 'Bearer wrong-token' },
+    });
+    if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+  });
+
+  await check('versioned agents rejects missing token', async () => {
+    const res = await fetch(`${BASE}/api/v1/agents`);
+    if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+  });
+
+  await check('OPTIONS preflight remains public', async () => {
+    const res = await fetch(`${BASE}/api/agents`, { method: 'OPTIONS' });
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+  });
+
   await check('health remains public', async () => {
     const res = await fetch(`${BASE}/api/health`);
     if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+  });
+
+  await check('health score rejects missing token', async () => {
+    const res = await fetch(`${BASE}/api/health-score`);
+    if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
   });
 
   await check('agents accepts bearer token', async () => {
@@ -93,6 +135,35 @@ try {
     if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
     const data = await res.json();
     if (!Array.isArray(data.agents)) throw new Error('missing agents array');
+  });
+
+  await check('agents accepts X-API-Key token', async () => {
+    const res = await fetch(`${BASE}/api/v1/agents`, {
+      headers: { 'X-API-Key': ADMIN_TOKEN },
+    });
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data.agents)) throw new Error('missing agents array');
+  });
+
+  await check('admin role allows write requests', async () => {
+    const res = await fetch(`${BASE}/api/plugins/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': ADMIN_TOKEN,
+      },
+      body: JSON.stringify({
+        id: 'auth-test-plugin',
+        name: 'Auth Test Plugin',
+        type: 'panel',
+        entry: 'https://example.com/auth-test.js',
+        enabled: false,
+      }),
+    });
+    if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
+    const data = await res.json();
+    if (!data.ok || data.plugin?.id !== 'auth-test-plugin') throw new Error('plugin registration failed');
   });
 
   await check('viewer role rejects write requests', async () => {
@@ -126,8 +197,7 @@ try {
     try { await res.body?.cancel(); } catch {}
   });
 } finally {
-  stopServer();
-  restoreConfig();
+  cleanup();
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
