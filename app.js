@@ -61,6 +61,8 @@ function toggleTheme() {
   applyTheme(next);
 }
 applyTheme(getThemePref());
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGatewayAuth);
+else initGatewayAuth();
 if (window.matchMedia) {
   const _themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   const _syncSystemTheme = () => { if (getThemePref() === 'system') applyTheme('system'); };
@@ -69,25 +71,96 @@ if (window.matchMedia) {
 }
 
 const API = '/api';
+const Gateway = window.AgentSpaceGateway || null;
+let _authToken = Gateway?.getConnection?.().token || new URLSearchParams(window.location.search).get('token') || localStorage.getItem('agent-space-token') || '';
+
+function getApiUrl(path) {
+  const conn = Gateway?.getConnection?.();
+  if (conn?.gatewayUrl && conn?.token) return `${conn.gatewayUrl}${path}`;
+  return path;
+}
+
+function updateGatewayConnectionUI(state = {}) {
+  const btn = document.getElementById('gateway-connection-btn');
+  const overlay = document.getElementById('gateway-auth-overlay');
+  const status = document.getElementById('gateway-auth-status');
+  const conn = Gateway?.getConnection?.() || {};
+  if (btn) {
+    btn.classList.toggle('connected', Boolean(conn.gatewayUrl && conn.token));
+    btn.classList.toggle('error', state.error === true);
+    btn.textContent = conn.gatewayUrl && conn.token ? `Gateway: ${new URL(conn.gatewayUrl).host}` : 'Gateway: local';
+    btn.onclick = () => showGatewayAuth();
+  }
+  if (status && state.message) {
+    status.textContent = state.message;
+    status.className = `gateway-auth-status ${state.error ? 'error' : state.ok ? 'ok' : ''}`;
+  }
+  if (overlay && state.hideOverlay) overlay.classList.remove('visible');
+}
+
+function showGatewayAuth() {
+  const overlay = document.getElementById('gateway-auth-overlay');
+  const conn = Gateway?.getConnection?.() || {};
+  const urlInput = document.getElementById('gateway-url-input');
+  const tokenInput = document.getElementById('gateway-token-input');
+  if (urlInput) urlInput.value = conn.gatewayUrl || '';
+  if (tokenInput) tokenInput.value = conn.token || '';
+  overlay?.classList.add('visible');
+}
+
+function initGatewayAuth() {
+  const form = document.getElementById('gateway-auth-form');
+  const demo = document.getElementById('gateway-demo-dismiss');
+  const conn = Gateway?.getConnection?.() || {};
+  if (form && Gateway) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const candidate = {
+        gatewayUrl: data.get('gatewayUrl'),
+        token: data.get('gatewayToken'),
+        persistence: data.get('gatewayPersistence') || 'local'
+      };
+      updateGatewayConnectionUI({ message: 'Validating gateway…' });
+      const result = await Gateway.validate(candidate);
+      if (!result.ok) {
+        updateGatewayConnectionUI({ error: true, message: Gateway.redactToken(result.message || 'Gateway validation failed.') });
+        return;
+      }
+      Gateway.setConnection(candidate);
+      _authToken = Gateway.getConnection().token;
+      updateGatewayConnectionUI({ ok: true, hideOverlay: true, message: `Connected via ${result.probe}` });
+      refreshAll();
+    });
+  }
+  if (demo) demo.onclick = () => {
+    document.getElementById('gateway-auth-overlay')?.classList.remove('visible');
+    updateGatewayConnectionUI({ message: 'Using local demo/static mode.' });
+  };
+  if (!conn.gatewayUrl || !conn.token) {
+    // Keep current local/demo dashboard usable, but make the gateway-token setup obvious.
+    setTimeout(() => updateGatewayConnectionUI({ message: 'Gateway not connected. Local/static mode is active.' }), 0);
+  }
+  updateGatewayConnectionUI();
+}
 
 // Data export helper
 function exportData(type, format = 'csv') {
-  const tokenParam = _authToken ? `&token=${encodeURIComponent(_authToken)}` : '';
-  const url = `${API}/export/${type}?format=${format}${tokenParam}`;
+  const conn = Gateway?.getConnection?.() || {};
+  const tokenParam = (!conn.gatewayUrl && _authToken) ? `&token=${encodeURIComponent(_authToken)}` : '';
+  const url = `${getApiUrl(`${API}/export/${type}`)}?format=${format}${tokenParam}`;
   const a = document.createElement('a');
   a.href = url; a.download = `${type}.${format}`; a.click();
 }
-// Fetch with timeout — prevents widgets hanging forever on slow/stalled requests
-// Auth: reads token from localStorage or ?token= URL param
-const _authToken = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('agent-space-token') || '';
-if (_authToken && !localStorage.getItem('agent-space-token')) localStorage.setItem('agent-space-token', _authToken);
-
+// Fetch with timeout — prevents widgets hanging forever on slow/stalled requests.
+// When connected, every API call goes to the configured OpenClaw Gateway with Authorization: Bearer <token>.
 function fetchWithTimeout(url, opts = {}, timeoutMs = 10000) {
+  if (Gateway?.isConnected?.() && String(url).startsWith(API)) {
+    return Gateway.request(url, opts, timeoutMs);
+  }
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), timeoutMs);
-  if (_authToken) {
-    opts.headers = { ...(opts.headers || {}), 'X-API-Key': _authToken };
-  }
+  if (_authToken) opts.headers = { ...(opts.headers || {}), 'X-API-Key': _authToken };
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(tid));
 }
 let agentData = [];
@@ -163,14 +236,14 @@ document.querySelectorAll('#tabs-nav button').forEach(btn => {
 // Restore tab from URL hash on load
 (function(){
   const hash = location.hash.replace('#','');
-  const validTabs = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
+  const validTabs = ['office','activity','queue','memory','tokens','sessions','performance','comm-graph','dep-graph','system','plan'];
   if(hash && validTabs.includes(hash)) switchTab(hash);
 })();
 
 // Keyboard shortcuts: 1-6 for tabs, R for refresh
 document.addEventListener('keydown', e => {
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-  const tabs = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
+  const tabs = ['office','activity','queue','memory','tokens','sessions','performance','comm-graph','dep-graph','system','plan'];
   const idx = parseInt(e.key) - 1;
   if(idx >= 0 && idx < tabs.length) {
     switchTab(tabs[idx]);
@@ -230,7 +303,7 @@ document.addEventListener('keydown', e => {
 // Swipe navigation for mobile
 (function() {
   let touchStartX = 0, touchStartY = 0;
-  const tabs = ['office','activity','queue','memory','tokens','performance','comm-graph','dep-graph','system','plan'];
+  const tabs = ['office','activity','queue','memory','tokens','sessions','performance','comm-graph','dep-graph','system','plan'];
   document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive:true});
   document.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - touchStartX;
@@ -253,6 +326,7 @@ async function refreshAll() {
     refreshMemory(),
     refreshTokens(),
     refreshDailyCost(),
+    refreshSessionOptions(),
     refreshActivity(),
     refreshTimeline(),
     refreshPerformance(),
@@ -356,6 +430,7 @@ function updateStatusStrip() {
   document.getElementById('ss-sleeping').textContent = counts.sleeping;
   const namesEl = document.getElementById('ss-working-names');
   if(namesEl) namesEl.textContent = workingNames.length ? '(' + workingNames.join(', ') + ')' : '';
+  populateSessionOptions();
 }
 
 function summarizeNowTask(text, status = 'working') {
@@ -417,14 +492,61 @@ function updateLiveNowBoard() {
 }
 
 // ===== AGENTS =====
+function normalizeGatewayStatus(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (['active', 'running', 'busy', 'working', 'in_progress'].some(v => s.includes(v))) return 'working';
+  if (['idle', 'queued', 'waiting', 'ready'].some(v => s.includes(v))) return 'idle';
+  if (['error', 'failed', 'crashed', 'blocked'].some(v => s.includes(v))) return 'error';
+  return 'sleeping';
+}
+
+function normalizeGatewayTimestamp(value, now = Date.now()) {
+  if (!value) return 0;
+  if (typeof value === 'number') return value > 1e12 ? value : value * 1000;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeGatewayAgent(raw, now = Date.now()) {
+  const sessionKey = raw.sessionKey || raw.key || raw.id || raw.sessionId || '';
+  const name = raw.name || raw.label || raw.title || raw.agentName || (sessionKey ? sessionKey.split(':').filter(Boolean).slice(-2, -1)[0] || sessionKey : 'Unknown agent');
+  const lastActivity = normalizeGatewayTimestamp(raw.lastActivity || raw.lastActiveAt || raw.updatedAt || raw.lastMessageAt || raw.createdAt, now);
+  const ageMin = lastActivity ? Math.max(0, Math.round((now - lastActivity) / 60000)) : null;
+  const sessionType = raw.sessionType || raw.kind || raw.type || (sessionKey.includes(':cron:') ? 'cron' : sessionKey.includes(':main') ? 'persistent' : raw.discovered ? 'discovered' : 'unknown');
+  const status = normalizeGatewayStatus(raw.status || raw.state || raw.lifecycle || raw.activityStatus);
+  const role = raw.role || raw.description || (sessionType === 'cron' ? 'Cron agent' : sessionType === 'persistent' ? 'Persistent agent session' : 'Agent session');
+  return {
+    ...raw,
+    name: String(name),
+    role: String(role),
+    color: raw.color || '#5b5fc7',
+    status,
+    lastActivity,
+    lastMessage: sanitizeAgentText(raw.lastMessage || raw.preview || raw.activity || raw.summary || ''),
+    ageMin,
+    sessionKey,
+    sessionDir: raw.sessionDir || raw.dir || String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    sessionType,
+    discovered: raw.discovered ?? sessionType !== 'persistent',
+    source: 'gateway',
+  };
+}
+
+function normalizeGatewayAgents(payload, now = Date.now()) {
+  const candidates = payload?.agents || payload?.sessions || payload?.data?.agents || payload?.data?.sessions || [];
+  if (!Array.isArray(candidates)) return [];
+  return candidates.map(a => normalizeGatewayAgent(a, now));
+}
+
 async function refreshAgents() {
   try {
     const r = await fetchWithTimeout(API + '/agents', {}, 8000);
     const d = await r.json();
+    const nextAgents = Gateway?.isConnected?.() ? normalizeGatewayAgents(d) : (d.agents || []);
     if (typeof checkStatusChanges === 'function') {
-      try { checkStatusChanges(d.agents); } catch (err) { console.warn('checkStatusChanges failed', err); }
+      try { checkStatusChanges(nextAgents); } catch (err) { console.warn('checkStatusChanges failed', err); }
     }
-    agentData = d.agents || [];
+    agentData = nextAgents;
     window.agentData = agentData;
     
     if (isOfficeTabActive()) {
@@ -713,33 +835,32 @@ function normalizeEventTs(raw) {
   return Number.isFinite(t) ? t : null;
 }
 
-function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
-  const body = document.getElementById('activity-timeline-24h-body');
-  const meta = document.getElementById('activity-timeline-24h-meta');
-  if (!body || !meta) return;
-
-  const now = Date.now();
+function normalizeActivityTimelineEvents(activityItems = [], agentEvents = [], now = Date.now()) {
   const cutoff = now - 24 * 3600000;
-  const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
-
   const merged = [];
   (activityItems || []).forEach(i => {
-    const ts = normalizeEventTs(i.ts);
+    const ts = normalizeEventTs(i.ts || i.timestamp || i.createdAt || i.updatedAt);
     if (!ts || ts < cutoff) return;
-    const agent = String(i.agent || 'system').trim() || 'system';
-    const text = String(i.text || '').trim();
+    const agent = String(i.agent || i.agentName || i.sessionKey || 'system').trim() || 'system';
+    const text = String(i.text || i.message || i.summary || i.activity || '').trim();
     if (!text) return;
-    merged.push({ ts, agent, text, type: i.type || 'agent', source: 'activity' });
+    const startedAt = normalizeEventTs(i.startedAt || i.startTime || i.start);
+    const endedAt = normalizeEventTs(i.endedAt || i.endTime || i.end);
+    const durationMs = Number.isFinite(i.durationMs) ? i.durationMs : (startedAt && endedAt && endedAt >= startedAt ? endedAt - startedAt : null);
+    merged.push({ ts, agent, text, type: i.type || 'agent', source: i.source || 'activity', durationMs });
   });
 
   (agentEvents || []).forEach(e => {
-    const ts = normalizeEventTs(e.ts);
+    const ts = normalizeEventTs(e.ts || e.timestamp || e.createdAt || e.updatedAt || e.startedAt);
     if (!ts || ts < cutoff) return;
-    const agent = String(e.agent || 'system').trim() || 'system';
-    const detail = String(e.detail || '').trim();
-    const evt = String(e.event || 'event').trim();
+    const agent = String(e.agent || e.agentName || e.sessionKey || 'system').trim() || 'system';
+    const detail = String(e.detail || e.message || e.summary || '').trim();
+    const evt = String(e.event || e.type || 'event').trim();
     const text = detail ? `${evt}: ${detail}` : evt;
-    merged.push({ ts, agent, text, type: 'system', source: 'eventdb' });
+    const startedAt = normalizeEventTs(e.startedAt || e.startTime || e.start);
+    const endedAt = normalizeEventTs(e.endedAt || e.endTime || e.end);
+    const durationMs = Number.isFinite(e.durationMs) ? e.durationMs : (startedAt && endedAt && endedAt >= startedAt ? endedAt - startedAt : null);
+    merged.push({ ts, agent, text, type: e.type || 'system', source: e.source || 'eventdb', durationMs });
   });
 
   const dedup = new Map();
@@ -748,7 +869,26 @@ function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
     const key = `${e.agent.toLowerCase()}|${e.text.slice(0,90).toLowerCase()}|${Math.floor(e.ts / 60000)}`;
     if (!dedup.has(key)) dedup.set(key, e);
   }
-  let rows = Array.from(dedup.values());
+  return Array.from(dedup.values());
+}
+
+function formatDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
+  const body = document.getElementById('activity-timeline-24h-body');
+  const meta = document.getElementById('activity-timeline-24h-meta');
+  if (!body || !meta) return;
+
+  const now = Date.now();
+  const typeColors = { wr:'#3b82f6', agent:'#22c55e', commit:'#a78bfa', system:'#f59e0b' };
+  let rows = normalizeActivityTimelineEvents(activityItems, agentEvents, now);
 
   if (activityAgentFilter) rows = rows.filter(r => r.agent === activityAgentFilter);
 
@@ -775,13 +915,26 @@ function renderActivityTimeline24h(activityItems = [], agentEvents = []) {
     const entries = groups[name];
     const lastTs = entries[0]?.ts;
     const lastAgo = lastTs ? timeAgo(new Date(lastTs)) : '';
+    const latest = entries[0]?.ts || now;
+    const earliest = entries[entries.length - 1]?.ts || latest;
+    const spanMs = Math.max(1, now - (now - 24 * 3600000));
+    const ticks = ['24h ago', '18h', '12h', '6h', 'now'].map((label, i) => `<span style="left:${i * 25}%">${label}</span>`).join('');
+    const bars = entries.map(e => {
+      const pct = Math.max(0, Math.min(100, ((e.ts - (now - 24 * 3600000)) / spanMs) * 100));
+      const durPct = e.durationMs ? Math.max(1.2, Math.min(18, (e.durationMs / spanMs) * 100)) : 1.2;
+      const color = typeColors[e.type] || '#64748b';
+      const stamp = new Date(e.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      const dur = formatDuration(e.durationMs);
+      return `<span class="activity-timeline-bar" style="left:${pct}%;width:${durPct}%;background:${color}" title="${esc(name)} · ${stamp}${dur ? ` · ${dur}` : ''} · ${esc(e.text)}"></span>`;
+    }).join('');
     const itemsHtml = entries.map(e => {
       const ago = timeAgo(new Date(e.ts));
       const color = typeColors[e.type] || '#64748b';
       const stamp = new Date(e.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-      return `<div class="activity-timeline-entry"><span class="dot" style="background:${color}"></span><div class="txt">${esc(e.text)}</div><span class="when" title="${stamp}">${ago}</span></div>`;
+      const dur = formatDuration(e.durationMs);
+      return `<div class="activity-timeline-entry"><span class="dot" style="background:${color}"></span><div class="txt">${esc(e.text)}</div>${dur ? `<span class="duration" title="Duration">${dur}</span>` : ''}<span class="when" title="${stamp}">${ago}</span></div>`;
     }).join('');
-    return `<div class="activity-timeline-agent"><div class="head"><span class="name">${esc(name)}</span><span class="ago">${lastAgo}</span></div><div class="entries">${itemsHtml}</div></div>`;
+    return `<div class="activity-timeline-agent"><div class="head"><span class="name">${esc(name)}</span><span class="ago">${lastAgo}</span></div><div class="activity-timeline-chart" aria-label="${esc(name)} activity timeline"><div class="ticks">${ticks}</div>${bars}</div><div class="entries">${itemsHtml}</div></div>`;
   }).join('');
 }
 
@@ -797,8 +950,12 @@ async function refreshActivity() {
     try {
       const er = await fetchWithTimeout(API + '/agent-events', {}, 8000);
       const ed = await er.json();
-      agentEvents = ed.events || [];
+      agentEvents = ed.events || ed.agentEvents || ed.data?.events || [];
     } catch {}
+    if (Gateway?.isConnected?.()) {
+      const derived = normalizeActivityTimelineEvents(items, agentEvents);
+      if (!agentEvents.length && derived.length) agentEvents = derived;
+    }
     activityEventCache = agentEvents;
 
     // Toast for new activity items
@@ -894,6 +1051,103 @@ async function submitWr() {
     setTimeout(() => msg.style.display = 'none', 4000);
   } finally { btn.disabled = false; btn.textContent = 'Create WR'; }
 }
+// ===== SESSION HISTORY =====
+let sessionHistoryCache = [];
+let sessionHistoryLoadedKey = '';
+
+function getSessionKey(agent) {
+  return agent?.sessionKey || agent?.key || agent?.id || agent?.sessionId || agent?.name || '';
+}
+
+function normalizeSessionHistoryItems(payload) {
+  const raw = payload?.messages || payload?.items || payload?.history || payload?.transcript || payload?.data?.messages || payload?.data?.items || [];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, index) => {
+    const role = String(item.role || item.type || item.kind || item.author || 'message').toLowerCase();
+    const toolName = item.toolName || item.name || item.function?.name || item.tool || '';
+    const content = item.content || item.text || item.message || item.output || item.input || item.summary || '';
+    const ts = normalizeEventTs(item.ts || item.timestamp || item.createdAt || item.updatedAt);
+    const isTool = role.includes('tool') || Boolean(toolName) || item.toolCall || item.toolResult;
+    return {
+      index,
+      role: isTool ? 'tool' : role,
+      label: isTool ? (toolName || 'tool') : role,
+      text: typeof content === 'string' ? content : JSON.stringify(content || item, null, 2),
+      ts,
+      raw: item,
+    };
+  });
+}
+
+function populateSessionOptions() {
+  const sel = document.getElementById('session-history-agent');
+  if (!sel) return;
+  const current = sel.value;
+  const options = (agentData || []).map(a => {
+    const key = getSessionKey(a);
+    if (!key) return '';
+    const label = `${a.name || key}${a.sessionType ? ` · ${a.sessionType}` : ''}`;
+    return `<option value="${esc(key)}"${key === current ? ' selected' : ''}>${esc(label)}</option>`;
+  }).filter(Boolean).join('');
+  sel.innerHTML = '<option value="">Select session…</option>' + options;
+}
+
+async function refreshSessionOptions() {
+  if (!agentData.length) await refreshAgents();
+  populateSessionOptions();
+}
+
+async function refreshSessionHistory() {
+  const sel = document.getElementById('session-history-agent');
+  const body = document.getElementById('session-history-body');
+  const meta = document.getElementById('session-history-meta');
+  if (!sel || !body || !meta) return;
+  const key = sel.value;
+  if (!key) { sessionHistoryCache = []; sessionHistoryLoadedKey = ''; meta.textContent = 'Select session'; body.textContent = 'Select an agent session to load history.'; return; }
+  body.innerHTML = '<div class="session-history-empty">Loading session history…</div>';
+  meta.textContent = 'Loading…';
+  const paths = [`${API}/sessions/${encodeURIComponent(key)}/history`, `${API}/session-history?sessionKey=${encodeURIComponent(key)}`, `${API}/history?sessionKey=${encodeURIComponent(key)}`];
+  const errors = [];
+  for (const path of paths) {
+    try {
+      const r = await fetchWithTimeout(path, {}, 10000);
+      const d = await r.json();
+      sessionHistoryCache = normalizeSessionHistoryItems(d);
+      sessionHistoryLoadedKey = key;
+      renderSessionHistory();
+      return;
+    } catch (e) {
+      errors.push(e.message || String(e));
+      if (Gateway?.isConnected?.() && (e.status === 401 || e.status === 403)) break;
+    }
+  }
+  sessionHistoryCache = [];
+  sessionHistoryLoadedKey = key;
+  meta.textContent = 'Unavailable';
+  body.innerHTML = `<div class="session-history-empty">No session history endpoint returned data for <b>${esc(key)}</b>. Agent Space did not add a backend/proxy; connect a Gateway that exposes session history to view transcripts.</div>`;
+}
+
+function renderSessionHistory() {
+  const body = document.getElementById('session-history-body');
+  const meta = document.getElementById('session-history-meta');
+  if (!body || !meta) return;
+  const q = String(document.getElementById('session-history-search')?.value || '').toLowerCase().trim();
+  const filter = document.getElementById('session-history-filter')?.value || 'all';
+  let rows = sessionHistoryCache || [];
+  if (filter !== 'all') rows = rows.filter(i => i.role.includes(filter) || i.label.toLowerCase().includes(filter));
+  if (q) rows = rows.filter(i => `${i.role} ${i.label} ${i.text}`.toLowerCase().includes(q));
+  meta.textContent = `${rows.length}/${sessionHistoryCache.length} items${sessionHistoryLoadedKey ? ` · ${sessionHistoryLoadedKey}` : ''}`;
+  if (!rows.length) {
+    body.innerHTML = '<div class="session-history-empty">No transcript items match the current filters.</div>';
+    return;
+  }
+  body.innerHTML = rows.map(i => {
+    const icon = i.role.includes('user') ? '👤' : i.role.includes('assistant') ? '🤖' : i.role.includes('tool') ? '🛠️' : '⚙️';
+    const stamp = i.ts ? new Date(i.ts).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    return `<article class="session-history-item ${esc(i.role)}"><div class="session-history-item-head"><span>${icon} ${esc(i.label)}</span><span>${stamp}</span></div><pre>${esc(i.text).slice(0, 6000)}</pre></article>`;
+  }).join('');
+}
+
 // ===== QUEUE ===== (extracted to tab-queue.js)
 // ===== MEMORY ===== (extracted to tab-memory.js)
 // ===== TOKENS + DAILY COST ===== (extracted to tab-tokens.js)
@@ -1031,6 +1285,7 @@ setInterval(() => {
       { icon:'📋', label:'Queue / WRs', action:()=>document.querySelector('[data-tab="queue"]')?.click(), hint:'tab' },
       { icon:'🧠', label:'Memory', action:()=>document.querySelector('[data-tab="memory"]')?.click(), hint:'tab' },
       { icon:'💰', label:'Tokens & Cost', action:()=>document.querySelector('[data-tab="tokens"]')?.click(), hint:'tab' },
+      { icon:'🧵', label:'Session History', action:()=>document.querySelector('[data-tab="sessions"]')?.click(), hint:'tab' },
       { icon:'📊', label:'Performance', action:()=>document.querySelector('[data-tab="performance"]')?.click(), hint:'tab' },
       { icon:'🔗', label:'Comm Graph', action:()=>document.querySelector('[data-tab="comm-graph"]')?.click(), hint:'tab' },
       { icon:'🌳', label:'Dependencies', action:()=>document.querySelector('[data-tab="dep-graph"]')?.click(), hint:'tab' },
@@ -1196,7 +1451,9 @@ function renderAgentCards() {
     const borderL = a.status === 'working' ? a.color : a.status === 'idle' ? 'var(--orange)' : a.status === 'error' ? 'var(--red)' : 'transparent';
     const cronInfo = a.cronStatus ? `<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.05);color:var(--dim);margin-left:4px">${a.cronStatus}</span>` : '';
     const durInfo = a.durationMs ? `<span style="font-size:9px;color:var(--dim);margin-left:4px" title="Last run duration">⏱${(a.durationMs/1000).toFixed(0)}s</span>` : '';
-    const type = a.cronJobId ? 'cron' : a.discovered ? 'visitor' : 'core';
+    const type = a.sessionType === 'cron' || a.cronJobId ? 'cron' : a.sessionType === 'persistent' || !a.discovered ? 'core' : 'visitor';
+    const sessionTypeLabel = esc(a.sessionType || type || 'unknown');
+    const lastActiveLabel = a.lastActivity ? new Date(a.lastActivity).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'unknown';
     // Live countdown for cron agents
     const nextRunHtml = a.nextRunAtMs ? (() => {
       const d = a.nextRunAtMs - Date.now();
@@ -1241,7 +1498,8 @@ function renderAgentCards() {
           </div>
         </div>
       </div>
-      <div class="agent-card-message" style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>${nextRunHtml ? `<div class="agent-card-next-run" style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div class="agent-card-spark" style="padding-left:50px">${sparkHtml}</div>` : ''}<div class="agent-card-activity-bar">${activityBar}</div>
+      <div class="agent-card-message" style="color:var(--text);line-height:1.4;font-size:11px;padding-left:50px">${msg}</div>
+      <div class="agent-card-meta-row" style="padding-left:50px;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;font-size:9px;color:var(--dim)"><span title="Session type">${sessionTypeLabel}</span><span>•</span><span title="Last active">Last active ${lastActiveLabel}</span>${a.source === 'gateway' ? '<span>•</span><span title="Loaded from Gateway API">Gateway API</span>' : ''}</div>${nextRunHtml ? `<div class="agent-card-next-run" style="padding-left:50px">${nextRunHtml}</div>` : ''}${sparkHtml ? `<div class="agent-card-spark" style="padding-left:50px">${sparkHtml}</div>` : ''}<div class="agent-card-activity-bar">${activityBar}</div>
     </div>`;
   }).join('');
     html += `</div></div>`;

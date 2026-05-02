@@ -10,6 +10,28 @@
 </head>
 <body>
 <div id="toast-container"></div>
+<div class="gateway-auth-overlay" id="gateway-auth-overlay" aria-live="polite">
+  <form class="gateway-auth-card" id="gateway-auth-form">
+    <div class="gateway-auth-eyebrow">OpenClaw Gateway</div>
+    <h2>Connect Agent Space</h2>
+    <p>Enter your Gateway URL and token. Credentials stay in this browser and every Gateway request uses the supplied bearer token.</p>
+    <label for="gateway-url-input">Gateway URL</label>
+    <input id="gateway-url-input" name="gatewayUrl" type="url" placeholder="http://127.0.0.1:18789" autocomplete="url" required>
+    <label for="gateway-token-input">Gateway token</label>
+    <input id="gateway-token-input" name="gatewayToken" type="password" placeholder="Paste token" autocomplete="off" required>
+    <fieldset class="gateway-auth-fieldset">
+      <legend>Storage</legend>
+      <label><input type="radio" name="gatewayPersistence" value="local" checked> Remember in this browser</label>
+      <label><input type="radio" name="gatewayPersistence" value="session"> This session only</label>
+      <label><input type="radio" name="gatewayPersistence" value="none"> Do not store</label>
+    </fieldset>
+    <div class="gateway-auth-actions">
+      <button type="submit" class="gateway-auth-primary">Validate & Connect</button>
+      <button type="button" class="gateway-auth-secondary" id="gateway-demo-dismiss">Use local demo/static mode</button>
+    </div>
+    <div class="gateway-auth-status" id="gateway-auth-status"></div>
+  </form>
+</div>
 <div class="help-overlay" id="help-overlay" onclick="this.classList.remove('visible')">
   <div class="help-box" onclick="event.stopPropagation()">
     <h2>⌨️ Keyboard Shortcuts</h2>
@@ -47,12 +69,14 @@
   <h1>Agent Space</h1>
   <span class="clock" id="clock"></span>
   <span class="live online" id="live-status"><span class="pulse"></span>LIVE</span>
+  <button class="gateway-connection-btn" id="gateway-connection-btn" type="button" title="Gateway connection" aria-label="Gateway connection">Gateway: local</button>
   <select id="tab-select" class="tab-select" onchange="switchTab(this.value)">
     <option value="office">🏢 Office</option>
     <option value="activity">📡 Activity</option>
     <option value="queue">📋 Queue</option>
     <option value="memory">🧠 Memory</option>
     <option value="tokens">💰 Tokens</option>
+    <option value="sessions">🧵 Sessions</option>
     <option value="performance">📊 Performance</option>
     <option value="comm-graph">🔗 Comm Graph</option>
     <option value="dep-graph">🌳 Dependencies</option>
@@ -125,6 +149,7 @@
   <button data-tab="queue" role="tab" aria-selected="false" aria-label="Work Queue">📋 Queue</button>
   <button data-tab="memory" role="tab" aria-selected="false" aria-label="Memory">🧠 Memory</button>
   <button data-tab="tokens" role="tab" aria-selected="false" aria-label="Token Usage">💰 Tokens</button>
+  <button data-tab="sessions" role="tab" aria-selected="false" aria-label="Session History">🧵 Sessions</button>
   <button data-tab="performance" role="tab" aria-selected="false" aria-label="Performance">📊 Performance</button>
   <button data-tab="comm-graph" role="tab" aria-selected="false" aria-label="Communication Graph">🔗 Comm Graph</button>
   <button data-tab="dep-graph" role="tab" aria-selected="false" aria-label="Dependencies">🌳 Dependencies</button>
@@ -284,6 +309,31 @@
       <span id="activity-timeline-24h-meta" style="font-size:10px;color:var(--dim)">Loading...</span>
     </div>
     <div id="activity-timeline-24h-body" style="margin-top:10px;font-size:11px;color:var(--dim)">Loading...</div>
+  </div>
+</div>
+
+<div class="tab" role="tabpanel" id="tab-sessions">
+  <div class="card session-history-card">
+    <div class="session-history-header">
+      <div>
+        <h3>🧵 Session History Viewer</h3>
+        <div class="sub">View transcripts and tool calls for any agent session via the configured Gateway token.</div>
+      </div>
+      <span id="session-history-meta" class="session-history-meta">Not loaded</span>
+    </div>
+    <div class="session-history-controls">
+      <select id="session-history-agent" onchange="refreshSessionHistory()"><option value="">Select session…</option></select>
+      <input id="session-history-search" type="search" placeholder="Search transcript text, role, or tool…" oninput="renderSessionHistory()">
+      <select id="session-history-filter" onchange="renderSessionHistory()">
+        <option value="all">All items</option>
+        <option value="user">User</option>
+        <option value="assistant">Assistant</option>
+        <option value="tool">Tool calls/results</option>
+        <option value="system">System</option>
+      </select>
+      <button class="agent-reset-btn" onclick="refreshSessionHistory()">Refresh</button>
+    </div>
+    <div id="session-history-body" class="session-history-body">Select an agent session to load history.</div>
   </div>
 </div>
 
@@ -487,6 +537,7 @@
 </div>
 
 <script src="tab-heatmap.js?v=20260323c"></script>
+<script src="gateway-client.js?v=20260428a"></script>
 <script src="app.js?v=20260325f"></script>
 <script src="alerts.js?v=20260327c"></script>
 <script src="live-logs.js?v=20260319c"></script>
@@ -506,6 +557,7 @@
     <button data-tab="activity" onclick="switchTab('activity');syncMobileNav('activity')"><span class="mob-icon">📡</span><span class="mob-label">Activity</span></button>
     <button data-tab="queue" onclick="switchTab('queue');syncMobileNav('queue')"><span class="mob-icon">📋</span><span class="mob-label">Queue</span></button>
     <button data-tab="tokens" onclick="switchTab('tokens');syncMobileNav('tokens')"><span class="mob-icon">💰</span><span class="mob-label">Tokens</span></button>
+    <button data-tab="sessions" onclick="switchTab('sessions');syncMobileNav('sessions')"><span class="mob-icon">🧵</span><span class="mob-label">Sessions</span></button>
     <button data-tab="performance" onclick="switchTab('performance');syncMobileNav('performance')"><span class="mob-icon">📊</span><span class="mob-label">Perf</span></button>
     <button data-tab="system" onclick="switchTab('system');syncMobileNav('system')"><span class="mob-icon">⚙️</span><span class="mob-label">System</span></button>
   </div>
